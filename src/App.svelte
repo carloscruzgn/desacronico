@@ -1,30 +1,36 @@
 <script lang="ts">
-  import { crear, type Anios, type EstadoClasico } from '../compartido/clasico'
+  import { crear } from '../compartido/clasico'
+  import { esCodigo, type Config } from '../compartido/protocolo'
+  import { controlLocal, type Controlador } from './lib/control'
   import { cargarAnios, guardarPartida, partidaGuardada } from './lib/datos'
+  import EnLinea from './lib/EnLinea.svelte'
   import Inicio from './lib/Inicio.svelte'
   import Mesa from './lib/Mesa.svelte'
   import Preparacion from './lib/Preparacion.svelte'
   import Reglas from './lib/Reglas.svelte'
 
-  let pantalla = $state<'inicio' | 'preparacion' | 'mesa'>('inicio')
+  // Un enlace de invitación (/?sala=ABCD) lleva directo a la partida en línea.
+  const invitacion = (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase()
+
+  let pantalla = $state<'inicio' | 'preparacion' | 'mesa' | 'enlinea'>(esCodigo(invitacion) ? 'enlinea' : 'inicio')
   let reglas = $state(false)
   let guardada = $state.raw(partidaGuardada())
 
-  // Lo necesario para montar la mesa; `n` cambia en cada partida para empezar de cero.
-  let partida = $state.raw<{ n: number; estado: EstadoClasico; nueva: boolean; anios: Anios } | null>(null)
-  let ultima: { nombres: string[]; ids: string[] } | null = null
+  // Lo necesario para montar la mesa local; `n` cambia en cada partida para empezar de cero.
+  let partida = $state.raw<{ n: number; control: Controlador } | null>(null)
+  let ultima: { nombres: string[]; ids: string[]; config: Config } | null = null
 
-  async function empezar(nombres: string[], ids: string[]) {
-    ultima = { nombres, ids }
-    const estado = crear(ids, nombres)
+  async function empezar(nombres: string[], ids: string[], config: Config) {
+    ultima = { nombres, ids, config }
+    const estado = crear(ids, nombres, config.opciones)
     guardarPartida(estado)
-    partida = { n: (partida?.n ?? 0) + 1, estado, nueva: true, anios: await cargarAnios() }
+    partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(estado, await cargarAnios()) }
     pantalla = 'mesa'
   }
 
   async function continuar() {
     if (!guardada) return
-    partida = { n: (partida?.n ?? 0) + 1, estado: guardada, nueva: false, anios: await cargarAnios() }
+    partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(guardada, await cargarAnios()) }
     pantalla = 'mesa'
   }
 
@@ -38,19 +44,20 @@
   <Inicio
     hayGuardada={!!guardada}
     onjugar={() => (pantalla = 'preparacion')}
+    onenlinea={() => (pantalla = 'enlinea')}
     oncontinuar={continuar}
     onreglas={() => (reglas = true)}
   />
 {:else if pantalla === 'preparacion'}
   <Preparacion onvolver={() => (pantalla = 'inicio')} onempezar={empezar} />
+{:else if pantalla === 'enlinea'}
+  <EnLinea invitacion={esCodigo(invitacion) ? invitacion : ''} onsalir={salir} />
 {:else if partida}
   {#key partida.n}
     <Mesa
-      inicial={partida.estado}
-      nueva={partida.nueva}
-      anios={partida.anios}
+      control={partida.control}
       onsalir={salir}
-      onotra={() => (ultima ? empezar(ultima.nombres, ultima.ids) : (pantalla = 'preparacion'))}
+      onotra={() => (ultima ? empezar(ultima.nombres, ultima.ids, ultima.config) : (pantalla = 'preparacion'))}
     />
   {/key}
 {/if}

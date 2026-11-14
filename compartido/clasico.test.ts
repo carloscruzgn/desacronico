@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cabe, crear, jugar, minimoCartas, type Anios, type EstadoClasico } from './clasico'
+import { abandonar, cabe, crear, jugar, lugarCorrecto, minimoCartas, OPCIONES, vistaDe, type Anios, type EstadoClasico } from './clasico'
 
 // Cartas «a1900»… cuyo año va en el propio id.
 const anios: Anios = {}
@@ -13,6 +13,7 @@ const sinAzar = () => 0.999999 // barajar deja la lista como está
 function estado(manos: string[][], cronologia: string[], mazo: string[] = []): EstadoClasico {
   return {
     modo: 'clasico',
+    opciones: { ...OPCIONES },
     mazo,
     descartes: [],
     cronologia,
@@ -26,7 +27,7 @@ function estado(manos: string[][], cronologia: string[], mazo: string[] = []): E
 
 describe('modo clásico', () => {
   it('reparte cuatro cartas a cada jugador y abre la cronología', () => {
-    const e = crear(ids, ['Ana', 'Luis', 'Eva'], sinAzar)
+    const e = crear(ids, ['Ana', 'Luis', 'Eva'], OPCIONES, sinAzar)
     expect(e.jugadores.map((j) => j.mano.length)).toEqual([4, 4, 4])
     expect(e.cronologia).toHaveLength(1)
     expect(e.mazo).toHaveLength(ids.length - 13)
@@ -97,6 +98,49 @@ describe('modo clásico', () => {
     ;({ estado: e, resultado: r } = jugar(e, anios, e.jugadores[1].mano[0], e.cronologia.length))
     expect(r.finRonda).toBe(true)
     expect(e.ganadores).toEqual([1])
+  })
+
+  it('reparte el número de cartas elegido', () => {
+    const e = crear(ids, ['Ana', 'Luis'], { cartasIniciales: 6, alFallar: 'descartar' }, sinAzar)
+    expect(e.jugadores.map((j) => j.mano.length)).toEqual([6, 6])
+    expect(() => crear(ids, ['Ana'], { cartasIniciales: 1, alFallar: 'descartar' })).toThrow()
+    expect(minimoCartas(3, 6)).toBe(20)
+  })
+
+  it('con la opción de recolocar, la carta fallada queda en su sitio y se roba igual', () => {
+    const inicio = estado([['a1015', 'a1001'], ['a1002']], ['a1005', 'a1010', 'a1020'], ['a1030'])
+    inicio.opciones.alFallar = 'recolocar'
+    expect(lugarCorrecto(inicio.cronologia, anios, 'a1015')).toBe(2)
+    const { estado: e, resultado: r } = jugar(inicio, anios, 'a1015', 0)
+    expect(r.acierto).toBe(false)
+    expect(r.recolocada).toBe(2)
+    expect(e.cronologia).toEqual(['a1005', 'a1010', 'a1015', 'a1020'])
+    expect(e.descartes).toEqual([])
+    expect(e.jugadores[0].mano).toEqual(['a1001', 'a1030'])
+    expect(e.jugadores[0].fallos).toBe(1)
+  })
+
+  it('quien abandona en su turno pasa el turno y sus cartas van a los descartes', () => {
+    const inicio = estado([['a1015'], ['a1002', 'a1003'], ['a1004']], ['a1010'])
+    const { estado: e } = abandonar(inicio, 0)
+    expect(e.jugadores[0].eliminado).toBe(true)
+    expect(e.descartes).toEqual(['a1015'])
+    expect(e.turno).toBe(1)
+    // Abandona el último de la ronda cuando le toca: se cierra la ronda y sigue el primero activo.
+    let f = estado([['a1015', 'a1016'], ['a1002', 'a1003']], ['a1010'])
+    ;({ estado: f } = jugar(f, anios, 'a1015', 1))
+    const { estado: g, cierre } = abandonar(f, 1)
+    expect(cierre.finRonda).toBe(true)
+    expect(g.turno).toBe(0)
+    expect(g.ronda).toBe(2)
+    // Fuera de su turno no cambia a quién le toca.
+    expect(abandonar(inicio, 2).estado.turno).toBe(0)
+  })
+
+  it('la vista para los jugadores no lleva el orden del mazo', () => {
+    const v = vistaDe(crear(ids, ['Ana'], OPCIONES, sinAzar))
+    expect('mazo' in v).toBe(false)
+    expect(v.nMazo).toBe(ids.length - 5)
   })
 
   it('un solo jugador gana al vaciar la mano', () => {

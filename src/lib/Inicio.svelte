@@ -7,10 +7,11 @@
   interface Props {
     hayGuardada: boolean
     onjugar: () => void
+    onenlinea: () => void
     oncontinuar: () => void
     onreglas: () => void
   }
-  let { hayGuardada, onjugar, oncontinuar, onreglas }: Props = $props()
+  let { hayGuardada, onjugar, onenlinea, oncontinuar, onreglas }: Props = $props()
 
   // Abanico decorativo: cinco cartas al azar, una de cada ámbito
   const abanico = ['comunicacion', 'social', 'cientifico', 'mujer', 'coria'].map(
@@ -34,10 +35,8 @@
     {#if hayGuardada}
       <button class="boton" onclick={oncontinuar}>Continuar partida</button>
     {/if}
-    <button class="boton" class:secundario={hayGuardada} onclick={onjugar}>
-      {hayGuardada ? 'Partida nueva' : 'Jugar'}
-    </button>
-    <button class="boton secundario" disabled>Partida en línea · pronto</button>
+    <button class="boton" class:secundario={hayGuardada} onclick={onjugar}>En este dispositivo</button>
+    <button class="boton" class:secundario={hayGuardada} onclick={onenlinea}>En línea</button>
     <button class="boton secundario" onclick={onreglas}>Reglamento</button>
   </nav>
 
