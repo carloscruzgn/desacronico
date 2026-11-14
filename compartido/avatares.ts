@@ -10,7 +10,7 @@ export const SERIES_AVATARES = {
   },
   social: {
     rey: 'Rey',
-    indigena: 'Señor mexica',
+    soldado: 'Soldado de la II Guerra Mundial',
     faraona: 'Faraona',
   },
   cientifico: {
@@ -20,7 +20,7 @@ export const SERIES_AVATARES = {
   },
   mujer: {
     sufragista: 'Sufragista',
-    montehermoso: 'Mujer de Montehermoso',
+    aviadora: 'Aviadora',
     filosofa: 'Filósofa de Alejandría',
   },
   coria: {
