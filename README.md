@@ -18,7 +18,7 @@ npm run dev
 - `compartido/`: datos y reglas que usan a la vez la web y el servidor. `cartas.json` no lleva años; van aparte en `anios.json`.
 - `worker/`: el servidor de partidas.
 - `public/cartas/`: las 323 ilustraciones, extraídas del PDF de impresión original.
-- `public/avatares/`: las monedas de los jugadores (14 personajes con cuatro gestos), generadas con un modelo de imagen y recortadas a 256 px.
+- `public/avatares/`: las monedas de los jugadores (14 personajes con cuatro gestos), de línea y color, generadas con un modelo de imagen y recortadas a 256 px.
 - `public/fuentes/`: la tipografía IM FELL English (SIL Open Font License 1.1).
 
 ## Publicación
