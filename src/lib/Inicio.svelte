@@ -16,6 +16,9 @@
   }
   let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas }: Props = $props()
 
+  // En un ordenador o en la pizarra del aula no se habla de «móvil».
+  const aparato = typeof matchMedia === 'function' && !matchMedia('(pointer: coarse)').matches ? 'ordenador' : 'móvil'
+
   // Abanico decorativo: cinco cartas al azar, una de cada ámbito
   const abanico = ['comunicacion', 'social', 'cientifico', 'mujer', 'coria'].map(
     (a) => barajar(cartas.filter((c) => c.ambito === a))[0],
@@ -37,7 +40,7 @@
   <nav aria-label="Menú">
     {#if hayGuardada}
       <button class="entrada" class:principal={true} onclick={oncontinuar}>
-        <span><b>Continuar partida</b><small>La que quedó a medias en este móvil</small></span>
+        <span><b>Continuar partida</b><small>La que quedó a medias en este {aparato}</small></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     {/if}
@@ -48,7 +51,7 @@
       </button>
     {/if}
     <button class="entrada" class:principal={!hayGuardada} onclick={onjugar}>
-      <span><b>Jugar en este móvil</b><small>Solo o por turnos, pasándose el móvil</small></span>
+      <span><b>Jugar en este {aparato}</b><small>{aparato === 'móvil' ? 'Solo o por turnos, pasándose el móvil' : 'Solo o por turnos, en la misma pantalla'}</small></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <button class="entrada" onclick={onenlinea}>
@@ -79,7 +82,7 @@
   }
 
   .abanico {
-    --ancho: min(30vw, 150px, 21dvh);
+    --ancho: min(30vw, 150px, 17dvh);
     position: relative;
     width: 100%;
     height: calc(var(--ancho) * 1.85);

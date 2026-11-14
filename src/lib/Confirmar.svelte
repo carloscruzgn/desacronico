@@ -24,9 +24,9 @@
 />
 
 <div class="velo" transition:fade={{ duration: dura(160) }} onclick={(e) => e.target === e.currentTarget && onno()} role="presentation">
-  <div class="caja" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-titulo" use:dialogo in:scale={{ duration: dura(220), start: 0.9 }}>
+  <div class="caja" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-titulo" aria-describedby={texto ? 'confirmar-texto' : undefined} use:dialogo in:scale={{ duration: dura(220), start: 0.9 }}>
     <h2 id="confirmar-titulo">{titulo}</h2>
-    {#if texto}<p>{texto}</p>{/if}
+    {#if texto}<p id="confirmar-texto">{texto}</p>{/if}
     <div class="acciones">
       <button class="boton secundario" data-foco onclick={onno}>{no}</button>
       <button class="boton" onclick={onsi}>{si}</button>

@@ -14,9 +14,10 @@
   type Pantalla = 'inicio' | 'preparacion' | 'mesa' | 'enlinea'
 
   // Un enlace de invitación (/?sala=ABCD) lleva directo a la partida en línea.
-  const invitacion = (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase()
+  const deLaDireccion = (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase()
+  let invitacion = $state(esCodigo(deLaDireccion) ? deLaDireccion : '')
 
-  let pantalla = $state<Pantalla>(esCodigo(invitacion) ? 'enlinea' : 'inicio')
+  let pantalla = $state<Pantalla>(esCodigo(deLaDireccion) ? 'enlinea' : 'inicio')
   let reglas = $state(false)
   let guardada = $state.raw(partidaGuardada())
   let sala = $state(salaGuardada())
@@ -41,6 +42,9 @@
     guardada = partidaGuardada()
     sala = salaGuardada()
     directo = false
+    // La invitación del enlace vale una vez: de vuelta en el menú ya no se recuerda.
+    invitacion = ''
+    if (location.search) history.replaceState(history.state, '', '/')
     pantalla = 'inicio'
   }
   function abrirReglas() {
@@ -100,7 +104,7 @@
 {:else if pantalla === 'preparacion'}
   <Preparacion hayGuardada={!!guardada} onvolver={volver} onempezar={empezar} />
 {:else if pantalla === 'enlinea'}
-  <EnLinea invitacion={esCodigo(invitacion) ? invitacion : ''} {directo} onsalir={volver} />
+  <EnLinea {invitacion} {directo} onsalir={volver} />
 {:else if partida}
   {#key partida.n}
     <Mesa

@@ -1,6 +1,6 @@
 <script lang="ts">
   // Partida en línea: primero nombre y sala (crear o unirse); después, la sala de espera y la mesa.
-  import { onDestroy } from 'svelte'
+  import { onDestroy, tick } from 'svelte'
   import qrcode from 'qrcode-generator'
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import { esCodigo } from '../../compartido/protocolo'
@@ -29,6 +29,7 @@
   let copiado = $state(false)
   let enlaceALaVista = $state(false)
   let confirmaSalida = $state(false)
+  let quitando = $state<number | null>(null)
 
   const sala = $derived(conexion?.sala ?? null)
   const anfitrion = $derived(sala?.tu === 0)
@@ -44,6 +45,14 @@
   const minimo = $derived(sala ? minimoCartas(sala.jugadores.length, sala.config.opciones.cartasIniciales) : 0)
 
   onDestroy(() => conexion?.cerrar())
+
+  // Al pasar del formulario a la sala y de la sala a la mesa, el foco va al título de la pantalla nueva.
+  let primera = true
+  $effect(() => {
+    void [!!conexion, sala?.fase, sala?.partida]
+    if (primera) return void (primera = false)
+    tick().then(() => document.querySelector<HTMLElement>('[data-titulo]')?.focus({ preventScroll: true }))
+  })
 
   // Al recargar la página en mitad de una partida se vuelve a entrar sin preguntar.
   // svelte-ignore state_referenced_locally
@@ -162,7 +171,7 @@
   </main>
 {:else if !sala}
   <main class="centro">
-    <p class="ayuda">{conexion.estado === 'cerrada' ? conexion.error || 'No se pudo entrar en la sala.' : 'Conectando…'}</p>
+    <p class="ayuda" tabindex="-1" data-titulo>{conexion.estado === 'cerrada' ? conexion.error || 'No se pudo entrar en la sala.' : 'Conectando…'}</p>
     <button class="boton secundario" onclick={() => salir(false)}>Volver</button>
   </main>
 {:else if sala.fase === 'sala'}
@@ -190,7 +199,7 @@
           {#if i === 0}<small>anfitrión</small>{/if}
           {#if !j.conectado}<small>desconectado</small>{/if}
           {#if anfitrion && i > 0}
-            <button class="quitar" aria-label="Quitar a {j.nombre}" onclick={() => conexion!.enviar({ t: 'quitar', jugador: i })}>×</button>
+            <button class="quitar" aria-label="Quitar a {j.nombre}" onclick={() => (quitando = i)}>×</button>
           {/if}
         </li>
       {/each}
@@ -232,10 +241,20 @@
   <div class="estado" role="status">
     <span>{conexion.estado === 'cerrada' ? conexion.error || 'Conexión cerrada.' : 'Sin conexión. Reconectando…'}</span>
     {#if conexion.estado === 'cerrada'}
-      <button class="enlace" onclick={reentrar}>Seguir aquí</button>
+      <button class="enlace" onclick={reentrar}>{conexion.error.includes('otra pestaña') ? 'Seguir aquí' : 'Reintentar'}</button>
     {/if}
     <button class="enlace" onclick={() => salir(false)}>Salir</button>
   </div>
+{/if}
+
+{#if quitando !== null && sala?.jugadores[quitando]}
+  <Confirmar
+    titulo="¿Quitar a {sala.jugadores[quitando].nombre} de la sala?"
+    texto="Podrá volver a entrar con el código."
+    si="Quitar"
+    onsi={() => (conexion!.enviar({ t: 'quitar', jugador: quitando! }), (quitando = null))}
+    onno={() => (quitando = null)}
+  />
 {/if}
 
 {#if confirmaSalida && sala}
@@ -410,8 +429,8 @@
   .lista li.ausente { opacity: 0.55; }
   .lista .quitar {
     margin-left: auto;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border: 0;
     background: none;
     font-size: 1.4rem;
@@ -426,14 +445,17 @@
 
   .estado {
     position: fixed;
-    left: 50%;
+    left: 12px;
+    right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom));
-    translate: -50%;
+    width: fit-content;
+    margin-inline: auto;
     z-index: 50;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
-    max-width: calc(100vw - 24px);
+    justify-content: center;
+    gap: 0 4px;
     padding: 2px 8px 2px 16px;
     border-radius: 24px;
     background: var(--fallo);

@@ -72,6 +72,26 @@
   /** Entró con la partida empezada: ve la mesa pero no juega. */
   const mirando = asiento === null
   const miTurno = $derived(!fin && (local || asiento === vista.turno))
+  /** El anfitrión lo quitó de esta partida: sigue en la mesa, pero solo mira. */
+  const fuera = $derived(typeof asiento === 'number' && !!vista.jugadores[asiento]?.eliminado && !fin)
+
+  // Con muchos jugadores la lista no cabe: se lleva a la vista la ficha de quien tiene el turno.
+  $effect(() => {
+    const c = chips[vista.turno]
+    const lista = c?.parentElement
+    if (c && lista) lista.scrollTo({ left: c.offsetLeft - lista.offsetLeft - lista.clientWidth / 2 + c.offsetWidth / 2, behavior: desplazamiento() })
+  })
+
+  /** Con teclado, las flechas llevan de la carta elegida a los huecos y de un hueco a otro. */
+  function flechas(e: KeyboardEvent) {
+    if (!puedeColocar || ampliada || reglas || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
+    const huecos = [...cronoEl.querySelectorAll<HTMLElement>('.hueco')]
+    const i = huecos.indexOf(document.activeElement as HTMLElement)
+    const paso = e.key === 'ArrowLeft' ? -1 : 1
+    const destino = i < 0 ? (paso < 0 ? huecos.length - 1 : 0) : Math.max(0, Math.min(huecos.length - 1, i + paso))
+    e.preventDefault()
+    huecos[destino]?.focus()
+  }
   const puedeColocar = $derived(!!seleccionada && !ocupado && miTurno)
   const nombreTurno = $derived(vista.jugadores[vista.turno]?.nombre ?? '')
   const espera = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -170,7 +190,8 @@
       }
       await espera(350)
     }
-    if (!fin && !solo) await anunciar(asiento === v.turno ? 'Empiezas tú' : `Turno de ${v.jugadores[v.turno].nombre}`, 1000)
+    if (!fin && !solo && !fuera)
+      await anunciar(asiento === v.turno ? (sinEmpezar ? 'Empiezas tú' : 'Tu turno') : `Turno de ${v.jugadores[v.turno].nombre}`, 1000)
     ocupado = false
   }
 
@@ -320,6 +341,13 @@
     recuperarFoco()
   }
 
+  /** Cierra el panel final. El foco no puede volver al hueco de la última jugada, que ya no está a la vista. */
+  async function cerrarFin() {
+    verFin = false
+    await tick()
+    manoEl?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
+  }
+
   function nombres(g: number[]) {
     return g.map((i) => vista.jugadores[i].nombre).join(' y ')
   }
@@ -328,6 +356,7 @@
 <svelte:window
   onkeydown={(e) => {
     tecleando = true
+    flechas(e)
     if (e.key === 'Escape' && !reglas && quitando === null) (ampliada = null), (seleccionada = null)
   }}
   onpointerdown={() => (tecleando = false)}
@@ -379,7 +408,7 @@
           <span class="nombre">{j.nombre}{i === asiento ? ' (tú)' : ''}</span>
           {#if conectados && !conectados[i]}<span class="sr-only">, sin conexión</span>{/if}
           {#if j.eliminado}<span class="sr-only">, eliminado</span>{/if}
-          <span class="cartas">{cuentas[i]}<span class="sr-only"> cartas</span></span>
+          <span class="cartas">{cuentas[i]}<span class="sr-only">{cuentas[i] === 1 ? ' carta' : ' cartas'}</span></span>
         </li>
       {/each}
     </ul>
@@ -427,7 +456,7 @@
         <p class="texto" in:fade={{ duration: dura(180) }}>{@html porId[seleccionada].texto}</p>
       {/key}
       <p class="pista">
-        {#if miTurno}¿Antes o después? Toca el hueco <b>+</b> donde creas que va{:else if mirando}Estás mirando la partida{:else}Espera tu turno{/if}
+        {#if miTurno}¿Antes o después? Toca el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else}Espera tu turno{/if}
         <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
       </p>
     {:else if !ocupado && miTurno}
@@ -440,6 +469,8 @@
           {nombreTurno} se ha desconectado. Esperando a que vuelva…
           {#if anfitrion}<button class="enlace" onclick={() => (quitando = vista.turno)}>Quitar de la partida</button>{/if}
         </p>
+      {:else if fuera}
+        <p class="pista">Ya no juegas esta partida, pero puedes seguir mirándola. Podrás jugar en la siguiente.</p>
       {:else if mirando}
         <p class="pista">Estás mirando: la partida ya había empezado. Podrás jugar en la siguiente.</p>
       {/if}
@@ -532,7 +563,7 @@
         {:else}
           <p class="corona">El anfitrión puede empezar otra partida.</p>
         {/if}
-        <button class="boton secundario" onclick={() => (verFin = false)}>Ver la cronología</button>
+        <button class="boton secundario" onclick={cerrarFin}>Ver la cronología</button>
       </div>
     </div>
   </div>
@@ -558,6 +589,8 @@
     padding: calc(10px + env(safe-area-inset-top)) 18px 4px 12px;
   }
   .titulo {
+    min-width: 0;
+    overflow: hidden;
     font-size: 1.5rem;
     margin-right: auto;
   }
@@ -783,7 +816,7 @@
 
   /* Texto de la carta elegida y pistas */
   .leyenda {
-    min-height: 112px;
+    min-height: 136px;
     padding: 4px 16px 0;
     display: flex;
     flex-direction: column;
@@ -798,6 +831,7 @@
     text-wrap: balance;
   }
   .pista {
+    text-wrap: balance;
     color: var(--gris-claro);
     font-style: italic;
     font-size: 0.95rem;
