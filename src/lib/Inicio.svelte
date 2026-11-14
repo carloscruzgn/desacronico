@@ -41,30 +41,30 @@
   <nav aria-label="Menú">
     {#if hayGuardada}
       <button class="entrada" class:principal={true} onclick={oncontinuar}>
-        <span><b>Continuar partida</b><small>La que quedó a medias en este {aparato}</small></span>
+        <span><b>Continuar partida</b></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     {/if}
     {#if sala}
       <button class="entrada" onclick={onsala}>
-        <span><b>Volver a la sala {sala}</b><small>La partida en línea que dejaste abierta</small></span>
+        <span><b>Volver a la sala {sala}</b></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     {/if}
     <button class="entrada" class:principal={!hayGuardada} onclick={onjugar}>
-      <span><b>Jugar en este {aparato}</b><small>{aparato === 'móvil' ? 'Solo o por turnos, pasándose el móvil' : 'Solo o por turnos, en la misma pantalla'}</small></span>
+      <span><b>Jugar en este {aparato}</b></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <button class="entrada" onclick={onenlinea}>
-      <span><b>Jugar en línea</b><small>Cada jugador en su móvil, con un código</small></span>
+      <span><b>Jugar en línea</b></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <div class="pareja">
       <button class="entrada" onclick={ontutorial}>
-        <span><b>Cómo se juega</b><small>Tutorial animado</small></span>
+        <span><b>Cómo se juega</b></span>
       </button>
       <button class="entrada" onclick={onreglas}>
-        <span><b>Reglamento</b><small>Y quién lo hizo</small></span>
+        <span><b>Reglamento</b></span>
       </button>
     </div>
   </nav>
@@ -140,7 +140,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    min-height: 64px;
+    min-height: 58px;
     padding: 10px 12px 10px 18px;
     border: 1px solid rgb(235 233 217 / 0.3);
     border-radius: 12px;
@@ -159,11 +159,6 @@
   }
   .entrada b {
     font-size: 1.2rem;
-    line-height: 1.2;
-  }
-  .entrada small {
-    color: var(--gris-claro);
-    font-size: 0.95rem;
     line-height: 1.2;
   }
   .entrada svg {
@@ -185,7 +180,6 @@
       0 2px 0 #b9b6a0,
       0 8px 18px rgb(0 0 0 / 0.35);
   }
-  .entrada.principal small { color: #55544c; }
 
   .pareja {
     display: grid;

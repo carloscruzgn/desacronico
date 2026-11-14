@@ -1,7 +1,8 @@
 <script lang="ts">
   // Elegir personaje: las monedas disponibles, en una hoja de papel.
   import { fade, fly } from 'svelte/transition'
-  import { AVATARES, IDS_AVATARES } from '../../compartido/avatares'
+  import { SERIES_AVATARES } from '../../compartido/avatares'
+  import { AMBITOS, type Ambito } from '../../compartido/tipos'
   import BotonIcono from './BotonIcono.svelte'
   import { dialogo } from './dialogo'
   import Moneda from './Moneda.svelte'
@@ -25,13 +26,18 @@
     <h2 id="avatares-titulo">Elige tu moneda</h2>
     <BotonIcono icono="cerrar" etiqueta="Cerrar" sobrePapel onclick={oncerrar} />
   </header>
-  <div class="rejilla">
-    {#each IDS_AVATARES as id (id)}
-      {@const cogido = ocupados.includes(id) && id !== actual}
-      <button class:actual={id === actual} disabled={cogido} aria-pressed={id === actual} data-foco={id === actual ? '' : undefined} onclick={() => onelegir(id)}>
-        <Moneda avatar={id} gesto={id === actual ? 'gana' : 'normal'} />
-        <span>{AVATARES[id]}{#if cogido}<small> (cogida)</small>{/if}</span>
-      </button>
+  <div class="series">
+    {#each Object.entries(SERIES_AVATARES) as [serie, personajes] (serie)}
+      <h3 class={serie}>{AMBITOS[serie as Ambito]}</h3>
+      <div class="rejilla">
+        {#each Object.entries(personajes) as [id, nombre] (id)}
+          {@const cogido = ocupados.includes(id) && id !== actual}
+          <button class:actual={id === actual} disabled={cogido} aria-pressed={id === actual} data-foco={id === actual ? '' : undefined} onclick={() => onelegir(id)}>
+            <Moneda avatar={id} gesto={id === actual ? 'gana' : 'normal'} />
+            <span>{nombre}{#if cogido}<small> (cogida)</small>{/if}</span>
+          </button>
+        {/each}
+      </div>
     {/each}
   </div>
 </div>
@@ -69,13 +75,38 @@
     margin: 0;
     font-size: 1.5rem;
   }
-  .rejilla {
-    --lado: min(19vw, 84px);
+  .series {
     overflow-y: auto;
+    padding: 4px 14px calc(18px + env(safe-area-inset-bottom));
+  }
+  /* cada serie, con una raya de su color */
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 8px;
+    font-family: var(--fell-sc);
+    font-weight: normal;
+    font-size: 1.1rem;
+  }
+  h3::before {
+    content: '';
+    width: 14px;
+    height: 20px;
+    border-radius: 2px;
+    background: var(--serie);
+    box-shadow: 0 0 0 1px rgb(29 29 27 / 0.4);
+  }
+  h3.comunicacion { --serie: var(--comunicacion); }
+  h3.social { --serie: var(--social); }
+  h3.cientifico { --serie: var(--cientifico); }
+  h3.mujer { --serie: var(--mujer); }
+  h3.coria { --serie: var(--coria); }
+  .rejilla {
+    --lado: min(20vw, 84px);
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(calc(var(--lado) + 8px), 1fr));
-    gap: 14px 4px;
-    padding: 16px 12px calc(20px + env(safe-area-inset-bottom));
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
   }
   button {
     display: grid;

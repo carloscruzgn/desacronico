@@ -1,4 +1,5 @@
 // Conexión con una sala en línea: WebSocket con reconexión automática.
+import { esAvatar } from '../../compartido/avatares'
 import type { Resultado } from '../../compartido/clasico'
 import type { DelCliente, DelServidor, Sala } from '../../compartido/protocolo'
 import type { Controlador, Suceso } from './control'
@@ -28,7 +29,7 @@ function miId(): string {
 const idDeSesion = miId()
 
 export const nombreGuardado = () => guardado('desacronico.nombre')
-export const avatarGuardado = () => guardado('desacronico.avatar')
+export const avatarGuardado = () => (esAvatar(guardado('desacronico.avatar')) ? guardado('desacronico.avatar') : '')
 export const guardarAvatar = (a: string) => guardar('desacronico.avatar', a)
 export const salaGuardada = () => guardado('desacronico.sala')
 export const olvidarSala = () => guardar('desacronico.sala', '')

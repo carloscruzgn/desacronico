@@ -82,9 +82,10 @@
     line-height: 1.35;
     text-align: center;
   }
-  .pierde img,
+  /* Las imágenes de la moneda perdedora ya vienen apagadas; se remata con un punto menos de color. */
+  .pierde img { filter: saturate(0.7); }
   .pierde .inicial {
-    filter: saturate(0.6) brightness(0.92);
+    filter: saturate(0.4) brightness(0.9);
   }
 
   @media (prefers-reduced-motion: reduce) {

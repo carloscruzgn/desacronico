@@ -1,30 +1,42 @@
-// Personajes entre los que cada jugador elige su moneda. El id es también el nombre de sus imágenes
-// (public/avatares/<id>-<gesto>.webp).
+// Personajes entre los que cada jugador elige su moneda: tres por cada serie de cartas, con el fondo
+// del color de la serie. El id es también el nombre de sus imágenes (public/avatares/<id>-<gesto>.webp).
+import type { Ambito } from './tipos'
 
-export const AVATARES = {
-  escritor: 'Escritor del Siglo de Oro',
-  montehermoso: 'Mujer de Montehermoso',
-  cientifica: 'Científica',
-  rey: 'Rey',
-  indigena: 'Señor mexica',
-  filosofa: 'Filósofa de Alejandría',
-  monje: 'Monje copista',
-  navegante: 'Navegante',
-  sufragista: 'Sufragista',
-  astronomo: 'Astrónomo andalusí',
-  faraona: 'Faraona',
-  legionario: 'Legionario romano',
-  ilustrada: 'Dama ilustrada',
-  astronauta: 'Astronauta',
-} as const
+export const SERIES_AVATARES = {
+  comunicacion: {
+    escritor: 'Escritor del Siglo de Oro',
+    monje: 'Monje copista',
+    ilustrada: 'Dama ilustrada',
+  },
+  social: {
+    rey: 'Rey',
+    indigena: 'Señor mexica',
+    faraona: 'Faraona',
+  },
+  cientifico: {
+    cientifica: 'Científica',
+    astronomo: 'Astrónomo andalusí',
+    astronauta: 'Astronauta',
+  },
+  mujer: {
+    sufragista: 'Sufragista',
+    montehermoso: 'Mujer de Montehermoso',
+    filosofa: 'Filósofa de Alejandría',
+  },
+  coria: {
+    obispo: 'Obispo',
+    aldeano: 'Aldeano',
+    corredor: 'Corredor de San Juan',
+  },
+} as const satisfies Record<Ambito, Record<string, string>>
 
-export type Avatar = keyof typeof AVATARES
-export const IDS_AVATARES = Object.keys(AVATARES) as Avatar[]
+export const AVATARES: Record<string, string> = Object.assign({}, ...Object.values(SERIES_AVATARES))
+export const IDS_AVATARES = Object.keys(AVATARES)
 
-export const esAvatar = (s: unknown): s is Avatar => typeof s === 'string' && s in AVATARES
+export const esAvatar = (s: unknown): s is string => typeof s === 'string' && Object.hasOwn(AVATARES, s)
 
 /** Un avatar que no esté ya cogido (o cualquiera, si no queda ninguno libre). */
-export function avatarLibre(usados: (string | undefined)[], azar: () => number = Math.random): Avatar {
+export function avatarLibre(usados: (string | undefined)[], azar: () => number = Math.random): string {
   const libres = IDS_AVATARES.filter((a) => !usados.includes(a))
   const entre = libres.length ? libres : IDS_AVATARES
   return entre[Math.floor(azar() * entre.length)]
