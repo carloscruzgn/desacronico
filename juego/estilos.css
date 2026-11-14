@@ -1,0 +1,184 @@
+@font-face { font-family: "Fell"; src: url("fuentes/im-fell-english-latin-400-normal.woff2") format("woff2"); font-style: normal; }
+@font-face { font-family: "Fell"; src: url("fuentes/im-fell-english-latin-400-italic.woff2") format("woff2"); font-style: italic; }
+@font-face { font-family: "Fell SC"; src: url("fuentes/im-fell-english-sc-latin-400-normal.woff2") format("woff2"); }
+
+:root {
+  /* colores tomados de las cartas impresas */
+  --papel: #ebe9d9;
+  --papel-2: #f5f4ea;
+  --tinta: #1d1d1b;
+  --gris: #797978;
+  --gris-claro: #c0c0c0;
+  --comunicacion: #ebe9d9;
+  --social: #000000;
+  --cientifico: #c9d5cb;
+  --mujer: #67598f;
+  --coria: #0e265c;
+  --antigua: #b46d7a;
+  --media: #9e9a67;
+  --moderna: #67b2ae;
+  --contemporanea: #4e56a1;
+  --acierto: #3d7a4a;
+  --fallo: #a63d3d;
+  --carta: 120px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: "Fell", "Times New Roman", serif;
+  background: var(--papel);
+  color: var(--tinta);
+  font-size: 18px;
+  line-height: 1.4;
+}
+button, select, input { font-family: inherit; font-size: 1rem; }
+button {
+  background: var(--tinta); color: var(--papel-2);
+  border: 0; border-radius: 4px; padding: .5em 1em; cursor: pointer;
+}
+button:hover:not(:disabled) { background: #444; }
+button:disabled { opacity: .35; cursor: default; }
+button.secundario { background: transparent; color: var(--tinta); border: 1px solid var(--tinta); }
+button.secundario:hover { background: rgba(0,0,0,.06); }
+button.grande { font-size: 1.2rem; padding: .7em 1.6em; }
+select, input[type=text], input[type=search] {
+  background: var(--papel-2); border: 1px solid var(--gris); border-radius: 4px; padding: .3em .5em; color: var(--tinta);
+}
+
+.pantalla { display: none; min-height: 100vh; }
+.pantalla.activa { display: flex; flex-direction: column; }
+
+/* portada */
+.portada { margin: auto; text-align: center; padding: 2rem 1rem; }
+.logo-juego { font-weight: normal; font-size: clamp(3rem, 10vw, 6rem); margin: 0; line-height: 1; }
+.logo-juego .des { color: var(--gris); }
+.logo-juego .a { color: var(--gris-claro); }
+.lema { font-style: italic; font-size: 1.3rem; margin: .4em 0 2em; }
+.menu { display: flex; flex-direction: column; gap: .6rem; width: min(360px, 90vw); margin: 0 auto; }
+.menu button { font-size: 1.15rem; padding: .7em 1em; }
+.menu hr { width: 100%; border: 0; border-top: 1px solid var(--gris-claro); margin: .6rem 0; }
+.autores { margin-top: 2.5rem; color: var(--gris); font-size: .95rem; }
+
+/* barra superior */
+.barra {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: .5rem 1rem; background: var(--tinta); color: var(--papel-2);
+}
+.barra h2 { font-family: "Fell SC", serif; font-weight: normal; margin: 0; font-size: 1.4rem; }
+.barra .volver { background: transparent; border: 1px solid var(--gris); }
+.barra .estado { margin-left: auto; font-size: .95rem; }
+.barra .tam { font-size: .85rem; display: flex; align-items: center; gap: .4em; }
+.barra .estado + .tam { margin-left: 0; }
+.barra h2 + .tam { margin-left: auto; }
+
+.contenido { padding: 1rem; width: 100%; }
+.estrecho { max-width: 860px; margin: 0 auto; }
+.ayuda { color: var(--gris); font-size: .95rem; margin: .3em 0; }
+.error { color: var(--fallo); min-height: 1.4em; }
+.fila { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin: .5rem 0; }
+h3 { font-family: "Fell SC", serif; font-weight: normal; font-size: 1.3rem; margin: 1.2em 0 .3em; }
+
+/* selección de ámbitos */
+.ambitos { display: flex; gap: .5rem; flex-wrap: wrap; }
+.ambito {
+  display: flex; align-items: center; gap: .4em; padding: .35em .8em; border-radius: 4px;
+  border: 2px solid var(--tinta); cursor: pointer; user-select: none;
+}
+.ambito input { margin: 0; }
+.ambito .muestra { width: 1em; height: 1em; border: 1px solid var(--gris); display: inline-block; }
+.nombres { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .5rem; }
+.nombres input { width: 100%; }
+
+/* cartas */
+.carta {
+  width: var(--carta); aspect-ratio: 554 / 766; border-radius: calc(var(--carta) * .04);
+  box-shadow: 0 1px 4px rgba(0,0,0,.35); background: #fff; display: block; flex: none;
+  position: relative; cursor: pointer; transition: transform .15s;
+}
+.carta img { width: 100%; height: 100%; display: block; border-radius: inherit; }
+.carta.seleccionada { transform: translateY(-14%); outline: 4px solid #e0a020; }
+.carta.tumbada { transform: rotate(90deg) scale(.72); opacity: .6; }
+.carta.nueva { outline: 4px solid var(--acierto); }
+.carta.mala { outline: 4px solid var(--fallo); }
+.carta .lupa {
+  position: absolute; right: 4%; bottom: 4%; width: 1.8em; height: 1.8em; padding: 0; border-radius: 50%;
+  background: rgba(0,0,0,.65); font-size: .8rem; line-height: 1.8em; text-align: center;
+}
+.carta-hueco { width: calc(var(--carta) * .55); aspect-ratio: 554 / 766; flex: none; }
+
+/* mesa */
+#mesa { --carta: 120px; }
+#mesa-cuerpo { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.zona { padding: .6rem 1rem; }
+.zona-titulo { font-family: "Fell SC", serif; font-size: 1.05rem; margin: 0 0 .3rem; color: var(--gris); }
+.cronologia {
+  display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 1.2rem .5rem 1rem;
+  background: var(--papel-2); border-radius: 6px; min-height: calc(var(--carta) * 1.6);
+}
+.hueco {
+  flex: none; width: 26px; align-self: stretch; border-radius: 4px; padding: 0; background: transparent;
+  border: 2px dashed transparent; color: transparent; font-size: 1.2rem;
+}
+.cronologia.colocando .hueco { border-color: #e0a020; color: #a77510; background: rgba(224,160,32,.12); width: 38px; }
+.cronologia.colocando .hueco:hover { background: rgba(224,160,32,.35); }
+.mensaje { padding: .5rem 1rem; min-height: 2.6em; font-size: 1.15rem; text-align: center; }
+.mensaje.acierto { color: var(--acierto); }
+.mensaje.fallo { color: var(--fallo); }
+.mano { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding: 1rem .5rem 1.4rem; min-height: calc(var(--carta) * 1.6); }
+.jugadores { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; padding: .3rem 1rem; }
+.jugador { padding: .2em .7em; border: 1px solid var(--gris-claro); border-radius: 4px; font-size: .95rem; }
+.jugador.turno { background: var(--tinta); color: var(--papel-2); border-color: var(--tinta); }
+.jugador.fuera { text-decoration: line-through; opacity: .5; }
+.acciones { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; padding: .3rem; }
+.pilas { display: flex; gap: 1.5rem; align-items: flex-end; justify-content: center; }
+.pila { text-align: center; font-size: .9rem; color: var(--gris); }
+.pila .vacia { width: var(--carta); aspect-ratio: 554/766; border: 2px dashed var(--gris-claro); border-radius: 6px; }
+
+/* cooperativo: cronología con línea adicional */
+.coop-crono { position: relative; overflow-x: auto; background: var(--papel-2); border-radius: 6px; padding: 1rem .5rem; }
+.coop-lienzo { position: relative; }
+.coop-lienzo .carta { position: absolute; }
+
+/* eras */
+.selecciones { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
+.seleccion { background: var(--papel-2); border-radius: 6px; padding: .5rem .8rem; }
+.seleccion h4 { margin: 0 0 .3rem; font-weight: normal; font-family: "Fell SC", serif; }
+.seleccion .cartas { display: flex; gap: 6px; flex-wrap: wrap; }
+.eras-botones { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; }
+.era-btn { border: 3px solid transparent; }
+.era-btn.elegida { border-color: #e0a020; }
+.tabla { border-collapse: collapse; margin: .5rem auto; }
+.tabla th, .tabla td { border-bottom: 1px solid var(--gris-claro); padding: .3em .8em; text-align: left; }
+.tabla td.num { text-align: right; }
+
+.cortina { margin: auto; text-align: center; padding: 2rem; }
+.cortina p { font-size: 1.3rem; }
+
+/* explorador */
+#explorar { --carta: 150px; }
+.rejilla { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; padding: 1rem 0; }
+.filtros { position: sticky; top: 0; background: var(--papel); z-index: 2; padding-bottom: .3rem; }
+
+/* textos largos */
+.texto h3 { margin-top: 1.6em; }
+.texto p { text-align: justify; hyphens: auto; }
+.texto .nota { background: var(--papel-2); border-left: 4px solid var(--gris); padding: .5em 1em; }
+.texto table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.texto td, .texto th { border-bottom: 1px solid var(--gris-claro); padding: .25em .4em; text-align: left; vertical-align: top; }
+
+/* ventana */
+.velo { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; z-index: 10; padding: 1rem; }
+.velo.oculto { display: none; }
+.ventana {
+  margin: auto; background: var(--papel); border-radius: 8px; padding: 1.2rem; max-width: 96vw; max-height: 96vh; overflow: auto;
+  text-align: center;
+}
+.ventana .caras { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.ventana .caras img { height: min(70vh, 560px); max-width: 44vw; object-fit: contain; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.ventana .caras.una img { max-width: 90vw; }
+.ventana h3 { margin-top: 0; }
+.ventana .botones { display: flex; gap: .6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+.ventana .resultado { font-size: 1.5rem; margin: .2rem 0 .6rem; }
+.ventana .resultado.acierto { color: var(--acierto); }
+.ventana .resultado.fallo { color: var(--fallo); }
