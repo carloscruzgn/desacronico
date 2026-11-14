@@ -21,7 +21,7 @@
       <div class="marca"><span><span class="des">des</span><span class="a">a</span>crónico</span></div>
       <div class="ilustracion">
         <img src={imagen} alt="" loading="lazy" draggable="false" />
-        <div class="pestana {carta.logoAnverso}"><img src="/img/cepa.png" alt="CEPA Coria" draggable="false" /></div>
+        <div class="pestana {carta.logoAnverso}"><img src="/img/cepa.svg" alt="CEPA Coria" draggable="false" /></div>
       </div>
       <div class="texto"><p>{@html carta.texto}</p></div>
     </div>
@@ -29,7 +29,7 @@
     <div class="cara reverso">
       <div class="ilustracion">
         <img src={imagen} alt="" loading="lazy" draggable="false" />
-        <div class="pestana {carta.logoReverso}"><img src="/img/cepa.png" alt="" draggable="false" /></div>
+        <div class="pestana {carta.logoReverso}"><img src="/img/cepa.svg" alt="" draggable="false" /></div>
       </div>
       <div class="banda {era ?? ''}">
         {#if fecha}{fecha.circa ? 'c. ' : ''}{fecha.anio}{/if}
@@ -144,7 +144,7 @@
     height: 15cqw;
   }
   .pestana img {
-    width: 66%;
+    width: 72%;
     height: auto;
   }
   .oscura .pestana img,
