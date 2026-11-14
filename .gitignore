@@ -1,0 +1,11 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+*.local
+*.log
+.DS_Store
+
+# Materiales de trabajo que no son la web: originales, extracción del PDF, pruebas
+_local
+.claude

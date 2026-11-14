@@ -1,31 +1,33 @@
-# desacrónico — versión digital
+# desacrónico
 
-Versión digital de *desacrónico*, el juego de cartas para hacer cronologías de Carlos Cruz González y Rodrigo Muñoz Martínez (CEPA de Coria, 2024).
+Versión web de *desacrónico*, el juego de cartas para hacer cronologías de Carlos Cruz González y Rodrigo Muñoz Martínez (CEPA de Coria, 2024).
 
-## Cómo jugar
+Las cartas se dibujan en el navegador con el diseño del juego impreso; las partidas en línea las lleva un Worker de Cloudflare con un Durable Object por partida.
 
-1. En esta página de GitHub, pulsa el botón verde **Code** y luego **Download ZIP**.
-2. Descomprime el archivo descargado.
-3. Abre la carpeta `juego` y haz doble clic en **`index.html`**.
+## Desarrollo
 
-El juego se abre en el navegador del ordenador (Chrome, Edge, Firefox o Safari). No necesita internet ni instalar nada, y funciona igual en Windows y en Mac. Se puede copiar la carpeta `juego` a un USB y llevarla a cualquier ordenador.
+```bash
+npm install
+```
 
-## Contenido
+```bash
+npm run dev
+```
 
-- `juego/`: el juego completo.
-  - `cartas/`: las dos caras de las 323 cartas, extraídas del PDF de impresión original.
-  - `datos.js`: año, texto, ámbito, era, posición del logo y crédito de cada carta.
-  - `textos.js`: el reglamento y los créditos.
-  - `juego.js`, `estilos.css`, `index.html`: el programa.
-  - `fuentes/`: la tipografía IM FELL English, con licencia SIL Open Font License.
-- `herramientas/extraer_cartas.py`: el programa que extrajo las cartas del PDF, por si hubiera que volver a generarlas.
+- `src/`: la web (Svelte + TypeScript). `src/lib/Carta.svelte` es la carta.
+- `compartido/`: datos y reglas que usan a la vez la web y el servidor. `cartas.json` no lleva años; van aparte en `anios.json`.
+- `worker/`: el servidor de partidas.
+- `public/cartas/`: las 323 ilustraciones, extraídas del PDF de impresión original.
+- `public/fuentes/`: la tipografía IM FELL English (SIL Open Font License 1.1).
 
-La carta de broma («Un buen ciego sienta las bases para desacrónico») no se incluye.
+## Publicación
+
+El repositorio está conectado a Cloudflare (Workers Builds): cada subida a `main` compila con `npm run build` y publica con `npx wrangler deploy`.
 
 ## Licencias
 
-La licencia MIT del archivo `LICENSE` cubre solo el código del programa. No se aplica a:
+La licencia MIT del archivo `LICENSE` cubre solo el código. No se aplica a:
 
-- **las cartas** (`juego/cartas/`): los textos y el diseño son de Carlos Cruz González y Rodrigo Muñoz Martínez, y las cartas impresas llevan el icono CC BY-SA;
-- **las imágenes de las cartas**, cada una de su autor o institución, según los créditos que figuran en el reverso;
-- **la tipografía** (`juego/fuentes/`), con licencia SIL Open Font License 1.1 (`juego/fuentes/OFL.txt`).
+- **las cartas**: los textos y el diseño son de Carlos Cruz González y Rodrigo Muñoz Martínez, con licencia CC BY-SA;
+- **las ilustraciones** (`public/cartas/`), cada una de su autor o institución, según los créditos de cada carta;
+- **la tipografía** (`public/fuentes/`), con licencia SIL Open Font License 1.1.
