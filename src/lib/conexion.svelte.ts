@@ -31,15 +31,24 @@ export const nombreGuardado = () => guardado('desacronico.nombre')
 export const salaGuardada = () => guardado('desacronico.sala')
 export const olvidarSala = () => guardar('desacronico.sala', '')
 
+/** Petición al servidor de partidas, con los fallos de red y del servidor dichos en cristiano. */
+async function pedir(ruta: string, opciones?: RequestInit): Promise<unknown> {
+  let r: Response
+  try {
+    r = await fetch(ruta, opciones)
+  } catch {
+    throw new Error('No hay conexión. Comprueba el wifi o los datos e inténtalo otra vez.')
+  }
+  if (!r.ok) throw new Error('El servidor no responde. Inténtalo otra vez dentro de un momento.')
+  return r.json()
+}
+
 export async function crearSala(): Promise<string> {
-  const r = await fetch('/api/partida', { method: 'POST' })
-  if (!r.ok) throw new Error('No se pudo crear la sala')
-  return ((await r.json()) as { codigo: string }).codigo
+  return ((await pedir('/api/partida', { method: 'POST' })) as { codigo: string }).codigo
 }
 
 export async function existeSala(codigo: string): Promise<boolean> {
-  const r = await fetch(`/api/partida/${codigo}`)
-  return r.ok && ((await r.json()) as { existe: boolean }).existe
+  return ((await pedir(`/api/partida/${codigo}`)) as { existe: boolean }).existe
 }
 
 export class Conexion {
@@ -97,6 +106,12 @@ export class Conexion {
       // Cierres definitivos: salida voluntaria, otra pestaña ocupa el sitio o la sala ha caducado.
       if (this.estado === 'cerrada' || ev.code === 1000 || ev.code === 4000 || ev.code === 1001) {
         if (ev.code === 4000) this.error = 'Has abierto la partida en otra pestaña.'
+        this.estado = 'cerrada'
+        return
+      }
+      // Tras muchos intentos seguidos se deja de insistir: la sala puede haber caducado.
+      if (this.intentos >= 8) {
+        this.error = 'No se puede conectar con la sala.'
         this.estado = 'cerrada'
         return
       }

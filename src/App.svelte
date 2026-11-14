@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import { crear } from '../compartido/clasico'
   import { esCodigo, type Config } from '../compartido/protocolo'
+  import { salaGuardada } from './lib/conexion.svelte'
   import { controlLocal, type Controlador } from './lib/control'
   import { cargarAnios, guardarPartida, partidaGuardada } from './lib/datos'
   import EnLinea from './lib/EnLinea.svelte'
@@ -9,59 +11,106 @@
   import Preparacion from './lib/Preparacion.svelte'
   import Reglas from './lib/Reglas.svelte'
 
+  type Pantalla = 'inicio' | 'preparacion' | 'mesa' | 'enlinea'
+
   // Un enlace de invitación (/?sala=ABCD) lleva directo a la partida en línea.
   const invitacion = (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase()
 
-  let pantalla = $state<'inicio' | 'preparacion' | 'mesa' | 'enlinea'>(esCodigo(invitacion) ? 'enlinea' : 'inicio')
+  let pantalla = $state<Pantalla>(esCodigo(invitacion) ? 'enlinea' : 'inicio')
   let reglas = $state(false)
   let guardada = $state.raw(partidaGuardada())
+  let sala = $state(salaGuardada())
+  /** Entrar en la sala guardada sin pasar por el formulario. */
+  let directo = $state(false)
 
   // Lo necesario para montar la mesa local; `n` cambia en cada partida para empezar de cero.
   let partida = $state.raw<{ n: number; control: Controlador } | null>(null)
   let ultima: { nombres: string[]; ids: string[]; config: Config } | null = null
+
+  // El botón «atrás» del móvil vuelve al menú (o cierra el reglamento) en vez de sacar de la web:
+  // al salir del menú se apunta un paso en el historial, y volver es deshacerlo.
+  function ir(a: Exclude<Pantalla, 'inicio'>) {
+    if (pantalla === 'inicio') history.pushState({ dentro: true }, '')
+    pantalla = a
+  }
+  function volver() {
+    if (history.state?.dentro) history.back()
+    else alInicio()
+  }
+  function alInicio() {
+    guardada = partidaGuardada()
+    sala = salaGuardada()
+    directo = false
+    pantalla = 'inicio'
+  }
+  function abrirReglas() {
+    history.pushState({ dentro: true, reglas: true }, '')
+    reglas = true
+  }
+  function cerrarReglas() {
+    if (history.state?.reglas) history.back()
+    else reglas = false
+  }
+  function atras() {
+    if (reglas) reglas = false
+    else if (pantalla !== 'inicio') alInicio()
+  }
 
   async function empezar(nombres: string[], ids: string[], config: Config) {
     ultima = { nombres, ids, config }
     const estado = crear(ids, nombres, config.opciones)
     guardarPartida(estado)
     partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(estado, await cargarAnios()) }
-    pantalla = 'mesa'
+    ir('mesa')
   }
 
   async function continuar() {
     if (!guardada) return
     partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(guardada, await cargarAnios()) }
-    pantalla = 'mesa'
+    ir('mesa')
   }
 
-  function salir() {
-    guardada = partidaGuardada()
-    pantalla = 'inicio'
+  // Cada pantalla tiene su título, y al cambiar se lleva el foco a él para quien usa lector de pantalla o teclado.
+  const TITULOS: Record<Pantalla, string> = {
+    inicio: 'desacrónico',
+    preparacion: 'Nueva partida · desacrónico',
+    mesa: 'Partida · desacrónico',
+    enlinea: 'Partida en línea · desacrónico',
   }
+  let primera = true
+  $effect(() => {
+    document.title = TITULOS[pantalla]
+    if (primera) return void (primera = false)
+    tick().then(() => document.querySelector<HTMLElement>('[data-titulo]')?.focus({ preventScroll: true }))
+  })
 </script>
+
+<svelte:window onpopstate={atras} />
 
 {#if pantalla === 'inicio'}
   <Inicio
     hayGuardada={!!guardada}
-    onjugar={() => (pantalla = 'preparacion')}
-    onenlinea={() => (pantalla = 'enlinea')}
+    {sala}
+    onjugar={() => ir('preparacion')}
+    onenlinea={() => ir('enlinea')}
+    onsala={() => ((directo = true), ir('enlinea'))}
     oncontinuar={continuar}
-    onreglas={() => (reglas = true)}
+    onreglas={abrirReglas}
   />
 {:else if pantalla === 'preparacion'}
-  <Preparacion onvolver={() => (pantalla = 'inicio')} onempezar={empezar} />
+  <Preparacion hayGuardada={!!guardada} onvolver={volver} onempezar={empezar} />
 {:else if pantalla === 'enlinea'}
-  <EnLinea invitacion={esCodigo(invitacion) ? invitacion : ''} onsalir={salir} />
+  <EnLinea invitacion={esCodigo(invitacion) ? invitacion : ''} {directo} onsalir={volver} />
 {:else if partida}
   {#key partida.n}
     <Mesa
       control={partida.control}
-      onsalir={salir}
+      onsalir={volver}
       onotra={() => (ultima ? empezar(ultima.nombres, ultima.ids, ultima.config) : (pantalla = 'preparacion'))}
     />
   {/key}
 {/if}
 
 {#if reglas}
-  <Reglas oncerrar={() => (reglas = false)} />
+  <Reglas oncerrar={cerrarReglas} />
 {/if}

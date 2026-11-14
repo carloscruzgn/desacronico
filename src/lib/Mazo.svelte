@@ -2,6 +2,7 @@
   // El mazo: un montón de cartas que se baraja al empezar y suelta la de arriba cada vez que alguien roba.
   import { untrack } from 'svelte'
   import { fly } from 'svelte/transition'
+  import { dura } from './movimiento'
 
   let { n, el = $bindable() }: { n: number; el?: HTMLElement } = $props()
 
@@ -17,7 +18,7 @@
   })
 </script>
 
-<div class="mazo" class:vacio={n === 0} bind:this={el}>
+<div class="mazo" class:vacio={n === 0} bind:this={el} role="img" aria-label="Mazo: {n} cartas">
   {#key vez}
     <div class="capas {gesto}" aria-hidden="true">
       <span class="capa c3"></span>
@@ -26,7 +27,7 @@
     </div>
   {/key}
   {#key n}
-    <span class="n" in:fly={{ y: -10, duration: 240 }}>{n}</span>
+    <span class="n" in:fly={{ y: -10, duration: dura(240) }}>{n}</span>
   {/key}
 </div>
 

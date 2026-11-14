@@ -27,7 +27,7 @@
 </script>
 
 <section>
-  <h3>Mazo <small>{total} cartas</small></h3>
+  <h2>Mazo <small>{total} cartas{fija ? '' : ' · toca un tema para quitarlo o ponerlo'}</small></h2>
   <div class="ambitos">
     {#each ambitos as a (a)}
       <button class="ambito" class:activo={config.ambitos.includes(a)} disabled={fija} aria-pressed={config.ambitos.includes(a)} onclick={() => alternar(a)}>
@@ -40,16 +40,16 @@
 </section>
 
 <section>
-  <h3>Dificultad</h3>
+  <h2>Dificultad</h2>
   <div class="fila">
     <span>
-      Cartas en la mano
-      {#if n === OPCIONES.cartasIniciales}<small>como en el reglamento</small>{/if}
+      Cartas por jugador
+      <small>{n === OPCIONES.cartasIniciales ? 'como en el reglamento' : n < OPCIONES.cartasIniciales ? 'partida más corta' : 'partida más larga'}</small>
     </span>
     <span class="contador">
-      <button disabled={fija || n <= MANO_MIN} aria-label="Menos cartas" onclick={() => opciones({ cartasIniciales: n - 1 })}>−</button>
-      <b>{n}</b>
-      <button disabled={fija || n >= MANO_MAX} aria-label="Más cartas" onclick={() => opciones({ cartasIniciales: n + 1 })}>+</button>
+      <button disabled={fija || n <= MANO_MIN} aria-label="Menos cartas por jugador" onclick={() => opciones({ cartasIniciales: n - 1 })}>−</button>
+      <b aria-live="polite" aria-atomic="true"><span class="sr-only">Cartas por jugador: </span>{n}</b>
+      <button disabled={fija || n >= MANO_MAX} aria-label="Más cartas por jugador" onclick={() => opciones({ cartasIniciales: n + 1 })}>+</button>
     </span>
   </div>
   <div class="fallo" role="radiogroup" aria-label="Al fallar">
@@ -65,7 +65,7 @@
 </section>
 
 <style>
-  h3 {
+  h2 {
     margin: 1.4em 0 0.5em;
     font-family: 'Fell SC', serif;
     font-weight: normal;
@@ -96,7 +96,7 @@
     border-radius: 999px;
     background: transparent;
     cursor: pointer;
-    opacity: 0.5;
+    opacity: 0.6;
     transition:
       opacity 0.15s,
       background 0.15s;
@@ -125,6 +125,10 @@
     gap: 12px;
     margin-bottom: 10px;
     font-size: 1.08rem;
+  }
+  .fila small {
+    display: block;
+    margin-left: 0;
   }
   .contador {
     display: inline-flex;

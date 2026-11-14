@@ -2,6 +2,17 @@
 // y con las aclaraciones de la versión digital).
 
 
+/** Lo imprescindible del modo clásico, para quien abre el reglamento sin haber jugado nunca. */
+export const resumen = `
+<ol>
+<li>En la mesa hay una carta con su año a la vista: con ella empieza la cronología.</li>
+<li>Tus cartas no enseñan el año. Cuando te toque, elige una.</li>
+<li>Colócala en un hueco de la cronología: a la izquierda de una carta si crees que ocurrió antes, a la derecha si crees que ocurrió después.</li>
+<li>La carta se da la vuelta y enseña su año. Si has acertado, se queda en la mesa; si no, robas otra carta del mazo.</li>
+<li>Gana quien se queda sin cartas. Si varios lo consiguen en la misma ronda, desempatan entre ellos.</li>
+</ol>
+`
+
 export const reglas = `
 <h3>El juego</h3>
 <p>Este juego, <i>desacrónico</i>, surge en 2024 producto de la colaboración entre Carlos Cruz González y Rodrigo Muñoz Martínez compartiendo espacios y horarios en el CEPA (Centro de Enseñanza Para Adultos) de Coria.</p>

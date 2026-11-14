@@ -6,10 +6,12 @@
   import Opciones from './Opciones.svelte'
 
   interface Props {
+    /** Hay una partida a medias que se perderá al repartir otra. */
+    hayGuardada?: boolean
     onvolver: () => void
     onempezar: (nombres: string[], ids: string[], config: Config) => void
   }
-  let { onvolver, onempezar }: Props = $props()
+  let { hayGuardada = false, onvolver, onempezar }: Props = $props()
 
   let config = $state.raw(configGuardada())
   let nombres = $state<string[]>(['', ''])
@@ -37,15 +39,15 @@
 <main>
   <header>
     <BotonIcono icono="atras" etiqueta="Volver al menú" onclick={onvolver} />
-    <h2>En este dispositivo</h2>
+    <h1 tabindex="-1" data-titulo>Nueva partida</h1>
   </header>
 
   <section>
-    <h3>Jugadores <small>por turnos, pasándose el dispositivo</small></h3>
+    <h2>Jugadores <small>de 1 a {MAX_JUGADORES}; el nombre es opcional</small></h2>
     <div class="jugadores">
       {#each nombres as _, i (i)}
         <div class="jugador">
-          <input type="text" maxlength="14" placeholder="Jugador {i + 1}" bind:value={nombres[i]} autocomplete="off" />
+          <input type="text" maxlength="14" placeholder="Jugador {i + 1}" aria-label="Nombre del jugador {i + 1}" bind:value={nombres[i]} autocomplete="off" />
           {#if nombres.length > 1}
             <button class="quitar" aria-label="Quitar jugador {i + 1}" onclick={() => nombres.splice(i, 1)}>×</button>
           {/if}
@@ -59,8 +61,9 @@
 
   <Opciones {config} oncambio={(c) => (config = c)} />
 
-  <div class="pie">
+  <div class="pie-fijo">
     <p class="error" role="alert">{error}</p>
+    {#if hayGuardada && !error}<p class="nota">Al repartir se pierde la partida que quedó a medias.</p>{/if}
     <button class="boton" disabled={!!error} onclick={empezar}>Repartir</button>
   </div>
 </main>
@@ -69,19 +72,19 @@
   main {
     max-width: 560px;
     margin: 0 auto;
-    padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+    padding: 16px 16px 0;
   }
   header {
     display: flex;
     align-items: center;
     gap: 14px;
   }
-  h2 {
+  h1 {
     margin: 0;
     font-size: 1.5rem;
     line-height: 1.1;
   }
-  h3 {
+  h2 {
     margin: 1.4em 0 0.5em;
     font-family: 'Fell SC', serif;
     font-weight: normal;
@@ -89,7 +92,7 @@
     border-bottom: 1px solid rgb(235 233 217 / 0.25);
     padding-bottom: 0.2em;
   }
-  h3 small {
+  h2 small {
     font-family: var(--ui);
     font-style: italic;
     font-size: 0.95rem;
@@ -117,7 +120,7 @@
     font: inherit;
     font-size: 1.1rem;
   }
-  input::placeholder { color: var(--gris); }
+  input::placeholder { color: #a3a297; }
   .quitar,
   .anadir {
     min-height: 46px;
@@ -132,13 +135,14 @@
   }
   .anadir { color: var(--gris-claro); }
 
-  .pie {
-    margin-top: 1.5em;
-    display: grid;
-    gap: 6px;
+  .nota {
+    margin: 0;
+    color: var(--gris-claro);
+    font-style: italic;
+    font-size: 0.95rem;
+    text-align: center;
   }
   .error {
-    min-height: 1.3em;
     margin: 0;
     color: #f0a3a3;
     text-align: center;

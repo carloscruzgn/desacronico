@@ -6,12 +6,15 @@
 
   interface Props {
     hayGuardada: boolean
+    /** Código de la sala en línea que se dejó abierta, si la hay. */
+    sala: string
     onjugar: () => void
     onenlinea: () => void
+    onsala: () => void
     oncontinuar: () => void
     onreglas: () => void
   }
-  let { hayGuardada, onjugar, onenlinea, oncontinuar, onreglas }: Props = $props()
+  let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas }: Props = $props()
 
   // Abanico decorativo: cinco cartas al azar, una de cada ámbito
   const abanico = ['comunicacion', 'social', 'cientifico', 'mujer', 'coria'].map(
@@ -28,22 +31,28 @@
     {/each}
   </div>
 
-  <h1><Marca /></h1>
+  <h1 tabindex="-1" data-titulo><Marca /></h1>
   <p class="lema">El juego de cartas para hacer cronologías</p>
 
-  <nav>
+  <nav aria-label="Menú">
     {#if hayGuardada}
       <button class="entrada" class:principal={true} onclick={oncontinuar}>
-        <span><b>Continuar partida</b><small>La que quedó a medias en este dispositivo</small></span>
+        <span><b>Continuar partida</b><small>La que quedó a medias en este móvil</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
+      </button>
+    {/if}
+    {#if sala}
+      <button class="entrada" onclick={onsala}>
+        <span><b>Volver a la sala {sala}</b><small>La partida en línea que dejaste abierta</small></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     {/if}
     <button class="entrada" class:principal={!hayGuardada} onclick={onjugar}>
-      <span><b>En este dispositivo</b><small>Por turnos, pasándose el móvil</small></span>
+      <span><b>Jugar en este móvil</b><small>Solo o por turnos, pasándose el móvil</small></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <button class="entrada" onclick={onenlinea}>
-      <span><b>En línea</b><small>Cada jugador en su móvil, con un código</small></span>
+      <span><b>Jugar en línea</b><small>Cada jugador en su móvil, con un código</small></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <button class="entrada" onclick={onreglas}>
@@ -168,7 +177,7 @@
   .entrada.principal small { color: #55544c; }
 
   footer {
-    color: var(--gris);
+    color: #a3a297;
     font-size: 0.9rem;
     line-height: 1.4;
   }

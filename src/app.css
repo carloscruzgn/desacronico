@@ -67,6 +67,9 @@
   --tapete: #23302b;
   --tapete-2: #18211e;
 
+  /* Anillo de foco: dorado sobre el tapete; las superficies de papel lo cambian a tinta. */
+  --foco: #e8c66a;
+
   /* Dos voces: IM Fell da el tono (marca, cartas, títulos, avisos); Alegreya Sans lleva la interfaz. */
   --fell: 'Fell', 'Times New Roman', serif;
   --fell-sc: 'Fell SC', 'Fell', serif;
@@ -151,10 +154,41 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid #e8c66a;
+  outline: 2px solid var(--foco);
   outline-offset: 2px;
 }
+/* Los títulos reciben el foco al cambiar de pantalla, para el lector de pantalla; no hace falta anillo. */
+h1:focus,
+h2:focus {
+  outline: none;
+}
 
+/* Texto solo para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Pie con el botón principal, siempre a la vista aunque la pantalla sea larga */
+.pie-fijo {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: grid;
+  gap: 6px;
+  margin-top: 1em;
+  padding: 18px 0 calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, var(--tapete-2) 22px);
+}
+
+h1,
 h2 {
   font-family: 'Fell SC', 'Fell', serif;
   font-weight: normal;

@@ -4,8 +4,9 @@
   import qrcode from 'qrcode-generator'
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import { esCodigo } from '../../compartido/protocolo'
-  import { Conexion, crearSala, existeSala, nombreGuardado, salaGuardada } from './conexion.svelte'
+  import { Conexion, crearSala, existeSala, nombreGuardado, olvidarSala, salaGuardada } from './conexion.svelte'
   import BotonIcono from './BotonIcono.svelte'
+  import Confirmar from './Confirmar.svelte'
   import { cartas } from './datos'
   import Mesa from './Mesa.svelte'
   import Opciones from './Opciones.svelte'
@@ -13,9 +14,11 @@
   interface Props {
     /** Código que viene en el enlace de invitación. */
     invitacion: string
+    /** Entrar sin pasar por el formulario en la sala que se dejó abierta. */
+    directo?: boolean
     onsalir: () => void
   }
-  let { invitacion, onsalir }: Props = $props()
+  let { invitacion, directo = false, onsalir }: Props = $props()
 
   // svelte-ignore state_referenced_locally
   let codigo = $state(invitacion || salaGuardada())
@@ -24,6 +27,8 @@
   let cargando = $state(false)
   let conexion = $state.raw<Conexion | null>(null)
   let copiado = $state(false)
+  let enlaceALaVista = $state(false)
+  let confirmaSalida = $state(false)
 
   const sala = $derived(conexion?.sala ?? null)
   const anfitrion = $derived(sala?.tu === 0)
@@ -42,20 +47,24 @@
 
   // Al recargar la página en mitad de una partida se vuelve a entrar sin preguntar.
   // svelte-ignore state_referenced_locally
-  if (invitacion && invitacion === salaGuardada() && nombre) entrar(false)
+  if (nombre && esCodigo(codigo) && (directo || (invitacion && invitacion === salaGuardada()))) entrar(false)
 
   async function entrar(crear: boolean) {
     error = ''
     const quien = nombre.trim()
     if (!quien) return (error = 'Escribe tu nombre.')
     const c = codigo.trim().toUpperCase()
-    if (!crear && !esCodigo(c)) return (error = 'El código son cuatro letras.')
+    if (!crear && !esCodigo(c))
+      return (error = c.length === 4 ? 'Ese código no vale. Revísalo: son cuatro letras, sin vocales.' : 'El código son cuatro letras.')
     cargando = true
     try {
       const destino = crear ? await crearSala() : c
-      if (!crear && !(await existeSala(destino))) throw new Error('No hay ninguna sala con ese código.')
+      if (!crear && !(await existeSala(destino))) {
+        if (destino === salaGuardada()) olvidarSala()
+        throw new Error('No hay ninguna sala con ese código. Puede que haya caducado.')
+      }
       conexion = new Conexion(destino, quien)
-      history.replaceState(null, '', `/?sala=${destino}`)
+      history.replaceState(history.state, '', `/?sala=${destino}`)
     } catch (e) {
       error = e instanceof Error ? e.message : 'No se pudo conectar.'
     }
@@ -65,8 +74,22 @@
   function salir(abandonar: boolean) {
     conexion?.cerrar(abandonar)
     conexion = null
-    history.replaceState(null, '', '/')
+    history.replaceState(history.state, '', '/')
     onsalir()
+  }
+
+  /** Vuelve a pedir sitio en la misma sala: tras abrirla en otra pestaña o si el anfitrión te quitó. */
+  function reentrar() {
+    if (!conexion) return
+    const anterior = conexion
+    anterior.cerrar()
+    conexion = new Conexion(anterior.codigo, anterior.nombre)
+  }
+
+  /** Salir de la mesa: si la partida está en marcha, se pregunta antes. */
+  function salirDeLaMesa() {
+    if (sala?.vista && !sala.vista.ganadores.length && sala.tu !== null) confirmaSalida = true
+    else salir(false)
   }
 
   async function compartir() {
@@ -77,8 +100,9 @@
         copiado = true
         setTimeout(() => (copiado = false), 1800)
       }
-    } catch {
-      // el usuario cerró el menú de compartir
+    } catch (e) {
+      // Si el usuario cerró el menú de compartir no pasa nada; si no se pudo copiar, se enseña el enlace.
+      if (!(e instanceof DOMException && e.name === 'AbortError')) enlaceALaVista = true
     }
   }
 </script>
@@ -87,39 +111,54 @@
   <main>
     <header>
       <BotonIcono icono="atras" etiqueta="Volver al menú" onclick={onsalir} />
-      <h2>Partida en línea</h2>
+      <h1 tabindex="-1" data-titulo>Partida en línea</h1>
     </header>
-    <p class="ayuda">Cada jugador en su móvil. No hace falta registrarse: basta un nombre.</p>
+    {#if invitacion}
+      <p class="ayuda">Te han invitado a la sala <b class="sala">{invitacion}</b>. Escribe tu nombre para entrar.</p>
+    {:else}
+      <p class="ayuda">Cada jugador en su móvil. No hace falta registrarse: basta un nombre.</p>
+    {/if}
 
-    <label>
-      Tu nombre
-      <input type="text" maxlength="14" bind:value={nombre} autocomplete="nickname" placeholder="Nombre" />
-    </label>
+    <form
+      onsubmit={(e) => {
+        e.preventDefault()
+        entrar(false)
+      }}
+    >
+      <label>
+        Tu nombre
+        <!-- svelte-ignore a11y_autofocus -->
+        <input type="text" maxlength="14" bind:value={nombre} autocomplete="nickname" placeholder="Nombre" enterkeyhint="go" autofocus={!!invitacion && !nombre} />
+      </label>
 
-    <div class="opcion">
-      <h3>Unirse a una sala</h3>
-      <div class="unirse">
-        <input
-          class="codigo"
-          type="text"
-          maxlength="4"
-          bind:value={codigo}
-          placeholder="CÓDIGO"
-          autocapitalize="characters"
-          autocomplete="off"
-          spellcheck="false"
-          onkeydown={(e) => e.key === 'Enter' && entrar(false)}
-        />
-        <button class="boton" disabled={cargando} onclick={() => entrar(false)}>Unirse</button>
+      <div class="opcion">
+        <h2 id="unirse-titulo">{invitacion ? 'Sala' : 'Unirse a una sala'}</h2>
+        <div class="unirse">
+          <input
+            class="codigo"
+            type="text"
+            size="4"
+            maxlength="4"
+            bind:value={codigo}
+            placeholder="CÓDIGO"
+            aria-labelledby="unirse-titulo"
+            aria-describedby="unirse-ayuda"
+            autocapitalize="characters"
+            autocomplete="off"
+            spellcheck="false"
+            enterkeyhint="go"
+          />
+          <button class="boton" disabled={cargando}>{invitacion ? 'Entrar' : 'Unirse'}</button>
+        </div>
+        {#if !invitacion}<p class="ayuda menor" id="unirse-ayuda">Las cuatro letras que te dé quien creó la sala.</p>{/if}
       </div>
-    </div>
+      <p class="error" role="alert">{error}</p>
+    </form>
 
     <div class="opcion">
-      <h3>O crear una nueva</h3>
+      <h2>{invitacion ? '¿Prefieres crear otra sala?' : 'O crear una nueva'}</h2>
       <button class="boton secundario" disabled={cargando} onclick={() => entrar(true)}>Crear sala</button>
     </div>
-
-    <p class="error" role="alert">{error}</p>
   </main>
 {:else if !sala}
   <main class="centro">
@@ -130,7 +169,7 @@
   <main>
     <header>
       <BotonIcono icono="atras" etiqueta="Salir de la sala" onclick={() => salir(true)} />
-      <h2>Sala de espera</h2>
+      <h1 tabindex="-1" data-titulo>Sala de espera</h1>
     </header>
 
     <div class="invitacion">
@@ -141,8 +180,9 @@
         <button class="boton pequeno" onclick={compartir}>{copiado ? 'Enlace copiado' : 'Invitar'}</button>
       </div>
     </div>
+    {#if enlaceALaVista}<p class="ayuda enlace-texto">Copia este enlace y envíalo: <b>{enlace}</b></p>{/if}
 
-    <h3>Jugadores <small>{sala.jugadores.length} de {MAX_JUGADORES}</small></h3>
+    <h2>Jugadores <small>{sala.jugadores.length} de {MAX_JUGADORES}</small></h2>
     <ul class="lista">
       {#each sala.jugadores as j, i (i)}
         <li class:ausente={!j.conectado}>
@@ -156,14 +196,22 @@
       {/each}
     </ul>
     {#if sala.tu === null}
-      <p class="ayuda">La sala está llena: verás la partida sin jugar.</p>
+      {#if sala.jugadores.length >= MAX_JUGADORES}
+        <p class="ayuda">La sala está llena: verás la partida sin jugar.</p>
+      {:else}
+        <p class="ayuda">
+          No estás en la lista de jugadores: puede que el anfitrión te haya quitado.
+          <button class="boton pequeno secundario" onclick={reentrar}>Volver a entrar</button>
+        </p>
+      {/if}
     {/if}
 
     <Opciones config={sala.config} fija={!anfitrion} oncambio={(config) => conexion!.enviar({ t: 'config', config })} />
 
-    <div class="pie">
+    <div class="pie-fijo">
       <p class="error" role="alert">{conexion.error || (mazo < minimo ? `Hacen falta al menos ${minimo} cartas en el mazo.` : '')}</p>
       {#if anfitrion}
+        {#if sala.jugadores.length === 1}<p class="ayuda centrado">Aún no ha entrado nadie más. Quien llegue después de repartir solo podrá mirar.</p>{/if}
         <button class="boton" disabled={mazo < minimo} onclick={() => conexion!.enviar({ t: 'empezar' })}>Repartir</button>
       {:else}
         <p class="ayuda centrado">Esperando a que {sala.jugadores[0]?.nombre ?? 'el anfitrión'} empiece la partida…</p>
@@ -174,7 +222,7 @@
   {#key sala.partida}
     <Mesa
       control={conexion.control()}
-      onsalir={() => salir(false)}
+      onsalir={salirDeLaMesa}
       onotra={anfitrion ? () => conexion!.enviar({ t: 'otra' }) : undefined}
     />
   {/key}
@@ -182,16 +230,30 @@
 
 {#if conexion && sala && conexion.estado !== 'abierta'}
   <div class="estado" role="status">
-    {conexion.estado === 'cerrada' ? conexion.error || 'Conexión cerrada.' : 'Reconectando…'}
-    {#if conexion.estado === 'cerrada'}<button class="enlace" onclick={() => salir(false)}>Salir</button>{/if}
+    <span>{conexion.estado === 'cerrada' ? conexion.error || 'Conexión cerrada.' : 'Sin conexión. Reconectando…'}</span>
+    {#if conexion.estado === 'cerrada'}
+      <button class="enlace" onclick={reentrar}>Seguir aquí</button>
+    {/if}
+    <button class="enlace" onclick={() => salir(false)}>Salir</button>
   </div>
+{/if}
+
+{#if confirmaSalida && sala}
+  <Confirmar
+    titulo="¿Salir de la partida?"
+    texto="Los demás tendrán que esperarte. Podrás volver desde el menú con el código {sala.codigo}."
+    si="Salir"
+    no="Seguir jugando"
+    onsi={() => ((confirmaSalida = false), salir(false))}
+    onno={() => (confirmaSalida = false)}
+  />
 {/if}
 
 <style>
   main {
     max-width: 560px;
     margin: 0 auto;
-    padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+    padding: 16px 16px 0;
   }
   main.centro {
     min-height: 100dvh;
@@ -205,14 +267,13 @@
     align-items: center;
     gap: 14px;
   }
-  h2 {
+  h1 {
     margin: 0;
-    font-size: 1.6rem;
+    font-size: 1.5rem;
+    line-height: 1.1;
   }
-  h3 {
+  h2 {
     margin: 1.4em 0 0.5em;
-    font-family: 'Fell SC', serif;
-    font-weight: normal;
     font-size: 1.25rem;
     border-bottom: 1px solid rgb(235 233 217 / 0.25);
     padding-bottom: 0.2em;
@@ -230,6 +291,30 @@
     font-style: italic;
   }
   .centrado { text-align: center; }
+  .ayuda.centrado { margin: 0; }
+  .ayuda.menor {
+    margin: 0.4em 0 0;
+    font-size: 0.95rem;
+  }
+  .sala {
+    font-family: var(--fell-sc);
+    font-style: normal;
+    font-weight: normal;
+    font-size: 1.2em;
+    letter-spacing: 0.08em;
+    color: var(--papel);
+  }
+  .enlace-texto b {
+    font-style: normal;
+    color: var(--papel);
+    user-select: all;
+    overflow-wrap: anywhere;
+  }
+  .ayuda .boton {
+    display: flex;
+    margin-top: 8px;
+    font-style: normal;
+  }
 
   label {
     display: grid;
@@ -247,18 +332,21 @@
     background: rgb(0 0 0 / 0.25);
     color: var(--papel);
     font: inherit;
+    font-weight: 400;
     font-size: 1.15rem;
   }
-  input::placeholder { color: var(--gris); }
+  input::placeholder { color: #a3a297; }
   .opcion {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
   .unirse {
     display: flex;
     gap: 8px;
   }
   .codigo {
-    flex: 1;
+    flex: 1 1 0;
+    width: 0;
     text-transform: uppercase;
     letter-spacing: 0.3em;
     text-align: center;
@@ -266,6 +354,7 @@
   }
 
   .invitacion {
+    --foco: var(--tinta);
     display: flex;
     align-items: center;
     gap: 16px;
@@ -277,7 +366,7 @@
   }
   .invitacion .ayuda {
     margin: 0;
-    color: var(--gris);
+    color: #55544c;
   }
   .qr {
     width: 128px;
@@ -329,13 +418,7 @@
     cursor: pointer;
   }
 
-  .pie {
-    margin-top: 1.5em;
-    display: grid;
-    gap: 6px;
-  }
   .error {
-    min-height: 1.3em;
     margin: 0.6em 0 0;
     color: #f0a3a3;
     text-align: center;
@@ -347,14 +430,22 @@
     bottom: calc(12px + env(safe-area-inset-bottom));
     translate: -50%;
     z-index: 50;
-    padding: 8px 16px;
-    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: calc(100vw - 24px);
+    padding: 2px 8px 2px 16px;
+    border-radius: 24px;
     background: var(--fallo);
     color: #fff;
-    white-space: nowrap;
+    --foco: #fff;
     box-shadow: 0 6px 20px rgb(0 0 0 / 0.5);
   }
   .enlace {
+    min-height: 44px;
+    padding: 0 8px;
+    font-weight: 700;
+    white-space: nowrap;
     border: 0;
     background: none;
     color: inherit;
