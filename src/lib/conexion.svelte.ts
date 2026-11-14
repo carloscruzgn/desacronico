@@ -59,10 +59,20 @@ export class Conexion {
   private ws: WebSocket | null = null
   private oyentes = new Set<(sala: Sala, jugada?: Resultado) => void>()
   private intentos = 0
+  /** Se dejó de reintentar tras muchos fallos seguidos. */
+  private agotada = false
   private reloj: ReturnType<typeof setTimeout> | undefined
   private latido: ReturnType<typeof setInterval> | undefined
   private alVolver = () => {
-    if (document.visibilityState === 'visible' && this.estado === 'reconectando') this.abrir()
+    if (document.visibilityState !== 'visible') return
+    // Al volver a la pestaña se reintenta, también si ya se había dejado de insistir.
+    if (this.agotada) {
+      this.agotada = false
+      this.intentos = 0
+      this.error = ''
+      this.estado = 'reconectando'
+    }
+    if (this.estado === 'reconectando') this.abrir()
   }
 
   constructor(
@@ -112,6 +122,7 @@ export class Conexion {
       // Tras muchos intentos seguidos se deja de insistir: la sala puede haber caducado.
       if (this.intentos >= 8) {
         this.error = 'No se puede conectar con la sala.'
+        this.agotada = true
         this.estado = 'cerrada'
         return
       }

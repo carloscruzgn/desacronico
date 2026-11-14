@@ -33,7 +33,12 @@ export function dialogo(nodo: HTMLElement) {
   return {
     destroy() {
       document.removeEventListener('keydown', tecla)
-      if (antes?.isConnected) antes.focus({ preventScroll: true })
+      // Se devuelve el foco a donde estaba, salvo que alguien lo haya puesto ya en otro sitio
+      // o que aquel elemento ya no se pueda enfocar (un hueco que se ha cerrado).
+      const a = document.activeElement
+      const sigueAqui = !a || a === document.body || nodo.contains(a)
+      if (sigueAqui && antes?.isConnected && antes.tabIndex >= 0 && antes.getAttribute('aria-hidden') !== 'true')
+        antes.focus({ preventScroll: true })
     },
   }
 }

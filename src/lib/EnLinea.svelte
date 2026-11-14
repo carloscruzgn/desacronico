@@ -47,9 +47,11 @@
   onDestroy(() => conexion?.cerrar())
 
   // Al pasar del formulario a la sala y de la sala a la mesa, el foco va al título de la pantalla nueva.
+  // Solo cuando cambia la pantalla: los mensajes del servidor (una opción, una jugada) no deben mover el foco.
+  const etapa = $derived(!conexion ? 'formulario' : !sala ? 'conectando' : sala.fase === 'sala' ? 'sala' : `mesa-${sala.partida}`)
   let primera = true
   $effect(() => {
-    void [!!conexion, sala?.fase, sala?.partida]
+    void etapa
     if (primera) return void (primera = false)
     tick().then(() => document.querySelector<HTMLElement>('[data-titulo]')?.focus({ preventScroll: true }))
   })

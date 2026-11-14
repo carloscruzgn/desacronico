@@ -198,6 +198,9 @@
   /** Pone la mesa como dice la vista, sin animar la jugada (al retomar, reconectar o si alguien se va). */
   function poner(s: Suceso) {
     const v = s.vista
+    // Si el turno cambia sin jugada (el anfitrión quita a alguien), también se cuenta.
+    if (v.turno !== vista.turno && !v.ganadores.length)
+      narra = asiento === v.turno ? 'Tu turno' : `Turno de ${v.jugadores[v.turno].nombre}`
     vista = v
     conectados = s.conectados ?? null
     anotar(s.fechas)
@@ -247,7 +250,8 @@
     const jugador = r.jugador
     const suya = visible === jugador
     ocupado = true
-    seleccionada = null
+    // Quien lee una de sus cartas mientras juega otro no pierde la selección.
+    if (seleccionada === id || visible === jugador) seleccionada = null
     conectados = s.conectados ?? null
 
     // 1. La carta vuela a su hueco: desde la mano, o desde el nombre de quien la juega
@@ -357,7 +361,12 @@
   onkeydown={(e) => {
     tecleando = true
     flechas(e)
-    if (e.key === 'Escape' && !reglas && quitando === null) (ampliada = null), (seleccionada = null)
+    if (e.key === 'Escape' && !reglas && quitando === null) {
+      // el hueco con el foco va a desaparecer: el foco vuelve a la carta que estaba elegida
+      if (document.activeElement?.classList.contains('hueco')) manoEl?.querySelector<HTMLElement>('.naipe.elegida')?.focus()
+      ampliada = null
+      seleccionada = null
+    }
   }}
   onpointerdown={() => (tecleando = false)}
 />
@@ -379,7 +388,7 @@
             class="pila descartes"
             disabled={!descarte.length}
             onclick={() => descarte[0] && (ampliada = { id: descarte[0], reverso: true })}
-            aria-label="Descartes: {nDescartes} cartas. Ver la última"
+            aria-label="Descartes: {nDescartes} {nDescartes === 1 ? 'carta' : 'cartas'}. Ver la última"
           >
             {#each descarte as id (id)}
               <div class="encima" in:recibir={{ key: id }} out:enviar={{ key: id }}>
@@ -816,7 +825,7 @@
 
   /* Texto de la carta elegida y pistas */
   .leyenda {
-    min-height: 136px;
+    min-height: 140px;
     padding: 4px 16px 0;
     display: flex;
     flex-direction: column;
@@ -836,6 +845,8 @@
     font-style: italic;
     font-size: 0.95rem;
   }
+  /* con el botón «Ampliar», el texto va entero en su renglón y el botón debajo */
+  .pista:has(.ampliar) { text-wrap: wrap; }
   .pista b {
     color: var(--oro);
     font-style: normal;

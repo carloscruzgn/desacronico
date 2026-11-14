@@ -125,7 +125,7 @@
     gap: 10px;
     width: min(100%, 360px);
     margin: auto 0;
-    padding: 24px 0;
+    padding: 12px 0;
   }
   .entrada {
     display: flex;
