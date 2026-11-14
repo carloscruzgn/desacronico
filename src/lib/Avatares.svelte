@@ -23,7 +23,7 @@
 <div class="velo" transition:fade={{ duration: dura(200) }} onclick={oncerrar} role="presentation"></div>
 <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="avatares-titulo" use:dialogo transition:fly={{ y: 60, duration: dura(280) }}>
   <header>
-    <h2 id="avatares-titulo">Elige tu moneda</h2>
+    <h2 id="avatares-titulo">Elige tu avatar</h2>
     <BotonIcono icono="cerrar" etiqueta="Cerrar" sobrePapel onclick={oncerrar} />
   </header>
   <div class="series">
@@ -32,9 +32,8 @@
       <div class="rejilla">
         {#each Object.entries(personajes) as [id, nombre] (id)}
           {@const cogido = ocupados.includes(id) && id !== actual}
-          <button class:actual={id === actual} disabled={cogido} aria-pressed={id === actual} data-foco={id === actual ? '' : undefined} onclick={() => onelegir(id)}>
+          <button class:actual={id === actual} disabled={cogido} aria-pressed={id === actual} aria-label="{nombre}{cogido ? ' (ya elegido)' : ''}" title={nombre} data-foco={id === actual ? '' : undefined} onclick={() => onelegir(id)}>
             <Moneda avatar={id} gesto={id === actual ? 'gana' : 'normal'} />
-            <span>{nombre}{#if cogido}<small> (cogida)</small>{/if}</span>
           </button>
         {/each}
       </div>
@@ -106,7 +105,7 @@
     --lado: min(20vw, 84px);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
+    gap: 10px 4px;
   }
   button {
     display: grid;
@@ -130,17 +129,11 @@
     outline: 3px solid var(--tinta);
     outline-offset: 3px;
   }
-  button.actual span {
-    font-weight: 700;
-  }
   button:active:not(:disabled) :global(.moneda) {
     transform: scale(0.94);
   }
   button:disabled {
     opacity: 0.4;
     cursor: default;
-  }
-  small {
-    font-style: italic;
   }
 </style>

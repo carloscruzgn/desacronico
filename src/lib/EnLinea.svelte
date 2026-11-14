@@ -147,7 +147,7 @@
       }}
     >
       <div class="quien">
-        <button type="button" class="moneda" aria-label="Cambiar tu moneda" onclick={() => (eligiendo = true)}>
+        <button type="button" class="moneda" aria-label="Cambiar tu avatar" onclick={() => (eligiendo = true)}>
           <Moneda {avatar} />
           <small>cambiar</small>
         </button>
@@ -214,7 +214,7 @@
       {#each sala.jugadores as j, i (i)}
         <li class:ausente={!j.conectado}>
           {#if i === sala.tu}
-            <button class="moneda" aria-label="Cambiar tu moneda" onclick={() => (eligiendo = true)}><Moneda avatar={j.avatar} nombre={j.nombre} /></button>
+            <button class="moneda" aria-label="Cambiar tu avatar" onclick={() => (eligiendo = true)}><Moneda avatar={j.avatar} nombre={j.nombre} /></button>
           {:else}
             <Moneda avatar={j.avatar} nombre={j.nombre} />
           {/if}

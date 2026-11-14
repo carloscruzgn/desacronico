@@ -60,11 +60,11 @@
   </header>
 
   <section>
-    <h2>Jugadores <small>de 1 a {MAX_JUGADORES}; toca la moneda para cambiarla</small></h2>
+    <h2>Jugadores <small>de 1 a {MAX_JUGADORES}; toca el avatar para cambiarlo</small></h2>
     <div class="jugadores">
       {#each nombres as _, i (i)}
         <div class="jugador">
-          <button class="moneda" aria-label="Cambiar la moneda del jugador {i + 1}" onclick={() => (eligiendo = i)}>
+          <button class="moneda" aria-label="Cambiar el avatar del jugador {i + 1}" onclick={() => (eligiendo = i)}>
             <Moneda avatar={avatares[i]} />
           </button>
           <input type="text" maxlength="14" placeholder="Jugador {i + 1}" aria-label="Nombre del jugador {i + 1}" bind:value={nombres[i]} autocomplete="off" />
