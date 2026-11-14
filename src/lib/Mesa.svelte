@@ -8,7 +8,10 @@
   import Carta from './Carta.svelte'
   import type { Controlador, Suceso } from './control'
   import { porId, textoPlano } from './datos'
+  import BotonIcono from './BotonIcono.svelte'
   import Marca from './Marca.svelte'
+  import Mazo from './Mazo.svelte'
+  import Reglas from './Reglas.svelte'
 
   interface Props {
     control: Controlador
@@ -49,7 +52,8 @@
   let verFin = $state(false)
   let veredicto = $state<'' | 'ok' | 'fallo' | 'recoloca'>('')
 
-  let mazoEl: HTMLElement
+  let mazoEl = $state<HTMLElement>()
+  let reglas = $state(false)
   let cronoEl: HTMLElement
   let chips = $state<HTMLElement[]>([])
   /** De dónde salen las cartas que entran sin venir de otro sitio de la mesa. */
@@ -119,7 +123,7 @@
       poner(inicial)
       await espera(300)
     } else {
-      origen = mazoEl
+      origen = mazoEl ?? null
       await espera(300)
       crono.push({ id: v.cronologia[0], volteada: false, marca: '' })
       await espera(520)
@@ -232,7 +236,7 @@
         await espera(900)
       }
       if (r.robada) {
-        origen = mazoEl
+        origen = mazoEl ?? null
         if (suya) mano.push(r.robada)
         cuentas[jugador]++
         nMazo = Math.max(0, nMazo - 1)
@@ -263,7 +267,7 @@
       mano = [...v.jugadores[visible].mano]
       await anunciar(`Turno de ${v.jugadores[visible].nombre}`, 1100)
     } else {
-      origen = mazoEl
+      origen = mazoEl ?? null
       const debe = v.jugadores[visible]?.mano ?? []
       mano = mano.filter((x) => debe.includes(x))
       for (const x of debe) if (!mano.includes(x)) mano.push(x)
@@ -281,11 +285,12 @@
 
 <div class="mesa" class:eligiendo={!!seleccionada && !ocupado && miTurno}>
   <header class="barra">
-    <button class="salir" onclick={onsalir} aria-label="Salir al menú">‹</button>
+    <BotonIcono icono="atras" etiqueta="Salir al menú" onclick={onsalir} />
     <span class="titulo"><Marca /></span>
+    <BotonIcono icono="reglas" etiqueta="Reglamento" onclick={() => (reglas = true)} />
     <div class="pilas">
       <figure>
-        <div class="pila mazo" bind:this={mazoEl}><span>{nMazo}</span></div>
+        <Mazo n={nMazo} bind:el={mazoEl} />
         <figcaption>mazo</figcaption>
       </figure>
       {#if vista.opciones.alFallar === 'descartar'}
@@ -415,6 +420,10 @@
   {/if}
 </div>
 
+{#if reglas}
+  <Reglas oncerrar={() => (reglas = false)} />
+{/if}
+
 {#if ampliada}
   <button class="ampliada" transition:fade={{ duration: 160 }} onclick={() => (ampliada = null)} aria-label="Cerrar">
     <div in:scale={{ duration: 260, start: 0.7, easing: cubicOut }}>
@@ -468,16 +477,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: calc(12px + env(safe-area-inset-top)) 16px 4px 4px;
-  }
-  .salir {
-    width: 44px;
-    height: 44px;
-    border: 0;
-    background: none;
-    font-size: 2rem;
-    line-height: 1;
-    cursor: pointer;
+    padding: calc(10px + env(safe-area-inset-top)) 18px 4px 12px;
   }
   .titulo {
     font-size: 1.5rem;
@@ -485,7 +485,8 @@
   }
   .pilas {
     display: flex;
-    gap: 14px;
+    gap: 16px;
+    margin-left: 6px;
   }
   figure {
     margin: 0;
@@ -500,7 +501,7 @@
   }
   .pila {
     position: relative;
-    width: 34px;
+    width: 40px;
     aspect-ratio: 554 / 766;
     border-radius: 3px;
     display: grid;
@@ -508,15 +509,6 @@
     font-family: 'Fell SC', serif;
     font-size: 1.05rem;
     padding: 0;
-  }
-  .mazo {
-    background: var(--papel);
-    color: var(--tinta);
-    box-shadow:
-      1px 1px 0 #cfccb8,
-      2px 2px 0 #b9b6a0,
-      3px 3px 0 #a19e8a,
-      4px 5px 8px rgb(0 0 0 / 0.4);
   }
   .descartes {
     border: 1px dashed rgb(235 233 217 / 0.4);

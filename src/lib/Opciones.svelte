@@ -74,6 +74,7 @@
     padding-bottom: 0.2em;
   }
   small {
+    font-family: var(--ui);
     font-style: italic;
     font-size: 0.95rem;
     color: var(--gris-claro);

@@ -33,11 +33,23 @@
 
   <nav>
     {#if hayGuardada}
-      <button class="boton" onclick={oncontinuar}>Continuar partida</button>
+      <button class="entrada" class:principal={true} onclick={oncontinuar}>
+        <span><b>Continuar partida</b><small>La que quedó a medias en este dispositivo</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
+      </button>
     {/if}
-    <button class="boton" class:secundario={hayGuardada} onclick={onjugar}>En este dispositivo</button>
-    <button class="boton" class:secundario={hayGuardada} onclick={onenlinea}>En línea</button>
-    <button class="boton secundario" onclick={onreglas}>Reglamento</button>
+    <button class="entrada" class:principal={!hayGuardada} onclick={onjugar}>
+      <span><b>En este dispositivo</b><small>Por turnos, pasándose el móvil</small></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
+    </button>
+    <button class="entrada" onclick={onenlinea}>
+      <span><b>En línea</b><small>Cada jugador en su móvil, con un código</small></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
+    </button>
+    <button class="entrada" onclick={onreglas}>
+      <span><b>Reglamento</b><small>Cómo se juega y quién lo hizo</small></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
+    </button>
   </nav>
 
   <footer>
@@ -98,11 +110,62 @@
   nav {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    width: min(100%, 320px);
+    gap: 10px;
+    width: min(100%, 360px);
     margin: auto 0;
     padding: 24px 0;
   }
+  .entrada {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 64px;
+    padding: 10px 12px 10px 18px;
+    border: 1px solid rgb(235 233 217 / 0.3);
+    border-radius: 12px;
+    background: rgb(235 233 217 / 0.06);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      transform 0.12s;
+  }
+  .entrada:hover { background: rgb(235 233 217 / 0.14); }
+  .entrada:active { transform: translateY(2px); }
+  .entrada span {
+    display: grid;
+    gap: 1px;
+  }
+  .entrada b {
+    font-size: 1.2rem;
+    line-height: 1.2;
+  }
+  .entrada small {
+    color: var(--gris-claro);
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+  .entrada svg {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.6;
+  }
+  .entrada.principal {
+    border-color: var(--papel);
+    background: var(--papel);
+    color: var(--tinta);
+    box-shadow:
+      0 2px 0 #b9b6a0,
+      0 8px 18px rgb(0 0 0 / 0.35);
+  }
+  .entrada.principal small { color: #55544c; }
 
   footer {
     color: var(--gris);

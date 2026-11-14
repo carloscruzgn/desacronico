@@ -2,6 +2,7 @@
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import type { Config } from '../../compartido/protocolo'
   import { cartas, configGuardada, guardarConfig } from './datos'
+  import BotonIcono from './BotonIcono.svelte'
   import Opciones from './Opciones.svelte'
 
   interface Props {
@@ -35,8 +36,8 @@
 
 <main>
   <header>
-    <button class="boton secundario pequeno" onclick={onvolver}>‹ Volver</button>
-    <h2>Partida en este dispositivo</h2>
+    <BotonIcono icono="atras" etiqueta="Volver al menú" onclick={onvolver} />
+    <h2>En este dispositivo</h2>
   </header>
 
   <section>
@@ -89,6 +90,7 @@
     padding-bottom: 0.2em;
   }
   h3 small {
+    font-family: var(--ui);
     font-style: italic;
     font-size: 0.95rem;
     color: var(--gris-claro);

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition'
+  import BotonIcono from './BotonIcono.svelte'
   import { creditos, reglas } from './textos'
 
   let { oncerrar }: { oncerrar: () => void } = $props()
@@ -11,7 +12,7 @@
 <div class="hoja" role="dialog" aria-modal="true" aria-label="Reglamento" transition:fly={{ y: 60, duration: 300 }}>
   <header>
     <h2>Reglamento</h2>
-    <button class="cerrar" onclick={oncerrar} aria-label="Cerrar">×</button>
+    <BotonIcono icono="cerrar" etiqueta="Cerrar" sobrePapel onclick={oncerrar} />
   </header>
   <div class="texto">
     {@html reglas}
@@ -49,15 +50,6 @@
   h2 {
     margin: 0;
     font-size: 1.5rem;
-  }
-  .cerrar {
-    width: 44px;
-    height: 44px;
-    border: 0;
-    background: none;
-    font-size: 2rem;
-    line-height: 1;
-    cursor: pointer;
   }
   .texto {
     overflow-y: auto;

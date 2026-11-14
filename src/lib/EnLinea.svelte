@@ -5,6 +5,7 @@
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import { esCodigo } from '../../compartido/protocolo'
   import { Conexion, crearSala, existeSala, nombreGuardado, salaGuardada } from './conexion.svelte'
+  import BotonIcono from './BotonIcono.svelte'
   import { cartas } from './datos'
   import Mesa from './Mesa.svelte'
   import Opciones from './Opciones.svelte'
@@ -85,7 +86,7 @@
 {#if !conexion}
   <main>
     <header>
-      <button class="boton secundario pequeno" onclick={onsalir}>‹ Volver</button>
+      <BotonIcono icono="atras" etiqueta="Volver al menú" onclick={onsalir} />
       <h2>Partida en línea</h2>
     </header>
     <p class="ayuda">Cada jugador en su móvil. No hace falta registrarse: basta un nombre.</p>
@@ -128,7 +129,7 @@
 {:else if sala.fase === 'sala'}
   <main>
     <header>
-      <button class="boton secundario pequeno" onclick={() => salir(true)}>‹ Salir</button>
+      <BotonIcono icono="atras" etiqueta="Salir de la sala" onclick={() => salir(true)} />
       <h2>Sala de espera</h2>
     </header>
 
@@ -217,6 +218,7 @@
     padding-bottom: 0.2em;
   }
   small {
+    font-family: var(--ui);
     font-style: italic;
     font-size: 0.95rem;
     color: var(--gris-claro);
