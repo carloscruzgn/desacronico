@@ -3,7 +3,13 @@
   import { MANO_MAX, MANO_MIN, OPCIONES } from '../../compartido/clasico'
   import type { Config } from '../../compartido/protocolo'
   import { AMBITOS, type Ambito } from '../../compartido/tipos'
+  import { flip } from 'svelte/animate'
+  import { cubicOut } from 'svelte/easing'
+  import { crossfade } from 'svelte/transition'
+  import { barajar } from '../../compartido/clasico'
+  import Carta from './Carta.svelte'
   import { cartas, cuentaPorAmbito } from './datos'
+  import { dura } from './movimiento'
 
   interface Props {
     config: Config
@@ -14,6 +20,15 @@
   let { config, fija = false, oncambio }: Props = $props()
 
   const ambitos = Object.keys(AMBITOS) as Ambito[]
+  const elegidos = $derived(ambitos.filter((a) => config.ambitos.includes(a)))
+  // La carta que enseña cada serie cuando está en el mazo: una cualquiera de las suyas.
+  const muestra = Object.fromEntries(ambitos.map((a) => [a, barajar(cartas.filter((c) => c.ambito === a))[0]])) as Record<Ambito, (typeof cartas)[number]>
+  // Al elegir una serie, su montón vuela al mazo de la partida; al quitarla, vuelve a su sitio.
+  const [enviar, recibir] = crossfade({
+    duration: () => dura(420),
+    easing: cubicOut,
+    fallback: () => ({ duration: dura(200), css: (t: number) => `opacity: ${t}` }),
+  })
   const total = $derived(cartas.filter((c) => config.ambitos.includes(c.ambito)).length)
   const n = $derived(config.opciones.cartasIniciales)
 
@@ -27,15 +42,35 @@
 </script>
 
 <section>
-  <h2>Mazo <small>{total} cartas{fija ? '' : ' · toca un tema para quitarlo o ponerlo'}</small></h2>
-  <div class="ambitos">
-    {#each ambitos as a (a)}
-      <button class="ambito" class:activo={config.ambitos.includes(a)} disabled={fija} aria-pressed={config.ambitos.includes(a)} onclick={() => alternar(a)}>
-        <span class="muestra {a}"></span>
-        {AMBITOS[a]}
-        <small>{cuentaPorAmbito[a]}</small>
-      </button>
-    {/each}
+  <h2>Mazo <small>{total} cartas{fija ? '' : ' · toca una serie para quitarla o ponerla'}</small></h2>
+  <div class="mazos">
+    <div class="monton" class:vacio={!elegidos.length} aria-hidden="true">
+      {#each elegidos as a, i (a)}
+        <div class="hoja" animate:flip={{ duration: dura(350), easing: cubicOut }} in:recibir={{ key: a }} out:enviar={{ key: a }}>
+          <div class="giro" style="--i: {i - (elegidos.length - 1) / 2}">
+            <Carta carta={muestra[a]} />
+          </div>
+        </div>
+      {/each}
+      <span class="total">{total}<small>cartas</small></span>
+    </div>
+
+    <div class="series">
+      {#each ambitos as a (a)}
+        {@const dentro = config.ambitos.includes(a)}
+        <button class="serie {a}" class:dentro disabled={fija} aria-pressed={dentro} onclick={() => alternar(a)}>
+          <span class="hueco">
+            {#if !dentro}
+              <span class="taco" in:recibir={{ key: a }} out:enviar={{ key: a }}></span>
+            {:else}
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5 10 17l8.5-9.5" /></svg>
+            {/if}
+          </span>
+          <span class="nombre">{AMBITOS[a]}</span>
+          <small>{cuentaPorAmbito[a]}<span class="sr-only"> cartas, {dentro ? 'en el mazo' : 'fuera del mazo'}</span></small>
+        </button>
+      {/each}
+    </div>
   </div>
 </section>
 
@@ -81,45 +116,130 @@
     margin-left: 0.3em;
   }
 
-  .ambitos {
+  /* Elegir mazo: arriba, el mazo de la partida con una carta de cada serie elegida; abajo, las cinco
+     series en su sitio. Tocar una serie la mete en el mazo o la saca. */
+  .mazos {
+    display: grid;
+    gap: 6px;
+  }
+  .monton {
+    --ancho: min(21vw, 92px);
+    position: relative;
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    justify-content: center;
+    align-items: flex-start;
+    height: calc(var(--ancho) * 1.383 + 30px);
+    padding-top: 12px;
+    border-radius: 10px;
+    background: rgb(0 0 0 / 0.2);
   }
-  .ambito {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 4px 12px 4px 8px;
-    border: 1px solid rgb(235 233 217 / 0.3);
+  .monton.vacio {
+    box-shadow: inset 0 0 0 1px rgb(240 163 163 / 0.5);
+  }
+  .hoja {
+    margin: 0 calc(var(--ancho) * -0.24);
+  }
+  .giro {
+    transform-origin: 50% 170%;
+    transform: rotate(calc(var(--i) * 7deg));
+    transition: transform 0.35s cubic-bezier(0.3, 1.2, 0.5, 1);
+  }
+  .total {
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    translate: -50%;
+    z-index: 2;
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 0 12px;
     border-radius: 999px;
-    background: transparent;
+    background: var(--papel);
+    color: var(--tinta);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.5);
+    font-family: var(--fell-sc);
+    font-size: 1.35rem;
+    line-height: 1.5;
+  }
+  .total small {
+    margin: 0;
+    color: #55544c;
+    font-size: 0.85rem;
+  }
+
+  .series {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .serie {
+    --lomo: var(--gris);
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: 3px;
+    min-height: 44px;
+    padding: 4px 0 2px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
     cursor: pointer;
-    opacity: 0.6;
-    transition:
-      opacity 0.15s,
-      background 0.15s;
   }
-  /* Lo elegido se marca igual en toda la pantalla: borde de papel y un velo claro.
-     El papel macizo queda para los botones que hacen algo. */
-  .ambito.activo {
-    opacity: 1;
-    background: rgb(235 233 217 / 0.14);
-    border-color: var(--papel);
-    box-shadow: inset 0 0 0 1px var(--papel);
+  .serie.comunicacion { --lomo: var(--comunicacion); }
+  .serie.social { --lomo: var(--social); }
+  .serie.cientifico { --lomo: var(--cientifico); }
+  .serie.mujer { --lomo: var(--mujer); }
+  .serie.coria { --lomo: var(--coria); }
+  /* El sitio de la serie: vacío y con su color cuando está en el mazo; con el montón apagado cuando no. */
+  .hueco {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    aspect-ratio: 554 / 766;
+    border-radius: 4px;
+    border: 1.5px dashed rgb(235 233 217 / 0.35);
   }
-  .muestra {
-    width: 22px;
-    height: 30px;
+  .dentro .hueco {
+    border: 2px solid var(--papel);
+    background: var(--lomo);
+  }
+  .hueco svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: var(--papel);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 1px #000);
+  }
+  .taco {
+    position: absolute;
+    inset: 2px;
     border-radius: 3px;
-    border: 1px solid rgb(255 255 255 / 0.35);
+    background: var(--lomo);
+    box-shadow:
+      0 0 0 1.5px rgb(235 233 217 / 0.55),
+      2px 2px 0 rgb(235 233 217 / 0.35),
+      4px 4px 0 rgb(235 233 217 / 0.2);
+    filter: saturate(0.6) brightness(0.85);
   }
-  .muestra.comunicacion { background: var(--comunicacion); }
-  .muestra.social { background: var(--social); }
-  .muestra.cientifico { background: var(--cientifico); }
-  .muestra.mujer { background: var(--mujer); }
-  .muestra.coria { background: var(--coria); }
+  .nombre {
+    font-size: 0.82rem;
+    line-height: 1.1;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .serie small {
+    margin: 0;
+    font-size: 0.82rem;
+  }
+  .serie:not(.dentro) .nombre,
+  .serie:not(.dentro) small {
+    opacity: 0.6;
+  }
 
   .fila {
     display: flex;

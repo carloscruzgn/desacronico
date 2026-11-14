@@ -36,7 +36,7 @@
   const minimo = $derived(minimoCartas(nombres.length, config.opciones.cartasIniciales))
   const error = $derived(
     ids.length === 0
-      ? 'Elige al menos un ámbito.'
+      ? 'Elige al menos una serie.'
       : ids.length < minimo
         ? `Con ${nombres.length} jugadores y ${config.opciones.cartasIniciales} cartas hacen falta al menos ${minimo} cartas en el mazo.`
         : '',

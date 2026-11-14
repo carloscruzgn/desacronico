@@ -255,7 +255,7 @@ export class Partida extends DurableObject<Env> {
 function validar(c: Config): Config {
   const ambitos = (Object.keys(AMBITOS) as Ambito[]).filter((a) => c?.ambitos?.includes(a))
   const n = Number(c?.opciones?.cartasIniciales)
-  if (!ambitos.length) throw new Error('Elige al menos un ámbito')
+  if (!ambitos.length) throw new Error('Elige al menos una serie')
   if (!Number.isInteger(n) || n < MANO_MIN || n > MANO_MAX) throw new Error('Número de cartas no válido')
   return { ambitos, opciones: { cartasIniciales: n, alFallar: c.opciones.alFallar === 'recolocar' ? 'recolocar' : 'descartar' } }
 }
