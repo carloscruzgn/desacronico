@@ -89,9 +89,10 @@
   }
   .lema {
     margin: 0.5em 0 0;
+    font-family: var(--fell);
     font-style: italic;
     color: var(--gris-claro);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
 
   nav {

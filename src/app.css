@@ -11,6 +11,31 @@
   font-display: swap;
 }
 @font-face {
+  font-family: 'Alegreya Sans';
+  src: url('/fuentes/alegreya-sans-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Alegreya Sans';
+  src: url('/fuentes/alegreya-sans-latin-400-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Alegreya Sans';
+  src: url('/fuentes/alegreya-sans-latin-500-normal.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Alegreya Sans';
+  src: url('/fuentes/alegreya-sans-latin-700-normal.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Fell SC';
   src: url('/fuentes/im-fell-english-sc-latin-400-normal.woff2') format('woff2');
   font-display: swap;
@@ -42,7 +67,13 @@
   --tapete: #23302b;
   --tapete-2: #18211e;
 
-  font-family: 'Fell', 'Times New Roman', serif;
+  /* Dos voces: IM Fell da el tono (marca, cartas, títulos, avisos); Alegreya Sans lleva la interfaz. */
+  --fell: 'Fell', 'Times New Roman', serif;
+  --fell-sc: 'Fell SC', 'Fell', serif;
+  --ui: 'Alegreya Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--ui);
+  font-size: 106.25%;
+  line-height: 1.35;
   color: var(--papel);
   background: var(--tapete-2);
 }
@@ -82,9 +113,10 @@ button {
   border-radius: 6px;
   background: var(--papel);
   color: var(--tinta);
-  font-family: 'Fell SC', 'Fell', serif;
-  font-size: 1.25rem;
-  letter-spacing: 0.02em;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.01em;
   cursor: pointer;
   box-shadow:
     0 2px 0 #b9b6a0,

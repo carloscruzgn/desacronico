@@ -89,9 +89,8 @@
     padding-bottom: 0.2em;
   }
   h3 small {
-    font-family: 'Fell', serif;
     font-style: italic;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     color: var(--gris-claro);
     margin-left: 0.3em;
   }

@@ -53,6 +53,8 @@
   .carta {
     --fondo: var(--comunicacion);
     --letra: var(--tinta);
+    font-family: 'Fell', 'Times New Roman', serif;
+    line-height: 1.2;
     width: var(--ancho, 240px);
     aspect-ratio: 554 / 766;
     container-type: inline-size;

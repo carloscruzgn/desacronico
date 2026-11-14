@@ -170,7 +170,8 @@
 
   function elegir(id: string) {
     if (fin) return
-    seleccionada = seleccionada === id ? null : id
+    if (seleccionada === id) ampliada = { id, reverso: false }
+    else seleccionada = id
   }
 
   function jugarEn(posicion: number) {
@@ -325,7 +326,8 @@
     </ul>
   {/if}
 
-  <div class="crono" bind:this={cronoEl}>
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="crono" bind:this={cronoEl} onclick={(e) => e.target === e.currentTarget && (seleccionada = null)}>
     <div class="tira">
       {#each crono as p, i (p.id)}
         <div class="pieza" animate:flip={{ duration: 600, easing: cubicOut }}>
@@ -364,11 +366,12 @@
         <p class="texto" in:fade={{ duration: 180 }}>{@html porId[seleccionada].texto}</p>
       {/key}
       <p class="pista">
-        {#if miTurno}Toca un hueco <b>+</b> de la cronología{:else}Espera tu turno{/if} ·
-        <button class="enlace" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}>ampliar</button>
+        {#if miTurno}Toca un hueco <b>+</b> para colocarla{:else}Espera tu turno{/if}
+        <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
       </p>
     {:else if !ocupado && miTurno}
       <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'}</p>
+      <p class="pista">Toca cualquier carta para leerla y ampliarla</p>
     {:else if !ocupado}
       <p class="pista grande">Juega {nombreTurno}…</p>
       {#if anfitrion && conectados && !conectados[vista.turno]}
@@ -400,6 +403,7 @@
         >
           <div class="cuerpo">
             <Carta carta={porId[id]} />
+            {#if seleccionada === id}<span class="lupa"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg></span>{/if}
           </div>
         </button>
       {/each}
@@ -416,6 +420,7 @@
     <div in:scale={{ duration: 260, start: 0.7, easing: cubicOut }}>
       <Carta carta={porId[ampliada.id]} fecha={fechas[ampliada.id]} volteada={ampliada.reverso} />
     </div>
+    <span class="cerrar">Toca para cerrar</span>
   </button>
 {/if}
 
@@ -582,13 +587,13 @@
     text-decoration: line-through;
   }
   .cartas {
+    font-weight: 700;
     min-width: 20px;
     height: 26px;
     padding: 0 4px;
     border-radius: 3px;
     background: rgb(0 0 0 / 0.3);
     color: var(--papel);
-    font-family: 'Fell SC', serif;
     line-height: 26px;
     text-align: center;
   }
@@ -709,7 +714,8 @@
   }
   .leyenda p { margin: 0; }
   .texto {
-    font-size: 1.12rem;
+    font-size: 1.15rem;
+    font-weight: 500;
     line-height: 1.2;
     text-wrap: balance;
   }
@@ -731,6 +737,44 @@
   .veredicto.fallo,
   .veredicto.recoloca {
     color: #f0a3a3;
+  }
+  .ampliar {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 8px;
+    min-height: 36px;
+    padding: 0 12px 0 9px;
+    border: 1px solid rgb(235 233 217 / 0.5);
+    border-radius: 999px;
+    background: rgb(235 233 217 / 0.1);
+    color: var(--papel);
+    font-style: normal;
+    font-weight: 500;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  svg {
+    width: 1.15em;
+    height: 1.15em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .lupa {
+    position: absolute;
+    right: -6px;
+    top: -8px;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--oro);
+    color: var(--tinta);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
+    pointer-events: none;
   }
   .enlace {
     padding: 6px 2px;
@@ -791,16 +835,23 @@
 
   /* Carta ampliada */
   .ampliada {
-    --ancho: min(86vw, 58dvh, 460px);
+    --ancho: min(90vw, 60dvh, 480px);
     position: fixed;
     inset: 0;
     z-index: 30;
     display: grid;
-    place-items: center;
+    place-content: center;
+    justify-items: center;
+    gap: 14px;
     border: 0;
     padding: 0;
-    background: rgb(0 0 0 / 0.72);
+    background: rgb(0 0 0 / 0.88);
     cursor: zoom-out;
+  }
+
+  .cerrar {
+    color: var(--gris-claro);
+    font-style: italic;
   }
 
   /* Final de la partida */

@@ -217,9 +217,8 @@
     padding-bottom: 0.2em;
   }
   small {
-    font-family: 'Fell', serif;
     font-style: italic;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     color: var(--gris-claro);
     margin-left: 0.3em;
   }
@@ -234,8 +233,8 @@
     display: grid;
     gap: 4px;
     margin-top: 1em;
-    font-family: 'Fell SC', serif;
-    font-size: 1.15rem;
+    font-weight: 700;
+    font-size: 1.05rem;
   }
   input {
     min-width: 0;
@@ -246,7 +245,6 @@
     background: rgb(0 0 0 / 0.25);
     color: var(--papel);
     font: inherit;
-    font-family: 'Fell', serif;
     font-size: 1.15rem;
   }
   input::placeholder { color: var(--gris); }

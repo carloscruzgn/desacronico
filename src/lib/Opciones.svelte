@@ -74,9 +74,8 @@
     padding-bottom: 0.2em;
   }
   small {
-    font-family: 'Fell', serif;
     font-style: italic;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     color: var(--gris-claro);
     margin-left: 0.3em;
   }
@@ -166,12 +165,11 @@
     cursor: pointer;
   }
   .fallo b {
-    font-family: 'Fell SC', serif;
-    font-weight: normal;
-    font-size: 1.08rem;
+    font-weight: 700;
+    font-size: 1.05rem;
   }
   .fallo span {
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     color: var(--gris-claro);
   }
   .fallo button[aria-checked='true'] {
