@@ -4,16 +4,17 @@
   import { cubicOut } from 'svelte/easing'
   import { crossfade, fade, scale } from 'svelte/transition'
   import type { Anios, VistaClasico } from '../../compartido/clasico'
-  import type { Fecha } from '../../compartido/tipos'
+  import { eraDe, type Fecha } from '../../compartido/tipos'
   import Carta from './Carta.svelte'
   import type { Controlador, Suceso } from './control'
-  import { porId, textoPlano } from './datos'
+  import { anioTexto, porId, textoPlano } from './datos'
   import BotonIcono from './BotonIcono.svelte'
   import Confirmar from './Confirmar.svelte'
   import { dialogo } from './dialogo'
   import { desplazamiento, dura } from './movimiento'
   import Marca from './Marca.svelte'
   import Mazo from './Mazo.svelte'
+  import Moneda from './Moneda.svelte'
   import Reglas from './Reglas.svelte'
 
   interface Props {
@@ -95,7 +96,43 @@
   const puedeColocar = $derived(!!seleccionada && !ocupado && miTurno)
   const nombreTurno = $derived(vista.jugadores[vista.turno]?.nombre ?? '')
   const espera = (ms: number) => new Promise((r) => setTimeout(r, ms))
-  const anioDe = (id: string) => (fechas[id] ? `${fechas[id].circa ? 'c. ' : ''}${fechas[id].anio}` : '')
+  const anioDe = (id: string) => anioTexto(fechas[id])
+
+  let menu = $state(false)
+  let confirma = $state<'' | 'abandonar' | 'sala'>('')
+
+  /** Gesto de la moneda de cada jugador según cómo le va. */
+  function gestoDe(i: number): 'normal' | 'pensando' | 'gana' | 'pierde' {
+    if (fin) return fin.includes(i) ? 'gana' : 'pierde'
+    if (vista.jugadores[i].eliminado) return 'pierde'
+    return i === vista.turno ? 'pensando' : 'normal'
+  }
+
+  // Tira de años: qué parte de la cronología se está viendo.
+  let ventana = $state({ izq: 0, ancho: 100 })
+  function medirVentana() {
+    if (!cronoEl) return
+    const total = cronoEl.scrollWidth || 1
+    ventana = { izq: (cronoEl.scrollLeft / total) * 100, ancho: Math.min(100, (cronoEl.clientWidth / total) * 100) }
+  }
+  $effect(() => {
+    void [crono.length, puedeColocar]
+    const reloj = setTimeout(medirVentana, 350)
+    return () => clearTimeout(reloj)
+  })
+
+  /** La carta de la cronología que está más cerca del centro de la vista. */
+  function cartaCentral(): string | null {
+    const medio = cronoEl.getBoundingClientRect().left + cronoEl.clientWidth / 2
+    let mejor: string | null = null
+    let distancia = Infinity
+    for (const el of cronoEl.querySelectorAll<HTMLElement>('.naipe')) {
+      const r = el.getBoundingClientRect()
+      const d = Math.abs(r.left + r.width / 2 - medio)
+      if (d < distancia) [mejor, distancia] = [el.dataset.id ?? null, d]
+    }
+    return mejor
+  }
 
   /** Lleva una carta de la cronología al centro de la vista. Usa su sitio en la maquetación, no el que
       tiene en pantalla, porque mientras vuela o se desliza está en otra parte. */
@@ -233,7 +270,12 @@
   function elegir(id: string) {
     if (fin) return
     if (seleccionada === id) ampliada = { id, reverso: false }
-    else seleccionada = id
+    else {
+      // Al elegir, las cartas de la mesa encogen para que quepan más huecos: se conserva la que estaba en el centro.
+      const central = !seleccionada && miTurno && !ocupado ? cartaCentral() : null
+      seleccionada = id
+      if (central) setTimeout(() => centrar(central), 300)
+    }
   }
 
   function jugarEn(posicion: number) {
@@ -360,6 +402,10 @@
 <svelte:window
   onkeydown={(e) => {
     tecleando = true
+    if (menu || confirma) {
+      if (e.key === 'Escape' && menu) menu = false
+      return
+    }
     flechas(e)
     if (e.key === 'Escape' && !reglas && quitando === null) {
       // el hueco con el foco va a desaparecer: el foco vuelve a la carta que estaba elegida
@@ -374,7 +420,7 @@
 <main class="mesa" class:eligiendo={puedeColocar}>
   <h1 class="sr-only" tabindex="-1" data-titulo>Partida</h1>
   <header class="barra">
-    <BotonIcono icono="atras" etiqueta="Salir al menú" onclick={onsalir} />
+    <BotonIcono icono="atras" etiqueta={fin ? 'Salir al menú' : 'Salir o abandonar la partida'} onclick={() => (fin ? onsalir() : (menu = true))} />
     <span class="titulo"><Marca /></span>
     <BotonIcono icono="reglas" etiqueta="Reglamento" onclick={() => (reglas = true)} />
     <div class="pilas">
@@ -403,8 +449,7 @@
     </div>
   </header>
 
-  {#if !solo}
-    <ul class="jugadores" aria-label="Jugadores">
+  <ul class="jugadores" class:solo aria-label="Jugadores">
       {#each vista.jugadores as j, i (i)}
         <li
           bind:this={chips[i]}
@@ -416,15 +461,15 @@
         >
           <span class="nombre">{j.nombre}{i === asiento ? ' (tú)' : ''}</span>
           {#if conectados && !conectados[i]}<span class="sr-only">, sin conexión</span>{/if}
-          {#if j.eliminado}<span class="sr-only">, eliminado</span>{/if}
-          <span class="cartas">{cuentas[i]}<span class="sr-only">{cuentas[i] === 1 ? ' carta' : ' cartas'}</span></span>
+          {#if j.eliminado}<span class="sr-only">, fuera de la partida</span>{/if}
+          <span class="sr-only">, </span>
+          <Moneda avatar={j.avatar} nombre={j.nombre} gesto={gestoDe(i)} n={fin ? undefined : cuentas[i]} />
         </li>
       {/each}
-    </ul>
-  {/if}
+  </ul>
 
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="crono" bind:this={cronoEl} onclick={(e) => e.target === e.currentTarget && (seleccionada = null)}>
+  <div class="crono" bind:this={cronoEl} onscroll={medirVentana} onclick={(e) => e.target === e.currentTarget && (seleccionada = null)}>
     <div class="tira">
       {#each crono as p, i (p.id)}
         <div class="pieza" animate:flip={{ duration: dura(600), easing: cubicOut }}>
@@ -450,6 +495,18 @@
       </button>
     </div>
   </div>
+
+  {#if crono.length > 2}
+    <!-- Tira de años: toda la cronología de un vistazo; tocar un año lleva hasta su carta. -->
+    <div class="anios" class:densa={crono.length > 8} aria-hidden="true" transition:fade={{ duration: dura(200) }}>
+      {#each crono as p (p.id)}
+        <button tabindex="-1" class={p.volteada && fechas[p.id] ? eraDe(fechas[p.id].anio) : ''} onclick={() => centrar(p.id)}>
+          <span>{p.volteada && fechas[p.id] ? anioTexto({ anio: fechas[p.id].anio, circa: false }) : '?'}</span>
+        </button>
+      {/each}
+      <i style="left: {ventana.izq}%; width: {ventana.ancho}%"></i>
+    </div>
+  {/if}
 
   <p class="sr-only" role="status">{narra}</p>
   <div class="leyenda">
@@ -541,6 +598,57 @@
   </div>
 {/if}
 
+{#if menu}
+  <div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && (menu = false)} role="presentation">
+    <div class="premio" role="dialog" aria-modal="true" aria-labelledby="menu-titulo" use:dialogo in:scale={{ duration: dura(220), start: 0.9 }}>
+      <h2 id="menu-titulo">La partida</h2>
+      <div class="acciones">
+        <button class="boton" data-foco onclick={() => (menu = false)}>Seguir jugando</button>
+        <button class="opcion" onclick={onsalir}>
+          <b>Salir al menú</b>
+          <small>{local ? 'La partida queda guardada para continuarla' : 'La partida sigue: podrás volver con el código de la sala'}</small>
+        </button>
+        {#if control.aLaSala}
+          <button class="opcion" onclick={() => ((menu = false), (confirma = 'sala'))}>
+            <b>Volver todos a la sala de espera</b>
+            <small>Termina esta partida para todos</small>
+          </button>
+        {/if}
+        {#if !mirando && !fuera}
+          <button class="opcion" onclick={() => ((menu = false), (confirma = 'abandonar'))}>
+            <b>Abandonar la partida</b>
+            <small>{local ? 'Se termina aquí y no se guarda' : 'Tus cartas van a los descartes y los demás siguen'}</small>
+          </button>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if confirma === 'abandonar'}
+  <Confirmar
+    titulo="¿Abandonar la partida?"
+    texto={local ? 'La partida se termina y no se podrá continuar.' : 'Ya no podrás jugar esta partida, aunque sí seguir mirándola.'}
+    si="Abandonar"
+    no="Seguir jugando"
+    onsi={() => {
+      confirma = ''
+      control.abandonar()
+      if (local) onsalir()
+    }}
+    onno={() => (confirma = '')}
+  />
+{:else if confirma === 'sala'}
+  <Confirmar
+    titulo="¿Volver todos a la sala de espera?"
+    texto="Esta partida se termina para todos los jugadores."
+    si="Volver a la sala"
+    no="Seguir jugando"
+    onsi={() => ((confirma = ''), control.aLaSala?.())}
+    onno={() => (confirma = '')}
+  />
+{/if}
+
 {#if quitando !== null}
   <Confirmar
     titulo="¿Quitar a {vista.jugadores[quitando]?.nombre} de la partida?"
@@ -555,7 +663,21 @@
   <div class="velo" transition:fade={{ duration: dura(250) }}>
     <div class="premio" role="dialog" aria-modal="true" aria-labelledby="fin-titulo" use:dialogo in:scale={{ duration: dura(450), start: 0.8, easing: cubicOut }}>
       <p class="corona">{solo ? 'Cronología completada' : 'Fin de la partida'}</p>
+      <div class="podio" aria-hidden="true">
+        {#each fin as i (i)}
+          <div class="ganadora"><Moneda avatar={vista.jugadores[i].avatar} nombre={vista.jugadores[i].nombre} gesto="gana" /></div>
+        {/each}
+      </div>
       <h2 id="fin-titulo">{solo ? '¡Hecho!' : `¡Gana ${nombres(fin)}!`}</h2>
+      {#if !solo}
+        <ul class="vencidos" aria-hidden="true">
+          {#each vista.jugadores as j, i (i)}
+            {#if !fin.includes(i)}
+              <li style="--i: {i}; --giro: {((i * 37) % 17) - 8}deg"><Moneda avatar={j.avatar} nombre={j.nombre} gesto="pierde" /></li>
+            {/if}
+          {/each}
+        </ul>
+      {/if}
       <table>
         <thead><tr><th><span class="sr-only">Jugador</span></th><th>aciertos</th><th>fallos</th></tr></thead>
         <tbody>
@@ -663,68 +785,68 @@
   }
 
   /* Jugadores */
+  /* Jugadores: cada uno su moneda, con las cartas que le quedan y el nombre debajo */
   .jugadores {
+    --lado: 46px;
     display: flex;
-    gap: 6px;
+    gap: 4px;
     margin: 0;
-    padding: 4px 12px;
+    padding: 8px 12px 2px;
     list-style: none;
     overflow-x: auto;
     scrollbar-width: none;
   }
   .jugadores li {
+    flex: none;
     display: flex;
+    flex-direction: column-reverse;
     align-items: center;
-    gap: 6px;
-    padding: 3px 6px 3px 12px;
-    border-radius: 999px;
-    border: 1px solid rgb(235 233 217 / 0.25);
+    gap: 5px;
+    width: 72px;
     color: var(--gris-claro);
+    transition: opacity 0.3s;
+  }
+  .jugadores .nombre {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 0.82rem;
+    line-height: 1.15;
+  }
+  .jugadores li :global(.moneda) {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
     transition:
-      background 0.3s,
-      color 0.3s;
+      outline-color 0.3s,
+      transform 0.3s cubic-bezier(0.3, 1.4, 0.5, 1);
   }
-  .jugadores li.activo {
-    background: var(--papel);
-    color: var(--tinta);
-    border-color: var(--papel);
+  .jugadores li.activo { color: var(--papel); }
+  .jugadores li.activo .nombre { font-weight: 700; }
+  .jugadores li.activo :global(.moneda) {
+    outline-color: var(--oro);
+    transform: scale(1.08);
   }
-  .jugadores li.ganador {
-    background: var(--oro);
-    color: var(--tinta);
-    border-color: var(--oro);
+  .jugadores li.ganador { color: var(--oro); }
+  .jugadores li.ganador :global(.moneda) {
+    outline-color: var(--oro);
+    box-shadow: 0 0 14px var(--oro);
   }
-  .jugadores li.ausente { border-style: dashed; }
+  .jugadores li.ausente :global(.moneda) { opacity: 0.5; }
   .jugadores li.ausente .nombre::after {
     content: ' ⌁';
     color: #f0a3a3;
   }
-  .jugadores li.eliminado {
-    opacity: 0.6;
-    text-decoration: line-through;
-  }
-  .cartas {
-    font-weight: 700;
-    min-width: 20px;
-    height: 26px;
-    padding: 0 4px;
-    border-radius: 3px;
-    background: rgb(0 0 0 / 0.3);
-    color: var(--papel);
-    line-height: 26px;
-    text-align: center;
-  }
-  .activo .cartas,
-  .ganador .cartas {
-    background: var(--tinta);
-  }
+  .jugadores li.eliminado { opacity: 0.6; }
+  .jugadores li.eliminado .nombre { text-decoration: line-through; }
 
   /* Cronología */
   .crono {
     position: relative;
     flex: 1;
     min-height: 0;
+    /* las cartas se miden contra el alto que queda libre, para que nunca se recorten */
+    container-type: size;
     display: flex;
     align-items: center;
     overflow-x: auto;
@@ -740,6 +862,7 @@
     }
   }
   .tira {
+    --carta-crono: min(36vw, 200px, calc((100cqh - 30px) / 1.66));
     display: flex;
     align-items: center;
     width: max-content;
@@ -750,6 +873,66 @@
     display: flex;
     align-items: center;
   }
+  /* Mientras se elige hueco las cartas encogen: caben más cartas y más huecos a la vista. */
+  .eligiendo .tira {
+    --carta-crono: min(26vw, 150px, calc((100cqh - 30px) / 1.66));
+  }
+  .crono .naipe :global(.carta) {
+    transition: width 0.28s;
+  }
+
+  /* Tira de años */
+  .anios {
+    position: relative;
+    display: flex;
+    gap: 3px;
+    margin: 2px 12px 0;
+    padding: 3px;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.22);
+  }
+  .anios button {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-bottom: 3px solid var(--gris);
+    border-radius: 3px;
+    background: rgb(235 233 217 / 0.1);
+    color: var(--papel);
+    font-family: var(--fell-sc);
+    font-size: 0.95rem;
+    line-height: 1;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .anios button.antigua { border-color: var(--antigua); }
+  .anios button.media { border-color: var(--media); }
+  .anios button.moderna { border-color: var(--moderna); }
+  .anios button.contemporanea { border-color: var(--contemporanea); }
+  .anios.densa button {
+    height: 46px;
+    font-size: 0.85rem;
+  }
+  .anios.densa span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    rotate: 180deg;
+  }
+  /* la parte de la cronología que se está viendo */
+  .anios i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border: 1.5px solid var(--oro);
+    border-radius: 6px;
+    pointer-events: none;
+    transition:
+      left 0.15s,
+      width 0.15s;
+  }
+
   .crono .naipe {
     --ancho: var(--carta-crono);
     margin: 0 4px;
@@ -771,6 +954,7 @@
     cursor: pointer;
     transition:
       width 0.28s cubic-bezier(0.3, 1.3, 0.5, 1),
+      height 0.28s,
       margin 0.28s,
       opacity 0.2s;
   }
@@ -1051,6 +1235,83 @@
     display: grid;
     gap: 10px;
   }
+  /* Menú de la partida */
+  .opcion {
+    display: grid;
+    gap: 1px;
+    min-height: 56px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--gris);
+    color: var(--tinta);
+    text-align: left;
+    cursor: pointer;
+  }
+  .opcion b { font-size: 1.1rem; }
+  .opcion small {
+    color: #55544c;
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  /* El final: la moneda del ganador cae girando entre rayos; las de los demás, mustias, debajo */
+  .podio {
+    --lado: min(30vw, 116px);
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin: 4px 0 6px;
+  }
+  .ganadora {
+    position: relative;
+    animation: lanzar 1s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .ganadora::before {
+    content: '';
+    position: absolute;
+    inset: -26%;
+    border-radius: 50%;
+    background: repeating-conic-gradient(rgb(232 198 106 / 0.55) 0 7deg, transparent 7deg 20deg);
+    mask: radial-gradient(closest-side, #000 55%, transparent);
+    animation: girar 16s linear infinite;
+  }
+  .ganadora :global(.moneda) {
+    box-shadow:
+      0 0 0 3px var(--oro),
+      0 6px 16px rgb(0 0 0 / 0.4);
+  }
+  @keyframes lanzar {
+    from {
+      transform: translateY(60px) rotateY(720deg) scale(0.3);
+      opacity: 0;
+    }
+  }
+  @keyframes girar {
+    to { rotate: 360deg; }
+  }
+  .vencidos {
+    --lado: 44px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
+  }
+  .vencidos li {
+    rotate: var(--giro);
+    animation: caer 0.55s cubic-bezier(0.3, 1.3, 0.5, 1) both;
+    animation-delay: calc(0.7s + var(--i) * 0.12s);
+  }
+  @keyframes caer {
+    from {
+      transform: translateY(-40px);
+      opacity: 0;
+    }
+  }
+
   .acciones .boton:not(.secundario) {
     background: var(--tinta);
     color: var(--papel);
@@ -1064,6 +1325,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .ganadora,
+    .ganadora::before,
+    .vencidos li,
     .eligiendo .hueco,
     .cuerpo.ok,
     .cuerpo.fallo {

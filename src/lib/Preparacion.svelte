@@ -1,20 +1,36 @@
 <script lang="ts">
+  import { avatarLibre } from '../../compartido/avatares'
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import type { Config } from '../../compartido/protocolo'
   import { cartas, configGuardada, guardarConfig } from './datos'
+  import Avatares from './Avatares.svelte'
   import BotonIcono from './BotonIcono.svelte'
+  import Moneda from './Moneda.svelte'
   import Opciones from './Opciones.svelte'
 
   interface Props {
     /** Hay una partida a medias que se perderá al repartir otra. */
     hayGuardada?: boolean
     onvolver: () => void
-    onempezar: (nombres: string[], ids: string[], config: Config) => void
+    onempezar: (nombres: string[], avatares: string[], ids: string[], config: Config) => void
   }
   let { hayGuardada = false, onvolver, onempezar }: Props = $props()
 
   let config = $state.raw(configGuardada())
   let nombres = $state<string[]>(['', ''])
+  // Cada jugador empieza con una moneda al azar, distinta de las demás; puede cambiarla.
+  const primera = avatarLibre([])
+  let avatares = $state<string[]>([primera, avatarLibre([primera])])
+  let eligiendo = $state<number | null>(null)
+
+  function anadir() {
+    nombres.push('')
+    avatares.push(avatarLibre(avatares))
+  }
+  function quitar(i: number) {
+    nombres.splice(i, 1)
+    avatares.splice(i, 1)
+  }
 
   const ids = $derived(cartas.filter((c) => config.ambitos.includes(c.ambito)).map((c) => c.id))
   const minimo = $derived(minimoCartas(nombres.length, config.opciones.cartasIniciales))
@@ -30,6 +46,7 @@
     guardarConfig(config)
     onempezar(
       nombres.map((n, i) => n.trim() || `Jugador ${i + 1}`),
+      [...avatares],
       ids,
       config,
     )
@@ -43,18 +60,21 @@
   </header>
 
   <section>
-    <h2>Jugadores <small>de 1 a {MAX_JUGADORES}; el nombre es opcional</small></h2>
+    <h2>Jugadores <small>de 1 a {MAX_JUGADORES}; toca la moneda para cambiarla</small></h2>
     <div class="jugadores">
       {#each nombres as _, i (i)}
         <div class="jugador">
+          <button class="moneda" aria-label="Cambiar la moneda del jugador {i + 1}" onclick={() => (eligiendo = i)}>
+            <Moneda avatar={avatares[i]} />
+          </button>
           <input type="text" maxlength="14" placeholder="Jugador {i + 1}" aria-label="Nombre del jugador {i + 1}" bind:value={nombres[i]} autocomplete="off" />
           {#if nombres.length > 1}
-            <button class="quitar" aria-label="Quitar jugador {i + 1}" onclick={() => nombres.splice(i, 1)}>×</button>
+            <button class="quitar" aria-label="Quitar jugador {i + 1}" onclick={() => quitar(i)}>×</button>
           {/if}
         </div>
       {/each}
       {#if nombres.length < MAX_JUGADORES}
-        <button class="anadir" onclick={() => nombres.push('')}>+ Añadir jugador</button>
+        <button class="anadir" onclick={anadir}>+ Añadir jugador</button>
       {/if}
     </div>
   </section>
@@ -67,6 +87,15 @@
     <button class="boton" disabled={!!error} onclick={empezar}>Repartir</button>
   </div>
 </main>
+
+{#if eligiendo !== null}
+  <Avatares
+    actual={avatares[eligiendo]}
+    ocupados={avatares}
+    onelegir={(a) => ((avatares[eligiendo!] = a), (eligiendo = null))}
+    oncerrar={() => (eligiendo = null)}
+  />
+{/if}
 
 <style>
   main {
@@ -106,7 +135,16 @@
   }
   .jugador {
     display: flex;
+    align-items: center;
     gap: 8px;
+  }
+  .moneda {
+    flex: none;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    cursor: pointer;
   }
   input[type='text'] {
     flex: 1;

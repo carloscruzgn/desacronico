@@ -1,5 +1,6 @@
 <script lang="ts">
   import { eraDe, type Carta, type Fecha } from '../../compartido/tipos'
+  import { anioTexto } from './datos'
 
   interface Props {
     carta: Carta
@@ -32,7 +33,7 @@
         <div class="pestana {carta.logoReverso}"><img src="/img/cepa.svg" alt="" draggable="false" /></div>
       </div>
       <div class="banda {era ?? ''}">
-        {#if fecha}{fecha.circa ? 'c. ' : ''}{fecha.anio}{/if}
+        {anioTexto(fecha)}
       </div>
       <hr />
       <div class="texto"><p>{@html carta.texto}</p></div>
@@ -190,6 +191,10 @@
     font-size: 15.2cqw;
     line-height: 1;
     letter-spacing: 0.02em;
+    /* En pantalla, una sombra fina ayuda a leer el blanco sobre las bandas claras sin cambiar sus colores. */
+    text-shadow:
+      0 0 0.5cqw rgb(0 0 0 / 0.45),
+      0 0.4cqw 1.2cqw rgb(0 0 0 / 0.3);
   }
   .banda.antigua { background: var(--antigua); }
   .banda.media { background: var(--media); }

@@ -10,6 +10,7 @@
   import Mesa from './lib/Mesa.svelte'
   import Preparacion from './lib/Preparacion.svelte'
   import Reglas from './lib/Reglas.svelte'
+  import Tutorial from './lib/Tutorial.svelte'
 
   type Pantalla = 'inicio' | 'preparacion' | 'mesa' | 'enlinea'
 
@@ -26,7 +27,8 @@
 
   // Lo necesario para montar la mesa local; `n` cambia en cada partida para empezar de cero.
   let partida = $state.raw<{ n: number; control: Controlador } | null>(null)
-  let ultima: { nombres: string[]; ids: string[]; config: Config } | null = null
+  let ultima: { nombres: string[]; avatares: string[]; ids: string[]; config: Config } | null = null
+  let tutorial = $state(false)
 
   // El botón «atrás» del móvil vuelve al menú (o cierra el reglamento) en vez de sacar de la web:
   // al salir del menú se apunta un paso en el historial, y volver es deshacerlo.
@@ -60,9 +62,10 @@
     else if (pantalla !== 'inicio') alInicio()
   }
 
-  async function empezar(nombres: string[], ids: string[], config: Config) {
-    ultima = { nombres, ids, config }
+  async function empezar(nombres: string[], avatares: string[], ids: string[], config: Config) {
+    ultima = { nombres, avatares, ids, config }
     const estado = crear(ids, nombres, config.opciones)
+    estado.jugadores.forEach((j, i) => (j.avatar = avatares[i]))
     guardarPartida(estado)
     partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(estado, await cargarAnios()) }
     ir('mesa')
@@ -100,6 +103,7 @@
     onsala={() => ((directo = true), ir('enlinea'))}
     oncontinuar={continuar}
     onreglas={abrirReglas}
+    ontutorial={() => (tutorial = true)}
   />
 {:else if pantalla === 'preparacion'}
   <Preparacion hayGuardada={!!guardada} onvolver={volver} onempezar={empezar} />
@@ -110,11 +114,15 @@
     <Mesa
       control={partida.control}
       onsalir={volver}
-      onotra={() => (ultima ? empezar(ultima.nombres, ultima.ids, ultima.config) : (pantalla = 'preparacion'))}
+      onotra={() => (ultima ? empezar(ultima.nombres, ultima.avatares, ultima.ids, ultima.config) : (pantalla = 'preparacion'))}
     />
   {/key}
 {/if}
 
 {#if reglas}
   <Reglas oncerrar={cerrarReglas} />
+{/if}
+
+{#if tutorial}
+  <Tutorial oncerrar={() => (tutorial = false)} />
 {/if}

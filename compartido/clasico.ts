@@ -17,6 +17,8 @@ export const MAX_JUGADORES = 6
 
 export interface Jugador {
   nombre: string
+  /** Personaje de su moneda (ver avatares.ts). */
+  avatar?: string
   mano: string[]
   eliminado: boolean
   aciertos: number

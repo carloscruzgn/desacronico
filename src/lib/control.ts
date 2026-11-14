@@ -20,6 +20,10 @@ export interface Controlador {
   jugar(carta: string, posicion: number): void
   /** En línea, el anfitrión puede sacar de la partida a quien no vuelve. */
   quitar?(jugador: number): void
+  /** Dejar la partida. En línea, los demás siguen sin ti; en local, se da por terminada y no se guarda. */
+  abandonar(): void
+  /** En línea, el anfitrión devuelve a todos a la sala de espera. */
+  aLaSala?(): void
   escuchar(f: (s: Suceso) => void): () => void
 }
 
@@ -40,6 +44,9 @@ export function controlLocal(inicial: EstadoClasico, anios: Anios): Controlador 
       estado = r.estado
       guardarPartida(estado.ganadores.length ? null : estado)
       for (const f of oyentes) f(suceso(r.resultado))
+    },
+    abandonar() {
+      guardarPartida(null)
     },
     escuchar(f) {
       oyentes.add(f)

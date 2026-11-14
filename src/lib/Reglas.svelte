@@ -4,11 +4,25 @@
   import { dialogo } from './dialogo'
   import { dura } from './movimiento'
   import { creditos, reglas, resumen } from './textos'
+  import Tutorial from './Tutorial.svelte'
 
   let { oncerrar }: { oncerrar: () => void } = $props()
+
+  let tutorial = $state(false)
+
+  // El reglamento, partido por sus títulos: cada apartado se pliega y la lista de títulos hace de índice.
+  const apartados = reglas
+    .split('<h3>')
+    .slice(1)
+    .map((trozo) => {
+      const [titulo, cuerpo] = trozo.split('</h3>')
+      return { titulo, cuerpo }
+    })
+  /** Modos del juego de mesa que la web todavía no tiene. */
+  const pendiente = (titulo: string) => /eras|cooperativo/i.test(titulo)
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && oncerrar()} />
+<svelte:window onkeydown={(e) => e.key === 'Escape' && !tutorial && oncerrar()} />
 
 <div class="velo" transition:fade={{ duration: dura(200) }} onclick={oncerrar} role="presentation"></div>
 <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="reglas-titulo" use:dialogo transition:fly={{ y: 60, duration: dura(300) }}>
@@ -21,12 +35,30 @@
     <section class="resumen">
       <h3>Cómo se juega, en un minuto</h3>
       {@html resumen}
-      <p class="sigue">Debajo está el reglamento completo del juego de mesa.</p>
+      <button class="boton" onclick={() => (tutorial = true)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
+        Ver el tutorial animado
+      </button>
     </section>
-    {@html reglas}
-    {@html creditos}
+
+    <h3 class="rotulo">El reglamento del juego de mesa</h3>
+    {#each apartados as a (a.titulo)}
+      <details>
+        <summary>
+          <span>{a.titulo}{#if pendiente(a.titulo)}<small>aún no está en la web</small>{/if}</span>
+        </summary>
+        {@html a.cuerpo}
+      </details>
+    {/each}
+
+    <h3 class="rotulo">Créditos</h3>
+    <div class="creditos">{@html creditos}</div>
   </div>
 </div>
+
+{#if tutorial}
+  <Tutorial oncerrar={() => (tutorial = false)} />
+{/if}
 
 <style>
   .velo {
@@ -86,7 +118,7 @@
 
   .resumen {
     margin: 16px 0 0;
-    padding: 2px 16px 4px;
+    padding: 2px 16px 16px;
     border-radius: 8px;
     background: var(--papel);
     box-shadow: inset 0 0 0 1px rgb(29 29 27 / 0.15);
@@ -95,7 +127,7 @@
     margin-top: 0.6em;
   }
   .resumen :global(ol) {
-    margin: 0 0 0.6em;
+    margin: 0 0 0.8em;
     padding-left: 1.3em;
   }
   .resumen :global(li) {
@@ -106,8 +138,70 @@
     font-family: var(--fell-sc);
     font-size: 1.15em;
   }
-  .sigue {
+  .resumen .boton {
+    width: 100%;
+    background: var(--tinta);
+    color: var(--papel);
+    box-shadow: 0 2px 0 #000;
+  }
+  .resumen svg {
+    width: 1.1em;
+    height: 1.1em;
+    fill: currentColor;
+  }
+
+  .rotulo {
+    margin-bottom: 0.5em !important;
+  }
+  details {
+    border-top: 1px solid var(--gris-claro);
+  }
+  details:last-of-type {
+    border-bottom: 1px solid var(--gris-claro);
+  }
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 48px;
+    font-family: var(--fell-sc);
+    font-size: 1.2rem;
+    line-height: 1.2;
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary::after {
+    content: '';
+    flex: none;
+    width: 9px;
+    height: 9px;
+    margin-right: 6px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    rotate: 45deg;
+    translate: 0 -3px;
+    transition: rotate 0.2s;
+  }
+  details[open] summary::after {
+    rotate: 225deg;
+    translate: 0 2px;
+  }
+  summary small {
+    display: block;
+    font-family: var(--ui);
     font-style: italic;
+    font-size: 0.9rem;
     color: #55544c;
+  }
+  details[open] {
+    padding-bottom: 6px;
+  }
+  .creditos :global(h3) {
+    font-size: 1.15rem;
+    margin-top: 1em;
   }
 </style>

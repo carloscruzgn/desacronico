@@ -1,1 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#1d1d1b"/><rect x="6" y="34" width="52" height="14" fill="#b46d7a"/><text x="32" y="29" text-anchor="middle" font-family="Georgia,serif" font-size="26" fill="#ebe9d9">d</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="tapete" cx="50%" cy="0%" r="100%">
+      <stop offset="0" stop-color="#2a3a34"/>
+      <stop offset="1" stop-color="#18211e"/>
+    </radialGradient>
+    <g id="carta">
+      <rect x="-88" y="-122" width="176" height="244" rx="16" fill="#1d1d1b" opacity=".35" transform="translate(4 8)"/>
+      <rect x="-88" y="-122" width="176" height="244" rx="16" fill="#ebe9d9"/>
+      <rect x="-88" y="26" width="44" height="46" fill="#b46d7a"/>
+      <rect x="-44" y="26" width="44" height="46" fill="#9e9a67"/>
+      <rect x="0" y="26" width="44" height="46" fill="#67b2ae"/>
+      <rect x="44" y="26" width="44" height="46" fill="#4e56a1"/>
+    </g>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#tapete)"/>
+  <use href="#carta" transform="translate(256 300) rotate(-20) translate(-78 -40)"/>
+  <use href="#carta" transform="translate(256 300) rotate(20) translate(78 -40)"/>
+  <g transform="translate(256 262)">
+    <use href="#carta"/>
+    <!-- una línea del tiempo con su marca, donde iría la ilustración -->
+    <path d="M-56 -46H56" stroke="#1d1d1b" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-34" cy="-46" r="11" fill="#1d1d1b"/>
+    <circle cx="8" cy="-46" r="11" fill="#ebe9d9" stroke="#1d1d1b" stroke-width="7"/>
+    <circle cx="44" cy="-46" r="11" fill="#1d1d1b"/>
+  </g>
+</svg>

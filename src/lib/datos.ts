@@ -17,6 +17,12 @@ export function cargarAnios(): Promise<Anios> {
   return (anios ??= import('../../compartido/anios.json').then((m) => m.default as unknown as Anios))
 }
 
+/** El año como se escribe en la carta: «c.» si es aproximado y signo menos tipográfico antes de nuestra era. */
+export function anioTexto(f: { anio: number; circa: boolean } | null | undefined): string {
+  if (!f) return ''
+  return `${f.circa ? 'c. ' : ''}${f.anio < 0 ? '−' + -f.anio : f.anio}`
+}
+
 export function textoPlano(c: Carta): string {
   return c.texto.replace(/<[^>]+>/g, '')
 }

@@ -9,6 +9,7 @@ export interface Config {
 
 export interface JugadorSala {
   nombre: string
+  avatar: string
   conectado: boolean
 }
 
@@ -40,6 +41,10 @@ export type DelCliente =
   | { t: 'quitar'; jugador: number }
   /** El anfitrión devuelve a todos a la sala de espera. */
   | { t: 'otra' }
+  /** Un jugador deja la partida en curso: sus cartas van a los descartes y los demás siguen. */
+  | { t: 'abandonar' }
+  /** Cambiar de personaje en la sala de espera. */
+  | { t: 'avatar'; avatar: string }
   | { t: 'salir' }
 
 export const LETRAS = 'BCDFGHJKLMNPRSTVWXZ'

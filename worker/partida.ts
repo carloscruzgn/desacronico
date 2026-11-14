@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import aniosJson from '../compartido/anios.json'
+import { avatarLibre, esAvatar } from '../compartido/avatares'
 import cartasJson from '../compartido/cartas.json'
 import {
   abandonar,
@@ -25,6 +26,7 @@ interface Asiento {
   /** Identificador secreto del dispositivo: permite volver a su sitio tras reconectar. */
   id: string
   nombre: string
+  avatar?: string
 }
 
 interface Guardado {
@@ -39,6 +41,7 @@ interface Guardado {
 interface Etiqueta {
   id: string
   nombre: string
+  avatar?: string
 }
 
 /** Una sala: sus jugadores, la configuración y la partida en curso. */
@@ -77,14 +80,16 @@ export class Partida extends DurableObject<Env> {
     const id = url.searchParams.get('id') ?? ''
     const nombre = (url.searchParams.get('nombre') ?? '').trim().slice(0, 14) || 'Jugador'
     if (!/^[\w-]{8,64}$/.test(id)) return Response.json({ error: 'Identificador no válido' }, { status: 400 })
+    const pedido = url.searchParams.get('avatar')
+    const avatar = esAvatar(pedido) ? pedido : undefined
 
     // Un dispositivo, una conexión: la nueva sustituye a la anterior.
     for (const ws of this.ctx.getWebSockets()) if (this.etiqueta(ws)?.id === id) ws.close(4000, 'sustituida')
 
     const par = new WebSocketPair()
     this.ctx.acceptWebSocket(par[1])
-    par[1].serializeAttachment({ id, nombre } satisfies Etiqueta)
-    this.sentar(id, nombre)
+    par[1].serializeAttachment({ id, nombre, avatar } satisfies Etiqueta)
+    this.sentar(id, nombre, avatar)
     await this.guardar()
     this.difundir()
     return new Response(null, { status: 101, webSocket: par[0] })
@@ -118,6 +123,7 @@ export class Partida extends DurableObject<Env> {
             g.asientos.map((a) => a.nombre),
             g.config.opciones,
           )
+          g.estado.jugadores.forEach((j, i) => (j.avatar = g.asientos[i].avatar))
           g.fase = 'juego'
           g.partida++
           break
@@ -137,6 +143,14 @@ export class Partida extends DurableObject<Env> {
           else if (g.estado) g.estado = abandonar(g.estado, m.jugador).estado
           break
         }
+
+        case 'abandonar':
+          if (g.fase === 'juego' && g.estado && sitio >= 0) g.estado = abandonar(g.estado, sitio).estado
+          break
+
+        case 'avatar':
+          if (g.fase === 'sala' && sitio >= 0 && esAvatar(m.avatar) && !g.asientos.some((a, i) => i !== sitio && a.avatar === m.avatar)) g.asientos[sitio].avatar = m.avatar
+          break
 
         case 'otra':
           if (anfitrion && g.fase === 'juego') this.aLaSala()
@@ -180,13 +194,16 @@ export class Partida extends DurableObject<Env> {
   }
 
   /** Da sitio al dispositivo: el suyo si ya lo tenía; uno nuevo solo en la sala de espera. */
-  private sentar(id: string, nombre: string) {
+  private sentar(id: string, nombre: string, avatar?: string) {
     const g = this.g!
     const mio = g.asientos.find((a) => a.id === id)
     if (mio) {
       if (g.fase === 'sala') mio.nombre = nombre
+      mio.avatar ??= avatar
     } else if (g.fase === 'sala' && g.asientos.length < MAX_JUGADORES) {
-      g.asientos.push({ id, nombre })
+      // Si su personaje ya lo tiene otro, se le da uno libre: en la mesa no hay dos monedas iguales.
+      const usados = g.asientos.map((a) => a.avatar)
+      g.asientos.push({ id, nombre, avatar: avatar && !usados.includes(avatar) ? avatar : avatarLibre(usados) })
     }
   }
 
@@ -197,7 +214,7 @@ export class Partida extends DurableObject<Env> {
     g.estado = null
     for (const ws of this.ctx.getWebSockets()) {
       const e = this.etiqueta(ws)
-      if (e && ws.readyState === WebSocket.OPEN) this.sentar(e.id, e.nombre)
+      if (e && ws.readyState === WebSocket.OPEN) this.sentar(e.id, e.nombre, e.avatar)
     }
   }
 
@@ -222,7 +239,7 @@ export class Partida extends DurableObject<Env> {
       codigo: g.codigo,
       partida: g.partida,
       fase: g.fase,
-      jugadores: g.asientos.map((a) => ({ nombre: a.nombre, conectado: conectados.has(a.id) })),
+      jugadores: g.asientos.map((a) => ({ nombre: a.nombre, avatar: a.avatar ?? '', conectado: conectados.has(a.id) })),
       config: g.config,
       vista: e ? vistaDe(e) : null,
       fechas,

@@ -13,8 +13,9 @@
     onsala: () => void
     oncontinuar: () => void
     onreglas: () => void
+    ontutorial: () => void
   }
-  let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas }: Props = $props()
+  let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas, ontutorial }: Props = $props()
 
   // En un ordenador o en la pizarra del aula no se habla de «móvil».
   const aparato = typeof matchMedia === 'function' && !matchMedia('(pointer: coarse)').matches ? 'ordenador' : 'móvil'
@@ -58,15 +59,22 @@
       <span><b>Jugar en línea</b><small>Cada jugador en su móvil, con un código</small></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
-    <button class="entrada" onclick={onreglas}>
-      <span><b>Reglamento</b><small>Cómo se juega y quién lo hizo</small></span>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
-    </button>
+    <div class="pareja">
+      <button class="entrada" onclick={ontutorial}>
+        <span><b>Cómo se juega</b><small>Tutorial animado</small></span>
+      </button>
+      <button class="entrada" onclick={onreglas}>
+        <span><b>Reglamento</b><small>Y quién lo hizo</small></span>
+      </button>
+    </div>
   </nav>
 
   <footer>
-    Carlos Cruz González y Rodrigo Muñoz Martínez<br />
-    CEPA de Coria, 2024 · CC BY-SA
+    <img src="/img/cepa.svg" alt="CEPA Coria" />
+    <span>
+      Carlos Cruz González y Rodrigo Muñoz Martínez<br />
+      CEPA de Coria, 2024 · CC BY-SA
+    </span>
   </footer>
 </main>
 
@@ -179,10 +187,30 @@
   }
   .entrada.principal small { color: #55544c; }
 
+  .pareja {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .pareja .entrada {
+    padding-inline: 14px 8px;
+  }
   footer {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
     color: #a3a297;
     font-size: 0.9rem;
     line-height: 1.4;
+  }
+
+  footer img {
+    flex: none;
+    height: 30px;
+    width: auto;
+    /* el logo es de tinta: sobre el tapete se pasa a papel */
+    filter: invert(1) sepia(0.25) brightness(0.92);
+    opacity: 0.85;
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -28,6 +28,8 @@ function miId(): string {
 const idDeSesion = miId()
 
 export const nombreGuardado = () => guardado('desacronico.nombre')
+export const avatarGuardado = () => guardado('desacronico.avatar')
+export const guardarAvatar = (a: string) => guardar('desacronico.avatar', a)
 export const salaGuardada = () => guardado('desacronico.sala')
 export const olvidarSala = () => guardar('desacronico.sala', '')
 
@@ -78,6 +80,7 @@ export class Conexion {
   constructor(
     readonly codigo: string,
     readonly nombre: string,
+    readonly avatar = '',
   ) {
     guardar('desacronico.nombre', nombre)
     guardar('desacronico.sala', codigo)
@@ -90,7 +93,7 @@ export class Conexion {
     this.ws?.close()
     const protocolo = location.protocol === 'https:' ? 'wss' : 'ws'
     const ws = new WebSocket(
-      `${protocolo}://${location.host}/api/partida/${this.codigo}/ws?id=${idDeSesion}&nombre=${encodeURIComponent(this.nombre)}`,
+      `${protocolo}://${location.host}/api/partida/${this.codigo}/ws?id=${idDeSesion}&nombre=${encodeURIComponent(this.nombre)}&avatar=${encodeURIComponent(this.avatar)}`,
     )
     this.ws = ws
     ws.onopen = () => {
@@ -169,6 +172,8 @@ export class Conexion {
       anfitrion: sala.tu === 0,
       jugar: (carta, posicion) => this.enviar({ t: 'jugar', carta, posicion }),
       quitar: (jugador) => this.enviar({ t: 'quitar', jugador }),
+      abandonar: () => this.enviar({ t: 'abandonar' }),
+      aLaSala: sala.tu === 0 ? () => this.enviar({ t: 'otra' }) : undefined,
       escuchar: (f) => this.escuchar((s, jugada) => s.vista && s.partida === partida && f(suceso(s, jugada))),
     }
   }

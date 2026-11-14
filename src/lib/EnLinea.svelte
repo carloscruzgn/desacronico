@@ -2,9 +2,15 @@
   // Partida en línea: primero nombre y sala (crear o unirse); después, la sala de espera y la mesa.
   import { onDestroy, tick } from 'svelte'
   import qrcode from 'qrcode-generator'
+  import { fade, scale } from 'svelte/transition'
+  import { avatarLibre } from '../../compartido/avatares'
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import { esCodigo } from '../../compartido/protocolo'
-  import { Conexion, crearSala, existeSala, nombreGuardado, olvidarSala, salaGuardada } from './conexion.svelte'
+  import { avatarGuardado, Conexion, crearSala, existeSala, guardarAvatar, nombreGuardado, olvidarSala, salaGuardada } from './conexion.svelte'
+  import Avatares from './Avatares.svelte'
+  import { dialogo } from './dialogo'
+  import Moneda from './Moneda.svelte'
+  import { dura } from './movimiento'
   import BotonIcono from './BotonIcono.svelte'
   import Confirmar from './Confirmar.svelte'
   import { cartas } from './datos'
@@ -28,7 +34,9 @@
   let conexion = $state.raw<Conexion | null>(null)
   let copiado = $state(false)
   let enlaceALaVista = $state(false)
-  let confirmaSalida = $state(false)
+  let avatar = $state(avatarGuardado() || avatarLibre([]))
+  let eligiendo = $state(false)
+  let qrGrande = $state(false)
   let quitando = $state<number | null>(null)
 
   const sala = $derived(conexion?.sala ?? null)
@@ -74,7 +82,8 @@
         if (destino === salaGuardada()) olvidarSala()
         throw new Error('No hay ninguna sala con ese código. Puede que haya caducado.')
       }
-      conexion = new Conexion(destino, quien)
+      guardarAvatar(avatar)
+      conexion = new Conexion(destino, quien, avatar)
       history.replaceState(history.state, '', `/?sala=${destino}`)
     } catch (e) {
       error = e instanceof Error ? e.message : 'No se pudo conectar.'
@@ -94,13 +103,14 @@
     if (!conexion) return
     const anterior = conexion
     anterior.cerrar()
-    conexion = new Conexion(anterior.codigo, anterior.nombre)
+    conexion = new Conexion(anterior.codigo, anterior.nombre, avatar)
   }
 
-  /** Salir de la mesa: si la partida está en marcha, se pregunta antes. */
-  function salirDeLaMesa() {
-    if (sala?.vista && !sala.vista.ganadores.length && sala.tu !== null) confirmaSalida = true
-    else salir(false)
+  function cambiarAvatar(a: string) {
+    avatar = a
+    guardarAvatar(a)
+    eligiendo = false
+    conexion?.enviar({ t: 'avatar', avatar: a })
   }
 
   async function compartir() {
@@ -136,11 +146,17 @@
         entrar(false)
       }}
     >
-      <label>
-        Tu nombre
-        <!-- svelte-ignore a11y_autofocus -->
-        <input type="text" maxlength="14" bind:value={nombre} autocomplete="nickname" placeholder="Nombre" enterkeyhint="go" autofocus={!!invitacion && !nombre} />
-      </label>
+      <div class="quien">
+        <button type="button" class="moneda" aria-label="Cambiar tu moneda" onclick={() => (eligiendo = true)}>
+          <Moneda {avatar} />
+          <small>cambiar</small>
+        </button>
+        <label>
+          Tu nombre
+          <!-- svelte-ignore a11y_autofocus -->
+          <input type="text" maxlength="14" bind:value={nombre} autocomplete="nickname" placeholder="Nombre" enterkeyhint="go" autofocus={!!invitacion && !nombre} />
+        </label>
+      </div>
 
       <div class="opcion">
         <h2 id="unirse-titulo">{invitacion ? 'Sala' : 'Unirse a una sala'}</h2>
@@ -184,7 +200,7 @@
     </header>
 
     <div class="invitacion">
-      <div class="qr" aria-hidden="true">{@html qr}</div>
+      <button class="qr" aria-label="Ampliar el código QR de la sala" onclick={() => (qrGrande = true)}>{@html qr}</button>
       <div>
         <p class="ayuda">Código de la sala</p>
         <p class="grande">{sala.codigo}</p>
@@ -197,6 +213,11 @@
     <ul class="lista">
       {#each sala.jugadores as j, i (i)}
         <li class:ausente={!j.conectado}>
+          {#if i === sala.tu}
+            <button class="moneda" aria-label="Cambiar tu moneda" onclick={() => (eligiendo = true)}><Moneda avatar={j.avatar} nombre={j.nombre} /></button>
+          {:else}
+            <Moneda avatar={j.avatar} nombre={j.nombre} />
+          {/if}
           <span>{j.nombre}{i === sala.tu ? ' (tú)' : ''}</span>
           {#if i === 0}<small>anfitrión</small>{/if}
           {#if !j.conectado}<small>desconectado</small>{/if}
@@ -233,7 +254,7 @@
   {#key sala.partida}
     <Mesa
       control={conexion.control()}
-      onsalir={salirDeLaMesa}
+      onsalir={() => salir(false)}
       onotra={anfitrion ? () => conexion!.enviar({ t: 'otra' }) : undefined}
     />
   {/key}
@@ -259,15 +280,24 @@
   />
 {/if}
 
-{#if confirmaSalida && sala}
-  <Confirmar
-    titulo="¿Salir de la partida?"
-    texto="Los demás tendrán que esperarte. Podrás volver desde el menú con el código {sala.codigo}."
-    si="Salir"
-    no="Seguir jugando"
-    onsi={() => ((confirmaSalida = false), salir(false))}
-    onno={() => (confirmaSalida = false)}
+{#if eligiendo}
+  <Avatares
+    actual={sala && sala.tu !== null ? sala.jugadores[sala.tu].avatar : avatar}
+    ocupados={sala ? sala.jugadores.filter((_, i) => i !== sala.tu).map((j) => j.avatar) : []}
+    onelegir={cambiarAvatar}
+    oncerrar={() => (eligiendo = false)}
   />
+{/if}
+
+{#if qrGrande && sala}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="qr-grande" role="dialog" tabindex="-1" aria-modal="true" aria-label="Código QR de la sala {sala.codigo}" use:dialogo transition:fade={{ duration: dura(160) }} onclick={() => (qrGrande = false)}>
+    <div class="tarjeta" in:scale={{ duration: dura(260), start: 0.8 }}>
+      <div class="qr" aria-hidden="true">{@html qr}</div>
+      <p class="grande">{sala.codigo}</p>
+    </div>
+    <button class="cerrar">Toca para cerrar</button>
+  </div>
 {/if}
 
 <style>
@@ -392,7 +422,78 @@
   .qr {
     width: 128px;
     flex: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--tinta);
+    cursor: zoom-in;
   }
+  /* El QR va en tinta sobre el propio papel, sin recuadro blanco */
+  .qr :global(rect) { fill: none; }
+  .qr :global(path) { fill: currentColor; }
+  .qr-grande {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 14px;
+    background: rgb(0 0 0 / 0.9);
+    cursor: zoom-out;
+  }
+  .tarjeta {
+    padding: 16px 16px 12px;
+    border-radius: 12px;
+    background: var(--papel);
+    color: var(--tinta);
+    text-align: center;
+  }
+  .tarjeta .qr {
+    width: min(78vw, 56dvh, 460px);
+    cursor: zoom-out;
+  }
+  .tarjeta .grande {
+    margin: 8px 0 0;
+    font-size: 3.4rem;
+  }
+  .cerrar {
+    min-height: 44px;
+    padding: 0 16px;
+    border: 0;
+    background: none;
+    color: var(--papel);
+    font-style: italic;
+    cursor: zoom-out;
+  }
+  .quien {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-top: 1em;
+  }
+  .quien label {
+    flex: 1;
+    margin-top: 0;
+  }
+  .moneda {
+    flex: none;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+  }
+  .quien .moneda { --lado: 56px; }
+  .moneda small {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+  .lista { --lado: 34px; }
+  .lista li { padding-left: 8px !important; gap: 10px !important; }
   .qr :global(svg) {
     display: block;
     width: 100%;

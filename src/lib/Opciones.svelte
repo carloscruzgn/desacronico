@@ -101,10 +101,13 @@
       opacity 0.15s,
       background 0.15s;
   }
+  /* Lo elegido se marca igual en toda la pantalla: borde de papel y un velo claro.
+     El papel macizo queda para los botones que hacen algo. */
   .ambito.activo {
     opacity: 1;
-    background: rgb(235 233 217 / 0.12);
-    border-color: rgb(235 233 217 / 0.7);
+    background: rgb(235 233 217 / 0.14);
+    border-color: var(--papel);
+    box-shadow: inset 0 0 0 1px var(--papel);
   }
   .muestra {
     width: 22px;
@@ -177,12 +180,32 @@
     font-size: 0.95rem;
     color: var(--gris-claro);
   }
-  .fallo button[aria-checked='true'] {
-    background: var(--papel);
-    color: var(--tinta);
-    border-color: var(--papel);
+  .fallo button {
+    position: relative;
+    padding-right: 34px;
+    opacity: 0.75;
   }
-  .fallo button[aria-checked='true'] span { color: #55544c; }
+  .fallo button[aria-checked='true'] {
+    opacity: 1;
+    background: rgb(235 233 217 / 0.14);
+    border-color: var(--papel);
+    box-shadow: inset 0 0 0 1px var(--papel);
+  }
+  /* el punto de la opción elegida */
+  .fallo button::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 12px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid rgb(235 233 217 / 0.6);
+  }
+  .fallo button[aria-checked='true']::after {
+    border-color: var(--papel);
+    background: radial-gradient(var(--papel) 0 45%, transparent 50%);
+  }
 
   button:disabled { cursor: default; }
   .contador button:disabled { opacity: 0.35; }
