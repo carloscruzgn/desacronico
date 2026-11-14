@@ -69,3 +69,61 @@ button {
   font: inherit;
   color: inherit;
 }
+
+/* Botones: fichas de papel sobre el tapete */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 48px;
+  padding: 0.5em 1.4em;
+  border: 0;
+  border-radius: 6px;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: 'Fell SC', 'Fell', serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow:
+    0 2px 0 #b9b6a0,
+    0 6px 14px rgb(0 0 0 / 0.35);
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s,
+    opacity 0.2s;
+}
+.boton:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.boton:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    0 0 0 #b9b6a0,
+    0 2px 6px rgb(0 0 0 / 0.35);
+}
+.boton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.boton.secundario {
+  background: transparent;
+  color: var(--papel);
+  box-shadow: inset 0 0 0 1px rgb(235 233 217 / 0.45);
+}
+.boton.pequeno {
+  min-height: 40px;
+  padding: 0.3em 0.9em;
+  font-size: 1.05rem;
+}
+
+:focus-visible {
+  outline: 2px solid #e8c66a;
+  outline-offset: 2px;
+}
+
+h2 {
+  font-family: 'Fell SC', 'Fell', serif;
+  font-weight: normal;
+}
