@@ -60,14 +60,15 @@ function icono(ts, colores, trazo = {}) {
 // Iconos dibujados a mano en el mismo cuadro de 48x48, con contorno de 1,3 en currentColor. Desde el
 // 2026-11-15 los iconos nuevos se hacen así, no con Recraft.
 const CONTORNO = 'stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"'
+const CONTORNO_TINTA = CONTORNO.replace('currentColor', 'var(--tinta)') // el mismo trazo, siempre en tinta
 const A_MANO = {
   // una tira de película (S) con sus perforaciones y el fotograma con el play (P); perforaciones y
-  // fotograma van siempre en tinta, sobre el tapete y sobre el papel: solo el contorno cambia
+  // fotograma van siempre en tinta, también su borde: solo el contorno de la tira cambia entre tapete y papel
   juega:
     `<path d="M7 7h34a3 3 0 0 1 3 3v28a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3z" fill="${S}" ${CONTORNO}/>` +
-    [8, 16, 24, 32, 40].flatMap((x) => [9.6, 35.2].map((y) => `<rect x="${x - 1.8}" y="${y}" width="3.6" height="3.2" fill="var(--tinta)" ${CONTORNO}/>`)).join('') +
-    `<rect x="10" y="15.4" width="28" height="17.2" rx="1.8" fill="var(--tinta)" ${CONTORNO}/>` +
-    `<path d="M20.4 18.6v10.8l9.4-5.4z" fill="${P}" ${CONTORNO}/>`,
+    [8, 16, 24, 32, 40].flatMap((x) => [9.6, 35.2].map((y) => `<rect x="${x - 1.8}" y="${y}" width="3.6" height="3.2" fill="var(--tinta)" ${CONTORNO_TINTA}/>`)).join('') +
+    `<rect x="10" y="15.4" width="28" height="17.2" rx="1.8" fill="var(--tinta)" ${CONTORNO_TINTA}/>` +
+    `<path d="M20.4 18.6v10.8l9.4-5.4z" fill="${P}" ${CONTORNO_TINTA}/>`,
   sala:
     `<path d="M11 44V14.5a9 9 0 0 1 9-9h8a9 9 0 0 1 9 9V44h-4.6V15a4.6 4.6 0 0 0-4.6-4.6h-7.6A4.6 4.6 0 0 0 15.6 15v29z" fill="${A}" ${CONTORNO}/>` +
     `<path d="M15.6 44V15a4.6 4.6 0 0 1 4.6-4.6h7.6a4.6 4.6 0 0 1 4.6 4.6v29z" fill="currentColor"/>` +
