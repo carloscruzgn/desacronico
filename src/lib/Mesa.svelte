@@ -13,7 +13,7 @@
   import Ampliada from './Ampliada.svelte'
   import Carta from './Carta.svelte'
   import type { Controlador, Suceso } from './control'
-  import { anioHablado, anioTexto, cuentaPorAmbito, enLista, enMillones, porId, textoPlano } from './datos'
+  import { anioHablado, anioTexto, cuentaPorAmbito, enLista, porId, textoPlano } from './datos'
   import BotonIcono from './BotonIcono.svelte'
   import BotonSonido from './BotonSonido.svelte'
   import { callar, efecto, leerCarta, sonido, vibrar } from './sonido'
@@ -99,8 +99,6 @@
   }
   let aviso = $state<Aviso | null>(null)
   /** La carta ampliada y la carta de la mesa de la que sale y a la que vuelve (ANIM-15). */
-  /** La carta de la cronología más cerca del centro de la vista: lleva los redondeles de ampliar y escuchar. */
-  let central = $state<string | null>(null)
   /** La ficha de un jugador (cartas en mano, aciertos y fallos), abierta al tocar su moneda, y dónde va. */
   let ficha = $state<number | null>(null)
   let fichaEn = $state({ x: 0, y: 0 })
@@ -138,8 +136,6 @@
   /** La jugada anterior, para que quien juega después sepa qué ha pasado. */
   // En la cronología lleva un borde mostaza (si se descartó, no queda ninguna); el texto, para el lector de pantalla.
   let ultima = $state<{ id: string; texto: string; acierto: boolean } | null>(null)
-  /** El guion de los años antes de Cristo se explica la primera vez que sale en la partida. */
-  let negativoExplicado = false
   /** Lo que acaba de pasar, contado entero para el lector de pantalla. */
   let narra = $state('')
   let quitando = $state<number | null>(null)
@@ -322,7 +318,6 @@
     if (!cronoEl) return
     const total = cronoEl.scrollWidth || 1
     ventana = { izq: (cronoEl.scrollLeft / total) * 100, ancho: Math.min(100, (cronoEl.clientWidth / total) * 100) }
-    central = cartaCentral()
   }
   $effect(() => {
     void [crono.length, puedeColocar, fin]
@@ -871,14 +866,11 @@
     return a
   }
 
-  /** Aclaraciones de una fecha recién descubierta: el guion la primera vez que sale y, si no, la «c.». */
+  /** Aclaraciones de una fecha recién descubierta: la «c.». El guion de los años antes de Cristo no se explica:
+      era ruido. */
   function notasDe(id: string): string[] {
     const f = fechas[id]
     if (!f) return []
-    if (f.anio < 0 && !negativoExplicado) {
-      negativoExplicado = true
-      return [`${anioTexto(f)} = ${f.circa || enMillones(f.anio) ? '' : 'año '}${anioHablado(f)}`]
-    }
     return f.circa ? ['c. = fecha aproximada'] : []
   }
 
@@ -1302,7 +1294,7 @@
           <button class="hueco" class:imantado={imantado === i} inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
             <span>+</span>
           </button>
-          <!-- La carta centrada en la vista lleva los mismos redondeles que la elegida de la mano. -->
+          <!-- Cada carta boca arriba lleva los mismos redondeles que la elegida de la mano. -->
           <div class="sitio-naipe">
             <button
               class="naipe"
@@ -1318,10 +1310,10 @@
                 <Carta carta={porId[p.id]} fecha={fechas[p.id]} volteada={p.volteada} revelar={revelada === p.id} />
               </div>
             </button>
-            {#if central === p.id && p.volteada && !p.marca && !ocupado}{@render redondeles(p.id, fechas[p.id] ?? null, true)}{/if}
+            {#if p.volteada && !p.marca && !ocupado}{@render redondeles(p.id, fechas[p.id] ?? null, true)}{/if}
             <!-- Su año, bien grande debajo de la carta: se lee de un vistazo qué años se están viendo. -->
             {#if p.volteada && fechas[p.id] && p.marca !== 'fallo' && p.marca !== 'alza'}
-              <span class="anio-bajo cifras" aria-hidden="true" transition:fade={{ duration: dura(200) }}>{anioDe(p.id)}</span>
+              <span class="anio-bajo" class:ultima={i === crono.length - 1} aria-hidden="true" transition:fade={{ duration: dura(200) }}><span class="cifras">{anioDe(p.id)}</span></span>
             {/if}
           </div>
           {#if i === crono.length - 1}
@@ -1947,10 +1939,6 @@
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
-    /* La línea del tiempo, grabada en el tapete: un filete de sombra y, debajo, uno de luz. */
-    background:
-      linear-gradient(rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.5)) 0 calc(50% - 1px) / 100% 1.5px no-repeat,
-      linear-gradient(rgb(235 233 217 / 0.13), rgb(235 233 217 / 0.13)) 0 calc(50% + 1px) / 100% 1px no-repeat;
   }
   @media (hover: hover) {
     .crono {
@@ -1993,29 +1981,20 @@
   .acabada .tira {
     --carta-crono: clamp(min(var(--alto), max(124px, 54cqw), 260px), var(--reparto), min(260px, var(--alto)));
   }
-  /* La línea del tiempo, por eras (ANIM-11): cada carta descubierta pinta su tramo, del color de su era, sobre la
-     línea grabada. El color dice la era, no adorna. El tramo nuevo se entinta al acertar, como una pasada de
-     rodillo; al acabar la partida, la cronología entera se vuelve a entintar de punta a punta. */
-  .pieza.tramo::before {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    left: 0;
-    right: 0;
-    top: calc(50% - 1.5px);
-    height: 3px;
-    background: var(--tramo);
-    opacity: 0.85;
-    transform-origin: left;
-  }
+  /* La línea del tiempo, por eras (ANIM-11): va bajo las cartas, a la altura de los años, y se corta en cada
+     uno. Cada carta descubierta pinta su tramo, del color de su era: el color dice la era, no adorna. El tramo
+     nuevo se entinta al acertar, como una pasada de rodillo; al acabar la partida, la cronología entera se vuelve
+     a entintar de punta a punta. Los tramos los dibuja el año (ver .anio-bajo). */
   .tramo.antigua { --tramo: var(--antigua); }
   .tramo.media { --tramo: var(--media); }
   .tramo.moderna { --tramo: var(--moderna); }
   .tramo.contemporanea { --tramo: var(--contemporanea); }
-  .pieza.tramo.nuevo::before {
+  .pieza.tramo.nuevo .anio-bajo::before,
+  .pieza.tramo.nuevo .anio-bajo::after {
     animation: entintar 0.45s var(--curva-deslizar) both;
   }
-  .tira.entintada .pieza.tramo::before {
+  .tira.entintada .pieza.tramo .anio-bajo::before,
+  .tira.entintada .pieza.tramo .anio-bajo::after {
     animation: entintar 0.5s var(--curva-deslizar) calc(0.4s + min(var(--orden), 24) * 0.06s) both;
   }
   @keyframes entintar {
@@ -2442,7 +2421,7 @@
     width: 20px;
     height: 20px;
   }
-  /* Los redondeles de la carta elegida (y de la central de la cronología): lupa y altavoz, en papel con filete de
+  /* Los redondeles de la carta elegida (y de las de la cronología): lupa y altavoz, en papel con filete de
      tinta, en la esquina de arriba. Se ven de 32 px y se tocan en 44. */
   .redondeles {
     position: absolute;
@@ -2482,21 +2461,45 @@
     position: relative;
     flex: none;
   }
-  /* El año bajo la carta, en papel y grande: lo que antes decía el globo de la tira, carta a carta. */
+  /* El año bajo la carta, en papel y grande, partiendo la línea del tiempo: a cada lado, su tramo. La línea llega
+     hasta la carta vecina tapando el hueco de delante (--h: lo que mide abierto) y, en la última, el de detrás. */
+  .tira { --h: 0px; }
+  .eligiendo .tira { --h: 52px; }
   .anio-bajo {
     position: absolute;
     top: calc(100% + 5px);
-    left: 0;
+    left: calc(-1 * var(--h));
     right: 0;
+    display: grid;
+    grid-template-columns: var(--h) 1fr auto 1fr;
+    align-items: center;
     color: var(--papel);
     font-size: 1.15rem;
     font-weight: 700;
     line-height: 1.1;
-    text-align: center;
     white-space: nowrap;
     text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
     pointer-events: none;
+    transition:
+      left 0.28s var(--curva-deslizar),
+      right 0.28s var(--curva-deslizar),
+      grid-template-columns 0.28s var(--curva-deslizar);
   }
+  .anio-bajo.ultima {
+    right: calc(-1 * var(--h));
+    grid-template-columns: var(--h) 1fr auto 1fr var(--h);
+  }
+  .anio-bajo > span { grid-column: 3; padding: 0 8px; }
+  .anio-bajo::before,
+  .anio-bajo::after {
+    content: "";
+    height: 3px;
+    border-radius: 2px;
+    background: var(--tramo, rgb(235 233 217 / 0.3));
+    opacity: 0.85;
+  }
+  .anio-bajo::before { grid-column: 1 / 3; grid-row: 1; transform-origin: left; }
+  .anio-bajo::after { grid-column: 4 / -1; grid-row: 1; transform-origin: left; }
   .crono .redondeles {
     top: 8px;
     right: 10px;
@@ -2978,7 +2981,8 @@
     .ganadora,
     .gira,
     .sello,
-    .pieza.tramo::before,
+    .anio-bajo::before,
+    .anio-bajo::after,
     .lapiz path,
     .eligiendo .hueco,
     .cuerpo.ok {

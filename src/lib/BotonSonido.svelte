@@ -109,6 +109,8 @@
       filter 0.15s,
       transform 0.12s;
   }
+  /* La caja y la bocina pesan más que las ondas: el altavoz, un poco a la derecha, para que se vea centrado. */
+  .icono :global(.icono-juego) { translate: 2.5px 0; }
   .icono:hover { filter: brightness(1.06); }
   .icono:active { transform: scale(0.92); }
   .icono.sobrePapel {
