@@ -70,17 +70,17 @@ const A_MANO = {
     [8, 16, 24, 32, 40].flatMap((x) => [9.6, 35.2].map((y) => `<rect x="${x - 1.8}" y="${y}" width="3.6" height="3.2" fill="var(--tinta)" ${CONTORNO}/>`)).join('') +
     `<rect x="10" y="15.4" width="28" height="17.2" rx="1.8" fill="var(--tinta)" ${CONTORNO}/>` +
     `<path d="M20.4 18.6v10.8l9.4-5.4z" fill="${P}" ${CONTORNO}/>`,
-  // las dos puertas (crear sala y unirse) son la misma: marco redondeado (A), hueco oscuro y hoja
-  // abierta (S); solo cambia lo que va delante, la llave o la flecha (P)
+  // las dos puertas (crear sala y unirse) son la misma, con las proporciones de la de Recraft: marco
+  // ancho con las esquinas de arriba redondeadas (A) por encima de todo, hueco oscuro y la hoja (S) abierta hacia dentro, sin salirse
+  // del marco. Solo cambia lo que entra por la izquierda, a la misma altura: la llave o la flecha (P).
   puerta:
-    `<path d="M11 44V14.5a9 9 0 0 1 9-9h8a9 9 0 0 1 9 9V44h-4.6V15a4.6 4.6 0 0 0-4.6-4.6h-7.6A4.6 4.6 0 0 0 15.6 15v29z" fill="${A}" ${CONTORNO}/>` +
-    `<path d="M15.6 44V15a4.6 4.6 0 0 1 4.6-4.6h7.6a4.6 4.6 0 0 1 4.6 4.6v29z" fill="var(--tinta)"/>` +
-    `<path d="M23.6 13.6 32.4 11V43.2L23.6 46z" fill="${S}" ${CONTORNO}/>`,
+    `<path d="M16.5 44V10.5a3 3 0 0 1 3-3h13a3 3 0 0 1 3 3V44z" fill="var(--tinta)"/>` +
+    `<path d="M21 10.8 35.5 7.5V44L21 42.2z" fill="${S}" ${CONTORNO}/>` +
+    `<path d="M12 44V10a7 7 0 0 1 7-7h14a7 7 0 0 1 7 7V44h-4.5V10.5a3 3 0 0 0-3-3H19.5a3 3 0 0 0-3 3V44z" fill="${A}" ${CONTORNO}/>`,
   llave:
-    `<path d="M18.6 25.9A6.4 6.4 0 1 1 22.6 25.9V31H26V34H22.6V35.6H25.2V38.6H22.6V41.4L20.6 43.6 18.6 41.4z" fill="${P}" ${CONTORNO}/>` +
-    `<circle cx="20.6" cy="19.8" r="2.3" fill="var(--tinta)" ${CONTORNO}/>`,
-  // una flecha que entra por la puerta, de la misma altura que la llave
-  flecha: `<path d="M4 26.4H15.8V21.8L24.6 28.6 15.8 35.4V30.8H4z" fill="${P}" ${CONTORNO}/>`,
+    `<path d="M14.6 26.8H27.5V34.2H24.5V30.4H23V33H20.5V30.4H14.6A5.6 5.6 0 1 1 14.6 26.8z" fill="${P}" ${CONTORNO}/>` +
+    `<circle cx="9.3" cy="28.6" r="2" fill="var(--tinta)" ${CONTORNO}/>`,
+  flecha: `<path d="M4 26.8H17V22.4L26 28.6 17 34.8V30.4H4z" fill="${P}" ${CONTORNO}/>`,
   // un libro abierto de esquinas redondeadas (P), con tres renglones y el marcapáginas (A)
   reglas:
     `<path d="M24 14.5C18.5 10.6 13 9.6 8.6 10.1 7.4 10.2 6.5 11.2 6.5 12.4V37.6c0 1.3 1.1 2.3 2.4 2.2C14 39.4 19 40.4 24 43.5z" fill="${P}" ${CONTORNO}/>` +
