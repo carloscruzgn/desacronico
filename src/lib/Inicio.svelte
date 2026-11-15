@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  // La marca se despliega de «dac» a «desacrónico» solo la primera vez que se ve la portada en cada carga.
+  let desplegadas = 0
+</script>
+
 <script lang="ts">
   import { onMount } from 'svelte'
   import detallesJson from '../../compartido/detalles.json'
@@ -20,6 +25,8 @@
     ontutorial: () => void
   }
   let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas, ontutorial }: Props = $props()
+
+  const yaDesplegada = desplegadas++ > 0
 
   // Abanico decorativo: cinco cartas al azar, una de cada ámbito
   const abanico = ['comunicacion', 'social', 'cientifico', 'mujer', 'coria'].map(
@@ -83,7 +90,7 @@
       {/each}
     </div>
 
-    <h1 tabindex="-1" data-titulo><Marca /></h1>
+    <h1 tabindex="-1" data-titulo><Marca despliega={!yaDesplegada} /></h1>
     <p class="lema">Un juego de cartas para hacer cronologías</p>
   </div>
 
@@ -121,11 +128,14 @@
   </nav>
 
   <footer>
+    <!-- La franja del icono: los colores de las cuatro edades, de la Antigua a la Contemporánea. -->
+    <span class="franja" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
     <img src="/img/cepa.svg" alt="CEPA Coria" />
     <span>
       Carlos Cruz González y Rodrigo Muñoz Martínez<br />
-      CEPA Coria, 2024 · CC BY-SA
+      CEPA Coria, 2024
     </span>
+    <img class="licencia" src="/img/cc-by-sa.png" alt="Licencia CC BY-SA" width="88" height="31" />
   </footer>
 </main>
 
@@ -290,6 +300,23 @@
     line-height: 1.4;
   }
 
+  .franja {
+    display: flex;
+    width: 128px;
+    height: 6px;
+    margin-bottom: 10px;
+  }
+  .franja i { flex: 1; }
+  .franja i:nth-child(1) { background: var(--antigua); }
+  .franja i:nth-child(2) { background: var(--media); }
+  .franja i:nth-child(3) { background: var(--moderna); }
+  .franja i:nth-child(4) { background: var(--contemporanea); }
+  footer img.licencia {
+    height: 22px;
+    filter: none;
+    opacity: 0.8;
+    margin-top: 2px;
+  }
   footer img {
     flex: none;
     height: 30px;
