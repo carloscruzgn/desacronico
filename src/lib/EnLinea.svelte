@@ -38,6 +38,9 @@
   let eligiendo = $state(false)
   let qrGrande = $state(false)
   let quitando = $state<number | null>(null)
+  let campoCodigo = $state<HTMLInputElement>()
+  /** Con el código ya escrito (o en una invitación), Intro en el nombre entra; si no, pasa al código. */
+  const codigoListo = $derived(esCodigo(codigo.trim().toUpperCase()))
 
   const sala = $derived(conexion?.sala ?? null)
   const anfitrion = $derived(sala?.tu === 0)
@@ -154,7 +157,21 @@
         <label>
           Tu nombre
           <!-- svelte-ignore a11y_autofocus -->
-          <input type="text" maxlength="14" bind:value={nombre} autocomplete="nickname" placeholder="Nombre" enterkeyhint="go" autofocus={!!invitacion && !nombre} />
+          <input
+            type="text"
+            maxlength="14"
+            bind:value={nombre}
+            autocomplete="nickname"
+            placeholder="Nombre"
+            enterkeyhint={codigoListo ? 'go' : 'next'}
+            autofocus={!!invitacion && !nombre}
+            onkeydown={(e) => {
+              if (e.key === 'Enter' && !codigoListo) {
+                e.preventDefault()
+                campoCodigo?.focus()
+              }
+            }}
+          />
         </label>
       </div>
 
@@ -163,6 +180,7 @@
         <div class="unirse">
           <input
             class="codigo"
+            bind:this={campoCodigo}
             type="text"
             size="4"
             maxlength="4"
@@ -282,6 +300,7 @@
 
 {#if eligiendo}
   <Avatares
+    titulo={nombre.trim() ? `Avatar de ${nombre.trim()}` : 'Tu avatar'}
     actual={sala && sala.tu !== null ? sala.jugadores[sala.tu].avatar : avatar}
     ocupados={sala ? sala.jugadores.filter((_, i) => i !== sala.tu).map((j) => j.avatar) : []}
     onelegir={cambiarAvatar}

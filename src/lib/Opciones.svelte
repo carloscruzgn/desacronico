@@ -32,10 +32,21 @@
   const total = $derived(cartas.filter((c) => config.ambitos.includes(c.ambito)).length)
   const n = $derived(config.opciones.cartasIniciales)
 
+  /** Aviso cuando se intenta quitar la última serie: el mazo no puede quedarse vacío. */
+  let ultimaSerie = $state(false)
+  let reloj: ReturnType<typeof setTimeout> | undefined
   function alternar(a: Ambito) {
+    if (config.ambitos.length === 1 && config.ambitos.includes(a)) {
+      ultimaSerie = true
+      clearTimeout(reloj)
+      reloj = setTimeout(() => (ultimaSerie = false), 4000)
+      return
+    }
+    ultimaSerie = false
     const lista = config.ambitos.includes(a) ? config.ambitos.filter((x) => x !== a) : ambitos.filter((x) => x === a || config.ambitos.includes(x))
     oncambio({ ...config, ambitos: lista })
   }
+  const nombreGrupo = `fallo-${Math.random().toString(36).slice(2, 8)}`
   function opciones(o: Partial<Config['opciones']>) {
     oncambio({ ...config, opciones: { ...config.opciones, ...o } })
   }
@@ -71,6 +82,7 @@
         </button>
       {/each}
     </div>
+    <p class="aviso-serie" role="status">{ultimaSerie ? 'Tiene que quedar al menos una serie' : ''}</p>
   </div>
 </section>
 
@@ -87,16 +99,20 @@
       <button disabled={fija || n >= MANO_MAX} aria-label="Más cartas por jugador" onclick={() => opciones({ cartasIniciales: n + 1 })}>+</button>
     </span>
   </div>
-  <div class="fallo" role="radiogroup" aria-label="Al fallar">
-    <button role="radio" aria-checked={config.opciones.alFallar === 'descartar'} disabled={fija} onclick={() => opciones({ alFallar: 'descartar' })}>
+  <!-- Botones de opción nativos: las flechas cambian de opción, como en cualquier formulario. -->
+  <fieldset class="fallo" disabled={fija}>
+    <legend class="sr-only">Al fallar</legend>
+    <label>
+      <input type="radio" name={nombreGrupo} value="descartar" checked={config.opciones.alFallar === 'descartar'} onchange={() => opciones({ alFallar: 'descartar' })} />
       <b>Al fallar, se descarta</b>
-      <span>La carta sale de la mesa. Como en el reglamento.</span>
-    </button>
-    <button role="radio" aria-checked={config.opciones.alFallar === 'recolocar'} disabled={fija} onclick={() => opciones({ alFallar: 'recolocar' })}>
+      <span>La carta sale de la mesa y se roba otra. Como en el reglamento.</span>
+    </label>
+    <label>
+      <input type="radio" name={nombreGrupo} value="recolocar" checked={config.opciones.alFallar === 'recolocar'} onchange={() => opciones({ alFallar: 'recolocar' })} />
       <b>Al fallar, se recoloca</b>
-      <span>La carta se queda en su sitio correcto. Más fácil.</span>
-    </button>
-  </div>
+      <span>La carta se queda en su sitio correcto y se roba otra. Más fácil.</span>
+    </label>
+  </fieldset>
 </section>
 
 <style>
@@ -279,8 +295,12 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
   }
-  .fallo button {
+  .fallo label {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -300,19 +320,32 @@
     font-size: 0.95rem;
     color: var(--gris-claro);
   }
-  .fallo button {
+  .fallo label {
     position: relative;
     padding-right: 34px;
     opacity: 0.75;
   }
-  .fallo button[aria-checked='true'] {
+  .fallo label:has(input:checked) {
     opacity: 1;
     background: rgb(235 233 217 / 0.14);
     border-color: var(--papel);
     box-shadow: inset 0 0 0 1px var(--papel);
   }
+  /* el botón de opción de verdad no se ve: lo dibuja la etiqueta */
+  .fallo input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: inherit;
+  }
+  .fallo label:has(input:focus-visible) {
+    outline: 2px solid var(--foco);
+    outline-offset: 2px;
+  }
+  .fallo:disabled label { cursor: default; }
   /* el punto de la opción elegida */
-  .fallo button::after {
+  .fallo label::after {
     content: '';
     position: absolute;
     right: 10px;
@@ -322,11 +355,18 @@
     border-radius: 50%;
     border: 1.5px solid rgb(235 233 217 / 0.6);
   }
-  .fallo button[aria-checked='true']::after {
+  .fallo label:has(input:checked)::after {
     border-color: var(--papel);
     background: radial-gradient(var(--papel) 0 45%, transparent 50%);
   }
 
   button:disabled { cursor: default; }
+  .aviso-serie {
+    min-height: 1.3em;
+    margin: 2px 0 0;
+    color: #f0a3a3;
+    font-size: 0.95rem;
+    text-align: center;
+  }
   .contador button:disabled { opacity: 0.35; }
 </style>

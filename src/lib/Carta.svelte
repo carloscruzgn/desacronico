@@ -19,7 +19,7 @@
 <div class="carta {carta.ambito}" class:oscura class:volteada>
   <div class="giro">
     <div class="cara anverso">
-      <div class="marca"><span><span class="des">des</span><span class="a">a</span>crónico</span></div>
+      <div class="marca"><span class="sr-only">desacrónico</span><span aria-hidden="true"><span class="des">des</span><span class="a">a</span>crónico</span></div>
       <div class="ilustracion">
         <img src={imagen} alt="" loading="lazy" draggable="false" />
         <div class="pestana {carta.logoAnverso}"><img src="/img/cepa.svg" alt="CEPA Coria" draggable="false" /></div>
@@ -32,7 +32,7 @@
         <img src={imagen} alt="" loading="lazy" draggable="false" />
         <div class="pestana {carta.logoReverso}"><img src="/img/cepa.svg" alt="" draggable="false" /></div>
       </div>
-      <div class="banda {era ?? ''}">
+      <div class="banda {era ?? ''}" class:larga={anioTexto(fecha).length > 14}>
         {anioTexto(fecha)}
       </div>
       <hr />
@@ -196,6 +196,9 @@
       0 0 0.5cqw rgb(0 0 0 / 0.45),
       0 0.4cqw 1.2cqw rgb(0 0 0 / 0.3);
   }
+  .banda { white-space: nowrap; }
+  /* «-13797 millones»: el año más largo de la baraja cabe en un renglón, un poco más pequeño */
+  .banda.larga { font-size: 13.4cqw; }
   .banda.antigua { background: var(--antigua); }
   .banda.media { background: var(--media); }
   .banda.moderna { background: var(--moderna); }

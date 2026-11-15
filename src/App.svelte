@@ -4,7 +4,7 @@
   import { esCodigo, type Config } from '../compartido/protocolo'
   import { salaGuardada } from './lib/conexion.svelte'
   import { controlLocal, type Controlador } from './lib/control'
-  import { cargarAnios, guardarPartida, partidaGuardada } from './lib/datos'
+  import { cargarAnios, cartas, guardarPartida, partidaGuardada, seriesDe } from './lib/datos'
   import EnLinea from './lib/EnLinea.svelte'
   import Inicio from './lib/Inicio.svelte'
   import Mesa from './lib/Mesa.svelte'
@@ -64,7 +64,8 @@
 
   async function empezar(nombres: string[], avatares: string[], ids: string[], config: Config) {
     ultima = { nombres, avatares, ids, config }
-    const estado = crear(ids, nombres, config.opciones)
+    // Las series van con la partida, para poder decir con qué mazo se juega.
+    const estado = crear(ids, nombres, { ...config.opciones, series: config.ambitos })
     estado.jugadores.forEach((j, i) => (j.avatar = avatares[i]))
     guardarPartida(estado)
     partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(estado, await cargarAnios()) }
@@ -73,7 +74,17 @@
 
   async function continuar() {
     if (!guardada) return
-    partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(guardada, await cargarAnios()) }
+    const g = guardada
+    // Lo necesario para que «Otra partida» reparta con los mismos jugadores y el mismo mazo.
+    const ambitos = seriesDe(g)
+    g.opciones.series = ambitos
+    ultima = {
+      nombres: g.jugadores.map((j) => j.nombre),
+      avatares: g.jugadores.map((j) => j.avatar ?? ''),
+      ids: cartas.filter((c) => ambitos.includes(c.ambito)).map((c) => c.id),
+      config: { ambitos, opciones: { cartasIniciales: g.opciones.cartasIniciales, alFallar: g.opciones.alFallar } },
+    }
+    partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(g, await cargarAnios()) }
     ir('mesa')
   }
 
@@ -115,6 +126,7 @@
       control={partida.control}
       onsalir={volver}
       onotra={() => (ultima ? empezar(ultima.nombres, ultima.avatares, ultima.ids, ultima.config) : (pantalla = 'preparacion'))}
+      oncambiar={() => (pantalla = 'preparacion')}
     />
   {/key}
 {/if}
@@ -124,5 +136,5 @@
 {/if}
 
 {#if tutorial}
-  <Tutorial oncerrar={() => (tutorial = false)} />
+  <Tutorial oncerrar={() => (tutorial = false)} onjugar={() => ((tutorial = false), ir('preparacion'))} />
 {/if}

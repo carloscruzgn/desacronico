@@ -121,7 +121,7 @@ export class Partida extends DurableObject<Env> {
           g.estado = crear(
             ids,
             g.asientos.map((a) => a.nombre),
-            g.config.opciones,
+            { ...g.config.opciones, series: g.config.ambitos },
           )
           g.estado.jugadores.forEach((j, i) => (j.avatar = g.asientos[i].avatar))
           g.fase = 'juego'

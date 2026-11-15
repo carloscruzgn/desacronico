@@ -10,7 +10,12 @@
   import Moneda from './Moneda.svelte'
   import { dura } from './movimiento'
 
-  let { oncerrar }: { oncerrar: () => void } = $props()
+  interface Props {
+    oncerrar: () => void
+    /** Abierto desde el inicio, el último paso lleva a preparar una partida. Sin él (desde el reglamento), solo cierra. */
+    onjugar?: () => void
+  }
+  let { oncerrar, onjugar }: Props = $props()
 
   // Las cartas del ejemplo y sus años (Colón, el Quijote, Marie Curie, la imprenta, la penicilina).
   const ANIOS: Record<string, number> = { '137': 1492, '047': 1605, '262': 1903, '036': 1453, '267': 1928 }
@@ -112,16 +117,16 @@
     {/key}
   </div>
 
+  <!-- Un solo botón que cambia de texto, para que el foco no se pierda en el último paso;
+       «Anterior» no se desactiva del todo, para que el Tab no se lo salte. -->
   <footer>
-    <button class="boton secundario" disabled={paso === 0} onclick={() => paso--}>Anterior</button>
+    <button class="boton secundario" aria-disabled={paso === 0} onclick={() => paso > 0 && paso--}>Anterior</button>
     <span class="puntos" aria-hidden="true">
       {#each PASOS as _, i (i)}<i class:actual={i === paso}></i>{/each}
     </span>
-    {#if paso < ultimo}
-      <button class="boton" data-foco onclick={() => paso++}>Siguiente</button>
-    {:else}
-      <button class="boton" onclick={oncerrar}>¡A jugar!</button>
-    {/if}
+    <button class="boton" data-foco onclick={() => (paso < ultimo ? paso++ : (onjugar ?? oncerrar)())}>
+      {paso < ultimo ? 'Siguiente' : onjugar ? '¡A jugar!' : 'Entendido'}
+    </button>
   </footer>
 </div>
 
@@ -258,6 +263,11 @@
     padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
   }
   footer .boton { min-width: 7.2em; }
+  footer .boton[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: default;
+    transform: none;
+  }
   .puntos {
     display: flex;
     gap: 6px;

@@ -1,21 +1,22 @@
 // Textos del reglamento y de los créditos (del «Reglamento.pdf» original, con erratas corregidas
 // y con las aclaraciones de la versión digital).
-
+import { cartas, textoPlano } from './datos'
 
 /** Lo imprescindible del modo clásico, para quien abre el reglamento sin haber jugado nunca. */
 export const resumen = `
 <ol>
 <li>En la mesa hay una carta con su año a la vista: con ella empieza la cronología.</li>
-<li>Tus cartas no enseñan el año. Cuando te toque, elige una.</li>
-<li>Colócala en un hueco de la cronología: a la izquierda de una carta si crees que ocurrió antes, a la derecha si crees que ocurrió después.</li>
-<li>La carta se da la vuelta y enseña su año. Si has acertado, se queda en la mesa; si no, robas otra carta del mazo.</li>
-<li>Gana quien se queda sin cartas. Si varios lo consiguen en la misma ronda, desempatan entre ellos.</li>
+<li>Tus cartas no enseñan el año. Cuando te toque, elige una y colócala en un hueco de la cronología: a la izquierda de una carta si crees que ocurrió antes, a la derecha si crees que ocurrió después.</li>
+<li>La carta se da la vuelta y enseña su año. Si has acertado, se queda en la mesa. Si no, va a los descartes (o a su sitio correcto, si se juega con la opción «se recoloca») y robas otra carta del mazo.</li>
+<li>Si la carta tiene el mismo año que una de la mesa, vale a un lado o al otro. <i>c.</i> quiere decir que la fecha es aproximada, y el guion delante del año, que es antes de Cristo: -490 es el año 490 antes de Cristo.</li>
+<li>Una ronda es una vuelta completa: juegan todos una vez, empezando por quien abrió la partida.</li>
+<li>Gana quien es el único en colocar su última carta en una ronda. Quien se queda sin cartas espera a que los demás terminen la ronda; si alguien más acaba en esa misma ronda, desempatan entre ellos y los demás quedan fuera.</li>
 </ol>
 `
 
 export const reglas = `
 <h3>El juego</h3>
-<p>Este juego, <i>desacrónico</i>, surge en 2024 producto de la colaboración entre Carlos Cruz González y Rodrigo Muñoz Martínez compartiendo espacios y horarios en el CEPA (Centro de Enseñanza Para Adultos) de Coria.</p>
+<p>Este juego, <i>desacrónico</i>, surge en 2024 producto de la colaboración entre Carlos Cruz González y Rodrigo Muñoz Martínez compartiendo espacios y horarios en el CEPA Coria.</p>
 <p>La idea de realizar una variante personalizada del popular juego Timeline cristalizó tras numerosas conversaciones y cafés en torno a la afición común a los juegos de mesa, en los que discutíamos sus aplicaciones en el aula, dentro de un contexto de la ludificación de la enseñanza. De varios juegos que se probaron de manera efectiva con los alumnos, el Timeline original se descubrió como un juego ágil y eficaz, útil tanto para trabajar contenidos específicos en el aula, como para abordar un enfoque competencial de la enseñanza o, sencillamente, para destensar algunas sesiones largas y concentradas, permitiendo relajar a los alumnos sin dejar de lado el proceso continuo de aprendizaje. Era cuestión de tiempo que, por su idoneidad, nos decidiéramos a realizar nuestra propia variante, con tarjetas más adaptadas a los contenidos que impartimos, tanto desde el ámbito de Comunicación (Carlos) como el social (Rodrigo). Algo que, por extensión, sirva para toda la Secundaria.</p>
 <p>El resultado final no se contenta con ofrecer dos barajas adaptadas a nuestros ámbitos (identificados por colores, siendo el beige para el de comunicación y el negro para el social), sino que se han ampliado con contenidos para el ámbito científico, así como para la historia y reivindicación de la mujer y el género. Y ofrecemos, por último, una colección de cartas de alcance local, centrada en Coria.</p>
 
@@ -26,8 +27,8 @@ export const reglas = `
 <p>Edad: +12 · Jugadores: 2-6 · Tiempo: 15’ · Número de cartas: 323</p>
 
 <h3>Anatomía de una carta</h3>
-<p>El anverso consta del nombre del juego, una ilustración, el logo del CEPA de Coria (sirve para el modo cooperativo y aparece aleatoriamente en una de las cuatro esquinas de la ilustración), y un texto.</p>
-<p>En el reverso volvemos a tener la misma ilustración y texto de la carta, así como el logo en una esquina diferente. A lo anterior se le añaden el año del evento descrito y los créditos del juego e imagen. La abreviatura <i>c.</i> (<i>circa</i>) indica que la fecha es aproximada.</p>
+<p>El anverso consta del nombre del juego, una ilustración, el logo del CEPA Coria (sirve para el modo cooperativo y aparece aleatoriamente en una de las cuatro esquinas de la ilustración), y un texto.</p>
+<p>En el reverso volvemos a tener la misma ilustración y texto de la carta, así como el logo en una esquina diferente. A lo anterior se le añaden el año del evento descrito y los créditos del juego e imagen. La abreviatura <i>c.</i> (<i>circa</i>) indica que la fecha es aproximada. Los años antes de Cristo llevan un guion delante: <i>-490</i> es el año 490 antes de Cristo.</p>
 <p>Hay dos códigos de colores. El color de los bordes especifica el ámbito: <b>Comunicación</b> (beige), <b>Social</b> (negro), <b>Científico</b> (verde claro), <b>Mujer y género</b> (morado) y <b>Coria</b> (azul oscuro). La banda que muestra el año representa las eras: <b>Antigüedad</b> (hasta 499, inclusive), <b>Edad Media</b> (500-1499), <b>Edad Moderna</b> (1500-1799) y <b>Edad Contemporánea</b> (desde 1800, inclusive).</p>
 
 <h3>Modo competitivo tradicional</h3>
@@ -60,14 +61,25 @@ export const reglas = `
 </div>
 `;
 
+/** La lista de los créditos de imagen, sacada de las propias cartas. */
+const listaImagenes = cartas.map((c) => `<li><b>${c.id}</b> · ${textoPlano(c)}: ${c.credito}</li>`).join('\n')
+
 export const creditos = `
 <h3>desacrónico</h3>
-<p>Un juego de cartas para hacer cronologías, creado en 2024 por <b>Carlos Cruz González</b> y <b>Rodrigo Muñoz Martínez</b> en el CEPA de Coria. Cinco copias físicas impresas, con su caja.</p>
+<p>Un juego de cartas para hacer cronologías, creado en 2024 por <b>Carlos Cruz González</b> y <b>Rodrigo Muñoz Martínez</b> en el CEPA Coria. Cinco copias físicas impresas, con su caja.</p>
 <p>Versión digital realizada a partir del PDF de impresión original.</p>
+<p>Las cartas llevan licencia Creative Commons Reconocimiento-CompartirIgual (CC BY-SA), como indica su reverso.</p>
 
 <h3>Tipografía</h3>
 <p>IM FELL English, de Igino Marini, con licencia SIL Open Font License 1.1 (se incluye en la carpeta <i>fuentes</i>).</p>
+<p>Alegreya Sans, de Juan Pablo del Peral (Huerta Tipográfica), con licencia SIL Open Font License 1.1.</p>
 
 <h3>Imágenes</h3>
-<p>Créditos de las imágenes tal como figuran en el reverso de cada carta. El símbolo 📷 precede al nombre del fotógrafo.</p>
-`;
+<p>Cada carta lleva en el reverso el crédito de su imagen, como la carta impresa: amplíala para leerlo. El símbolo 📷 precede al nombre del fotógrafo.</p>
+<details>
+<summary>Los créditos de las ${cartas.length} imágenes</summary>
+<ol class="lista-imagenes">
+${listaImagenes}
+</ol>
+</details>
+`

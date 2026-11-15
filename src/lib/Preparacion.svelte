@@ -2,7 +2,7 @@
   import { avatarLibre } from '../../compartido/avatares'
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import type { Config } from '../../compartido/protocolo'
-  import { cartas, configGuardada, guardarConfig } from './datos'
+  import { cartas, configGuardada, guardarConfig, guardarJugadores, jugadoresGuardados } from './datos'
   import Avatares from './Avatares.svelte'
   import BotonIcono from './BotonIcono.svelte'
   import Moneda from './Moneda.svelte'
@@ -17,11 +17,23 @@
   let { hayGuardada = false, onvolver, onempezar }: Props = $props()
 
   let config = $state.raw(configGuardada())
-  let nombres = $state<string[]>(['', ''])
-  // Cada jugador empieza con una moneda al azar, distinta de las demás; puede cambiarla.
-  const primera = avatarLibre([])
-  let avatares = $state<string[]>([primera, avatarLibre([primera])])
+  // Se proponen los jugadores de la última partida; si no hay, dos sin nombre.
+  // Cada jugador nuevo empieza con una moneda al azar, distinta de las demás; puede cambiarla.
+  function nuevos() {
+    const primera = avatarLibre([])
+    return { nombres: ['', ''], avatares: [primera, avatarLibre([primera])] }
+  }
+  const deAntes = jugadoresGuardados() ?? nuevos()
+  let nombres = $state<string[]>(deAntes.nombres)
+  let avatares = $state<string[]>(deAntes.avatares)
   let eligiendo = $state<number | null>(null)
+  const hayNombres = $derived(nombres.some((n) => n.trim()))
+
+  function empezarDeCero() {
+    const n = nuevos()
+    nombres = n.nombres
+    avatares = n.avatares
+  }
 
   function anadir() {
     nombres.push('')
@@ -44,6 +56,7 @@
 
   function empezar() {
     guardarConfig(config)
+    guardarJugadores({ nombres: nombres.map((n) => n.trim()), avatares: [...avatares] })
     onempezar(
       nombres.map((n, i) => n.trim() || `Jugador ${i + 1}`),
       [...avatares],
@@ -76,6 +89,9 @@
       {#if nombres.length < MAX_JUGADORES}
         <button class="anadir" onclick={anadir}>+ Añadir jugador</button>
       {/if}
+      {#if hayNombres}
+        <button class="anadir" onclick={empezarDeCero}>Nuevos jugadores</button>
+      {/if}
     </div>
   </section>
 
@@ -90,6 +106,7 @@
 
 {#if eligiendo !== null}
   <Avatares
+    titulo="Avatar de {nombres[eligiendo]?.trim() || `Jugador ${eligiendo + 1}`}"
     actual={avatares[eligiendo]}
     ocupados={avatares}
     onelegir={(a) => ((avatares[eligiendo!] = a), (eligiendo = null))}

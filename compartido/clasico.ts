@@ -1,4 +1,5 @@
 // Reglas del modo competitivo tradicional. Código puro: lo usan la partida local y el servidor.
+import type { Ambito } from './tipos'
 
 /** id de carta → [año, 1 si la fecha es aproximada] */
 export type Anios = Record<string, [number, number]>
@@ -9,6 +10,8 @@ export interface Opciones {
   cartasIniciales: number
   /** Qué pasa con la carta mal colocada: va a los descartes (reglamento) o se queda en su sitio correcto. */
   alFallar: 'descartar' | 'recolocar'
+  /** Series con las que se hizo el mazo, para contarlo en la mesa. Falta en las partidas guardadas antes de tenerla. */
+  series?: Ambito[]
 }
 export const OPCIONES: Opciones = { cartasIniciales: 4, alFallar: 'descartar' }
 export const MANO_MIN = 2
@@ -127,6 +130,19 @@ export function cabe(cronologia: string[], anios: Anios, carta: string, posicion
 export function lugarCorrecto(cronologia: string[], anios: Anios, carta: string): number {
   const anio = anios[carta][0]
   return cronologia.filter((c) => anios[c][0] <= anio).length
+}
+
+/** Las cartas entre las que iba una carta: la anterior y la siguiente de su lugar correcto (null en los extremos). */
+export function vecinas(cronologia: string[], anios: Anios, carta: string): [string | null, string | null] {
+  const i = lugarCorrecto(cronologia, anios, carta)
+  return [cronologia[i - 1] ?? null, cronologia[i] ?? null]
+}
+
+/** Si la carta, puesta en ese hueco, toca otra de su mismo año, esa otra (la regla del mismo año). */
+export function mismoAnio(cronologia: string[], anios: Anios, carta: string, posicion: number): string | null {
+  const anio = anios[carta][0]
+  const junto = [cronologia[posicion - 1], cronologia[posicion]].filter((c): c is string => !!c)
+  return junto.find((c) => anios[c][0] === anio) ?? null
 }
 
 function robar(e: EstadoClasico, azar: () => number): string | null {

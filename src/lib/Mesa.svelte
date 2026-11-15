@@ -3,11 +3,11 @@
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
   import { crossfade, fade, scale } from 'svelte/transition'
-  import type { Anios, VistaClasico } from '../../compartido/clasico'
-  import { eraDe, type Fecha } from '../../compartido/tipos'
+  import { mismoAnio, vecinas, type Anios, type VistaClasico } from '../../compartido/clasico'
+  import { AMBITOS, eraDe, type Fecha } from '../../compartido/tipos'
   import Carta from './Carta.svelte'
   import type { Controlador, Suceso } from './control'
-  import { anioTexto, porId, textoPlano } from './datos'
+  import { anioHablado, anioTexto, cuentaPorAmbito, enLista, enMillones, porId, textoPlano } from './datos'
   import BotonIcono from './BotonIcono.svelte'
   import Confirmar from './Confirmar.svelte'
   import { dialogo } from './dialogo'
@@ -22,8 +22,10 @@
     onsalir: () => void
     /** Empezar otra partida. Sin ella (en línea, si no eres el anfitrión) solo se puede esperar. */
     onotra?: () => void
+    /** Volver a preparar la partida (otros jugadores u otro mazo). Solo en local. */
+    oncambiar?: () => void
   }
-  let { control, onsalir, onotra }: Props = $props()
+  let { control, onsalir, onotra, oncambiar }: Props = $props()
 
   interface Pieza {
     id: string
@@ -54,9 +56,20 @@
   let ampliada = $state<{ id: string; reverso: boolean } | null>(null)
   let fin = $state<number[] | null>(null)
   let verFin = $state(false)
-  let veredicto = $state<'' | 'ok' | 'fallo' | 'recoloca'>('')
-  /** Año de la carta que se acaba de fallar, para decirlo en el veredicto. */
-  let anioFallo = $state('')
+  interface Veredicto {
+    tipo: 'ok' | 'fallo' | 'recoloca'
+    titulo: string
+    /** Debajo del título: dónde iba la carta, qué pasa con ella, la regla del mismo año… */
+    detalle: string
+    /** Aclaraciones de la fecha: la «c.» o un año antes de Cristo. */
+    notas: string[]
+  }
+  /** Lo que dice la mesa mientras se resuelve una jugada. */
+  let veredicto = $state<Veredicto | null>(null)
+  /** La jugada anterior, para que quien juega después sepa qué ha pasado. */
+  let ultima = $state<{ texto: string; acierto: boolean; detalle: string; notas: string[] } | null>(null)
+  /** El guion de los años antes de Cristo se explica la primera vez que sale en la partida. */
+  let negativoExplicado = false
   /** Lo que acaba de pasar, contado entero para el lector de pantalla. */
   let narra = $state('')
   let quitando = $state<number | null>(null)
@@ -93,10 +106,33 @@
     e.preventDefault()
     huecos[destino]?.focus()
   }
-  const puedeColocar = $derived(!!seleccionada && !ocupado && miTurno)
+  // La carta elegida tiene que estar en la mano que se ve: si se eligió durante la animación de otra
+  // jugada y la mano ha cambiado, no sirve para colocar.
+  const puedeColocar = $derived(!!seleccionada && mano.includes(seleccionada) && !ocupado && miTurno)
   const nombreTurno = $derived(vista.jugadores[vista.turno]?.nombre ?? '')
-  const espera = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  /** Pausa entre los pasos de una animación: con movimiento reducido no hay animación y no se espera. */
+  const espera = (ms: number) => new Promise((r) => setTimeout(r, dura(ms)))
+  /** Tiempo para leer un aviso: no depende del movimiento. */
+  const leer = (ms: number) => new Promise((r) => setTimeout(r, ms))
   const anioDe = (id: string) => anioTexto(fechas[id])
+  const anioDicho = (id: string | null, conCirca = true) => (id ? anioHablado(fechas[id], conCirca) : '')
+  /** Las dos primeras jugadas de cada jugador llevan la pista de cómo se juega. */
+  const novato = (i: number) => (vista.jugadores[i] ? vista.jugadores[i].aciertos + vista.jugadores[i].fallos < 2 : false)
+
+  // Condiciones de la partida, para el menú «La partida».
+  const condiciones = $derived.by(() => {
+    const o = vista.opciones
+    const lista: string[] = []
+    if (o.series?.length) {
+      const total = o.series.reduce((n, a) => n + (cuentaPorAmbito[a] ?? 0), 0)
+      const cuales = o.series.length === Object.keys(AMBITOS).length ? 'todas las series' : enLista(o.series.map((a) => AMBITOS[a]))
+      lista.push(`Mazo: ${cuales} (${total} cartas)`)
+    }
+    lista.push(`${o.cartasIniciales} cartas por jugador`)
+    lista.push(o.alFallar === 'recolocar' ? 'Al fallar se recoloca' : 'Al fallar se descarta')
+    lista.push(`Ronda ${vista.ronda}`)
+    return lista
+  })
 
   let menu = $state(false)
   let confirma = $state<'' | 'abandonar' | 'sala'>('')
@@ -144,16 +180,17 @@
     cronoEl.scrollTo({ left: x + el.offsetWidth / 2 - cronoEl.clientWidth / 2, behavior: desplazamiento() })
   }
 
-  /** Tras una jugada con teclado el foco se queda en un hueco que desaparece: se devuelve a la mano. */
-  async function recuperarFoco() {
-    if (!tecleando) return
-    const a = document.activeElement
-    if (a && a !== document.body && !a.classList.contains('hueco')) return
+  /** Tras una jugada, el foco se ha quedado en un hueco que se cierra o en una carta que ya no está:
+      va a la mano de quien juega ahora o, si no le toca a este dispositivo, a la carta recién colocada. */
+  async function recuperarFoco(id: string) {
     await tick()
-    manoEl?.querySelector<HTMLElement>('.naipe')?.focus({ preventScroll: true })
+    const a = document.activeElement as HTMLElement | null
+    const perdido = !a || a === document.body || !a.isConnected || !!a.closest('[inert]') || a.classList.contains('hueco')
+    if (!perdido) return
+    const enMano = manoEl?.querySelector<HTMLElement>('.naipe')
+    const colocada = cronoEl?.querySelector<HTMLElement>(`.naipe[data-id="${id}"]`)
+    ;((miTurno ? enMano : null) ?? colocada ?? enMano)?.focus({ preventScroll: true })
   }
-  /** Solo se mueve el foco a quien está jugando con el teclado. */
-  let tecleando = false
   let manoEl = $state<HTMLElement>()
 
   function anotar(f: Anios) {
@@ -227,8 +264,11 @@
       }
       await espera(350)
     }
-    if (!fin && !solo && !fuera)
-      await anunciar(asiento === v.turno ? (sinEmpezar ? 'Empiezas tú' : 'Tu turno') : `Turno de ${v.jugadores[v.turno].nombre}`, 1000)
+    if (!fin && !solo && !fuera) {
+      const texto = asiento === v.turno ? (sinEmpezar ? 'Empiezas tú' : 'Tu turno') : `Turno de ${v.jugadores[v.turno].nombre}`
+      narra = texto
+      await anunciar(texto, 1000)
+    }
     ocupado = false
   }
 
@@ -261,14 +301,16 @@
     descarte = v.descartes.slice(-1)
   }
 
+  /** Un aviso a la vista. No habla: lo que oye el lector de pantalla va junto en `narra`, una vez por jugada. */
   async function anunciar(texto: string, ms: number) {
-    aviso = narra = texto
-    await espera(ms)
+    aviso = texto
+    await leer(ms)
     aviso = null
   }
 
   function elegir(id: string) {
-    if (fin) return
+    // En local, mientras se anima una jugada la mano va a cambiar de dueño: no se elige nada.
+    if (fin || (local && ocupado)) return
     if (seleccionada === id) ampliada = { id, reverso: false }
     else {
       // Al elegir, las cartas de la mesa encogen para que quepan más huecos: se conserva la que estaba en el centro.
@@ -279,11 +321,36 @@
   }
 
   function jugarEn(posicion: number) {
-    if (ocupado || !miTurno || !seleccionada) return
+    if (!puedeColocar || !seleccionada) return
     ocupado = true
-    control.jugar(seleccionada, posicion)
+    try {
+      control.jugar(seleccionada, posicion)
+    } catch {
+      // Una jugada que las reglas no aceptan no puede dejar la mesa bloqueada.
+      seleccionada = null
+      ocupado = false
+      return
+    }
     // Si el servidor no contesta (conexión caída), se devuelve el control al jugador.
     setTimeout(() => !atendiendo && (ocupado = false), 4000)
+  }
+
+  /** Años de unas cartas ya descubiertas, en el formato de las reglas. */
+  function aniosDe(ids: string[]): Anios {
+    const a: Anios = {}
+    for (const id of ids) if (fechas[id]) a[id] = [fechas[id].anio, fechas[id].circa ? 1 : 0]
+    return a
+  }
+
+  /** Aclaraciones de una fecha recién descubierta: el guion la primera vez que sale y, si no, la «c.». */
+  function notasDe(id: string): string[] {
+    const f = fechas[id]
+    if (!f) return []
+    if (f.anio < 0 && !negativoExplicado) {
+      negativoExplicado = true
+      return [`${anioTexto(f)} = ${f.circa || enMillones(f.anio) ? '' : 'año '}${anioHablado(f)}`]
+    }
+    return f.circa ? ['c. = fecha aproximada'] : []
   }
 
   async function animar(s: Suceso) {
@@ -291,6 +358,8 @@
     const id = r.carta
     const jugador = r.jugador
     const suya = visible === jugador
+    /** La partida antes de la jugada: con ella se dice dónde iba la carta. */
+    const antes = vista
     ocupado = true
     // Quien lee una de sus cartas mientras juega otro no pierde la selección.
     if (seleccionada === id || visible === jugador) seleccionada = null
@@ -312,18 +381,43 @@
     pieza.volteada = true
     await espera(800)
 
-    const quien = vista.jugadores[jugador]?.nombre ?? ''
-    const frase = `${solo ? '' : quien + ' coloca '}«${textoPlano(porId[id])}», ${anioDe(id)}`
+    // Cómo se cuenta: «tú» si la jugada es de este dispositivo; si no, con el nombre.
+    const quien = antes.jugadores[jugador]?.nombre ?? ''
+    const tu = solo || asiento === jugador
+    const texto = textoPlano(porId[id])
+    const anio = anioDe(id)
+    const anios = aniosDe([...antes.cronologia, id])
+    const notas = notasDe(id)
+    /** Lo que se dirá al lector de pantalla, todo junto al final. */
+    const partes = [`${tu ? 'Colocas' : quien + ' coloca'} «${texto}», ${anioDicho(id)}.`]
+    let detalle = ''
     if (r.acierto) {
-      pieza.marca = veredicto = 'ok'
-      narra = `${frase}: correcto.`
+      const igual = mismoAnio(antes.cronologia, anios, id, r.posicion)
+      detalle = igual ? `Mismo año que «${textoPlano(porId[igual])}»: vale a un lado o al otro` : ''
+      pieza.marca = 'ok'
+      veredicto = { tipo: 'ok', titulo: solo ? '¡Correcto!' : tu ? '¡Aciertas!' : `¡${quien} acierta!`, detalle, notas }
+      partes.push(`Correcto.${igual ? ' Tiene el mismo año que la carta de al lado.' : ''}`)
       await espera(800)
       pieza.marca = ''
     } else {
+      // Dónde iba: entre qué años de la cronología que había antes de jugar.
+      const [a, b] = vecinas(antes.cronologia, anios, id)
+      const junto = a && fechas[a]?.anio === fechas[id]?.anio
+      const donde = junto ? `iba junto a la de ${anioDe(a)}` : a && b ? `iba entre ${anioDe(a)} y ${anioDe(b)}` : a ? `iba después de ${anioDe(a)}` : `iba antes de ${anioDe(b!)}`
+      const dondeDicho = junto
+        ? `iba junto a la de ${anioDicho(a, false)}`
+        : a && b
+          ? `iba entre ${anioDicho(a, false)} y ${anioDicho(b, false)}`
+          : a
+            ? `iba después de ${anioDicho(a, false)}`
+            : `iba antes de ${anioDicho(b, false)}`
+      const destino = r.recolocada === null ? 'Va a los descartes' : 'Se recoloca en su sitio'
+      const roba = r.robada ? (tu ? 'Robas otra' : `${quien} roba otra`) : ''
+      detalle = [destino, roba].filter(Boolean).join(' · ')
       pieza.marca = 'fallo'
-      anioFallo = anioDe(id)
-      veredicto = r.recolocada === null ? 'fallo' : 'recoloca'
-      narra = `${frase}: no encaja. ${r.recolocada === null ? 'Va a los descartes.' : 'Se recoloca en su sitio.'}`
+      veredicto = { tipo: r.recolocada === null ? 'fallo' : 'recoloca', titulo: `No encaja: es de ${anio}, ${donde}`, detalle, notas }
+      partes.push(`No encaja: ${dondeDicho}. ${destino}.${roba ? ` ${roba} carta.` : ''}`)
+      detalle = `${donde} · ${detalle}`
       if (suya) navigator.vibrate?.(120)
       await espera(1700)
       if (r.recolocada === null) {
@@ -350,27 +444,49 @@
         await espera(520)
       }
     }
-    veredicto = ''
+    veredicto = null
+    ultima = { texto: `${tu ? 'Colocaste' : quien + ' colocó'} «${texto}», ${anio}`, acierto: r.acierto, detalle, notas }
 
     // 4. Se pone al día con el resultado y pasa el turno
     const v = s.vista
     vista = v
     contar(v)
+    const quedan = v.jugadores[jugador]?.mano.length ?? 0
+    if (!v.ganadores.length && quedan > 0)
+      partes.push(`${tu ? 'Te' : `A ${quien} le`} ${quedan === 1 ? 'queda 1 carta' : `quedan ${quedan} cartas`}.`)
+
     if (v.ganadores.length) {
+      narra = [...partes, solo ? 'Cronología completada.' : `${ganan(v.ganadores)}.`].join(' ')
       await espera(300)
       fin = v.ganadores
       verFin = true
       return
     }
+
+    // Avisos de lo que no pasa en todas las jugadas, y de quién juega ahora.
+    const avisos: [string, number][] = []
     // Quien coloca su última carta no gana todavía: los demás acaban la ronda.
-    if (r.acierto && !r.finRonda && v.jugadores[jugador].mano.length === 0)
-      await anunciar(`${v.jugadores[jugador].nombre} se queda sin cartas: los demás terminan la ronda`, 2400)
+    if (r.acierto && !r.finRonda && quedan === 0)
+      avisos.push([`${tu && !local ? 'Te quedas' : quien + ' se queda'} sin cartas: los demás terminan la ronda`, 2400])
     if (r.desempate.length) {
-      const empatados = r.desempate.map((d) => v.jugadores[d.jugador].nombre).join(' y ')
-      await anunciar(`${empatados} acaban a la vez: desempate`, 2200)
+      const empatados = enLista(r.desempate.map((d) => v.jugadores[d.jugador].nombre))
+      const fuera = r.eliminados.length ? `. ${enLista(r.eliminados.map((i) => v.jugadores[i].nombre))} ${r.eliminados.length > 1 ? 'quedan' : 'queda'} fuera` : ''
+      avisos.push([`${empatados} acaban a la vez: desempate${fuera}`, 2200])
     }
-    if (manoDe(v) !== visible) {
+    const cambiaMano = manoDe(v) !== visible
+    let turno = ''
+    if (!solo) {
+      if (local) turno = cambiaMano ? `Turno de ${v.jugadores[v.turno].nombre}` : ''
+      else if (asiento === v.turno) turno = jugador !== asiento ? 'Tu turno' : ''
+      else turno = `Turno de ${v.jugadores[v.turno].nombre}`
+    }
+    narra = [...partes, ...avisos.map(([t]) => t + '.'), turno && turno + '.'].filter(Boolean).join(' ')
+
+    for (const [t, ms] of avisos) await anunciar(t, ms)
+    if (cambiaMano) {
       origen = null
+      // La carta elegida era de la mano que se va.
+      seleccionada = null
       mano = []
       await espera(230)
       visible = manoDe(v)
@@ -383,8 +499,9 @@
       for (const x of debe) if (!mano.includes(x)) mano.push(x)
       if (!local && asiento === v.turno && jugador !== asiento) await anunciar('Tu turno', 900)
     }
+    if (seleccionada && !mano.includes(seleccionada)) seleccionada = null
     ocupado = false
-    recuperarFoco()
+    recuperarFoco(id)
   }
 
   /** Cierra el panel final. El foco no puede volver al hueco de la última jugada, que ya no está a la vista. */
@@ -394,14 +511,16 @@
     manoEl?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
   }
 
+  /** «Ana», «Ana y Benito»… */
   function nombres(g: number[]) {
-    return g.map((i) => vista.jugadores[i].nombre).join(' y ')
+    return enLista(g.map((i) => vista.jugadores[i].nombre))
   }
+  /** «Gana Ana», «Ganan Ana y Benito». */
+  const ganan = (g: number[]) => `${g.length > 1 ? 'Ganan' : 'Gana'} ${nombres(g)}`
 </script>
 
 <svelte:window
   onkeydown={(e) => {
-    tecleando = true
     if (menu || confirma) {
       if (e.key === 'Escape' && menu) menu = false
       return
@@ -414,7 +533,6 @@
       seleccionada = null
     }
   }}
-  onpointerdown={() => (tecleando = false)}
 />
 
 <main class="mesa" class:eligiendo={puedeColocar}>
@@ -473,7 +591,7 @@
     <div class="tira">
       {#each crono as p, i (p.id)}
         <div class="pieza" animate:flip={{ duration: dura(600), easing: cubicOut }}>
-          <button class="hueco" tabindex={puedeColocar ? 0 : -1} aria-hidden={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDe(crono[i - 1].id) || 'la anterior'} y ` : 'antes de '}{anioDe(p.id) || 'esta carta'}">
+          <button class="hueco" inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
             <span>+</span>
           </button>
           <button
@@ -482,7 +600,7 @@
             in:recibir={{ key: p.id }}
             out:enviar={{ key: p.id }}
             onclick={() => (ampliada = { id: p.id, reverso: p.volteada })}
-            aria-label="{p.volteada && anioDe(p.id) ? anioDe(p.id) + ': ' : ''}{textoPlano(porId[p.id])}"
+            aria-label="{p.volteada && anioDe(p.id) ? anioDicho(p.id) + '. ' : ''}{textoPlano(porId[p.id])}"
           >
             <div class="cuerpo {p.marca}">
               <Carta carta={porId[p.id]} fecha={fechas[p.id]} volteada={p.volteada} />
@@ -490,7 +608,7 @@
           </button>
         </div>
       {/each}
-      <button class="hueco" tabindex={puedeColocar ? 0 : -1} aria-hidden={!puedeColocar} onclick={() => jugarEn(crono.length)} aria-label="Colocar aquí, al final, después de {anioDe(crono[crono.length - 1]?.id ?? '') || 'la última'}">
+      <button class="hueco" inert={!puedeColocar} onclick={() => jugarEn(crono.length)} aria-label="Colocar aquí, al final, después de {anioDicho(crono[crono.length - 1]?.id ?? null, false) || 'la última'}">
         <span>+</span>
       </button>
     </div>
@@ -501,7 +619,7 @@
     <div class="anios" class:densa={crono.length > 8} aria-hidden="true" transition:fade={{ duration: dura(200) }}>
       {#each crono as p (p.id)}
         <button tabindex="-1" class={p.volteada && fechas[p.id] ? eraDe(fechas[p.id].anio) : ''} onclick={() => centrar(p.id)}>
-          <span>{p.volteada && fechas[p.id] ? anioTexto({ anio: fechas[p.id].anio, circa: false }) : '?'}</span>
+          <span>{p.volteada && fechas[p.id] ? anioTexto({ anio: fechas[p.id].anio, circa: false }).replace(' millones', ' M') : '?'}</span>
         </button>
       {/each}
       <i style="left: {ventana.izq}%; width: {ventana.ancho}%"></i>
@@ -511,34 +629,46 @@
   <p class="sr-only" role="status">{narra}</p>
   <div class="leyenda">
     {#if fin}
-      <p class="resultado">{solo ? 'Cronología completada' : `Gana ${nombres(fin)}`}</p>
+      <p class="resultado">{solo ? 'Cronología completada' : ganan(fin)}</p>
     {:else if veredicto}
-      <p class="veredicto {veredicto}" in:scale={{ duration: dura(220), start: 0.7 }}>
-        {veredicto === 'ok' ? '¡Correcto!' : `No encaja: es de ${anioFallo}`}
-      </p>
-      {#if veredicto !== 'ok'}<p class="pista">{veredicto === 'fallo' ? 'Va a los descartes' : 'Se recoloca en su sitio'}</p>{/if}
+      <p class="veredicto {veredicto.tipo}" in:scale={{ duration: dura(220), start: 0.7 }}>{veredicto.titulo}</p>
+      {#if veredicto.detalle}<p class="pista">{veredicto.detalle}</p>{/if}
+      {#each veredicto.notas as n (n)}<p class="pista nota">{n}</p>{/each}
     {:else if seleccionada}
       {#key seleccionada}
         <p class="texto" in:fade={{ duration: dura(180) }}>{@html porId[seleccionada].texto}</p>
       {/key}
       <p class="pista">
-        {#if miTurno}¿Antes o después? Toca el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else}Espera tu turno{/if}
+        {#if puedeColocar}{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? Toca el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
         <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
       </p>
-    {:else if !ocupado && miTurno}
-      <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'}</p>
-      <p class="pista">{crono.length < 2 ? 'Ordena las cartas por fecha: elige una y colócala antes o después' : 'Toca una carta para leerla; tócala otra vez para ampliarla'}</p>
-    {:else if !ocupado}
-      <p class="pista grande">Juega {nombreTurno}…</p>
-      {#if conectados && !conectados[vista.turno]}
-        <p class="pista">
-          {nombreTurno} se ha desconectado. Esperando a que vuelva…
-          {#if anfitrion}<button class="enlace" onclick={() => (quitando = vista.turno)}>Quitar de la partida</button>{/if}
+    {:else}
+      {#if !ocupado && miTurno}
+        <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'}</p>
+        {#if novato(vista.turno)}
+          <p class="pista">{crono.length < 2 ? 'Ordena las cartas por fecha: elige una y colócala antes o después' : 'Toca una carta para leerla; tócala otra vez para ampliarla'}</p>
+        {/if}
+      {:else if !ocupado}
+        <p class="pista grande">Juega {nombreTurno}…</p>
+        {#if conectados && !conectados[vista.turno]}
+          <p class="pista">
+            {nombreTurno} se ha desconectado. Esperando a que vuelva…
+            {#if anfitrion}<button class="enlace" onclick={() => (quitando = vista.turno)}>Quitar de la partida</button>{/if}
+          </p>
+        {:else if fuera}
+          <p class="pista">Ya no juegas esta partida, pero puedes seguir mirándola. Podrás jugar en la siguiente.</p>
+        {:else if mirando}
+          <p class="pista">Estás mirando: la partida ya había empezado. Podrás jugar en la siguiente.</p>
+        {/if}
+      {/if}
+      {#if ultima}
+        <!-- La jugada anterior, para quien no la ha visto: el veredicto dura poco. -->
+        <p class="pista antes">
+          Antes: {ultima.texto}
+          <span class="marca-jugada {ultima.acierto ? 'ok' : 'fallo'}" aria-hidden="true">{ultima.acierto ? '✓' : '✗'}</span><span class="sr-only">, {ultima.acierto ? 'acierto' : 'no encajaba'}</span>
+          {#if ultima.detalle}<span class="detalle">{ultima.detalle}</span>{/if}
         </p>
-      {:else if fuera}
-        <p class="pista">Ya no juegas esta partida, pero puedes seguir mirándola. Podrás jugar en la siguiente.</p>
-      {:else if mirando}
-        <p class="pista">Estás mirando: la partida ya había empezado. Podrás jugar en la siguiente.</p>
+        {#each ultima.notas as n (n)}<p class="pista nota">{n}</p>{/each}
       {/if}
     {/if}
   </div>
@@ -558,8 +688,7 @@
           in:recibir={{ key: id }}
           out:enviar={{ key: id }}
           onclick={() => elegir(id)}
-          aria-pressed={seleccionada === id}
-          aria-label={textoPlano(porId[id])}
+          aria-label="{textoPlano(porId[id])}{seleccionada === id ? ', elegida' : ''}"
         >
           <div class="cuerpo">
             <Carta carta={porId[id]} />
@@ -586,7 +715,7 @@
     role="dialog"
     tabindex="-1"
     aria-modal="true"
-    aria-label="Carta ampliada. {ampliada.reverso && anioDe(ampliada.id) ? anioDe(ampliada.id) + ': ' : ''}{textoPlano(porId[ampliada.id])}{ampliada.reverso ? '. Imagen: ' + porId[ampliada.id].credito : ''}"
+    aria-label="Carta ampliada. {ampliada.reverso && anioDe(ampliada.id) ? anioDicho(ampliada.id) + '. ' : ''}{textoPlano(porId[ampliada.id])}{ampliada.reverso ? '. Imagen: ' + porId[ampliada.id].credito : ''}"
     use:dialogo
     transition:fade={{ duration: dura(160) }}
     onclick={() => (ampliada = null)}
@@ -602,6 +731,9 @@
   <div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && (menu = false)} role="presentation">
     <div class="premio" role="dialog" aria-modal="true" aria-labelledby="menu-titulo" use:dialogo in:scale={{ duration: dura(220), start: 0.9 }}>
       <h2 id="menu-titulo">La partida</h2>
+      <ul class="condiciones" aria-label="Condiciones de esta partida">
+        {#each condiciones as c (c)}<li>{c}</li>{/each}
+      </ul>
       <div class="acciones">
         <button class="boton" data-foco onclick={() => (menu = false)}>Seguir jugando</button>
         <button class="opcion" onclick={onsalir}>
@@ -668,7 +800,7 @@
           <div class="ganadora"><Moneda avatar={vista.jugadores[i].avatar} nombre={vista.jugadores[i].nombre} gesto="gana" /></div>
         {/each}
       </div>
-      <h2 id="fin-titulo">{solo ? '¡Hecho!' : `¡Gana ${nombres(fin)}!`}</h2>
+      <h2 id="fin-titulo">{solo ? '¡Hecho!' : `¡${ganan(fin)}!`}</h2>
       {#if !solo}
         <ul class="vencidos" aria-hidden="true">
           {#each vista.jugadores as j, i (i)}
@@ -694,6 +826,7 @@
         {:else}
           <p class="corona">El anfitrión puede empezar otra partida.</p>
         {/if}
+        {#if oncambiar}<button class="boton secundario" onclick={oncambiar}>Cambiar jugadores o mazo</button>{/if}
         <button class="boton secundario" onclick={cerrarFin}>Ver la cronología</button>
       </div>
     </div>
@@ -904,6 +1037,7 @@
     font-family: var(--fell-sc);
     font-size: 0.95rem;
     line-height: 1;
+    white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
   }
@@ -1051,6 +1185,37 @@
   .veredicto.fallo,
   .veredicto.recoloca {
     color: #f0a3a3;
+  }
+  /* La jugada anterior, en pequeño bajo lo que toca hacer ahora */
+  .pista.antes {
+    margin-top: 6px;
+    font-size: 0.9rem;
+  }
+  .antes .detalle { display: block; }
+  .marca-jugada {
+    margin-left: 0.15em;
+    font-style: normal;
+    font-weight: 700;
+  }
+  .marca-jugada.ok { color: #8fdca4; }
+  .marca-jugada.fallo { color: #f0a3a3; }
+  .pista.nota { font-size: 0.88rem; }
+  /* Menú de la partida: las condiciones en una línea */
+  .condiciones {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: -0.2em 0 14px;
+    padding: 0;
+    list-style: none;
+    color: #55544c;
+    font-size: 0.92rem;
+    line-height: 1.3;
+  }
+  /* el punto va al final de cada condición, para que ningún renglón empiece por él */
+  .condiciones li:not(:last-child)::after {
+    content: '\00a0·';
+    margin-right: 0.4em;
   }
   .ampliar {
     display: inline-flex;

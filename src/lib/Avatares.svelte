@@ -9,13 +9,15 @@
   import { dura } from './movimiento'
 
   interface Props {
+    /** «Avatar de Ana»: de quién es la moneda que se elige. */
+    titulo?: string
     actual: string
     /** Personajes que ya tienen otros jugadores. */
     ocupados?: string[]
     onelegir: (avatar: string) => void
     oncerrar: () => void
   }
-  let { actual, ocupados = [], onelegir, oncerrar }: Props = $props()
+  let { titulo = 'Tu avatar', actual, ocupados = [], onelegir, oncerrar }: Props = $props()
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && oncerrar()} />
@@ -23,7 +25,7 @@
 <div class="velo" transition:fade={{ duration: dura(200) }} onclick={oncerrar} role="presentation"></div>
 <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="avatares-titulo" use:dialogo transition:fly={{ y: 60, duration: dura(280) }}>
   <header>
-    <h2 id="avatares-titulo">Elige tu avatar</h2>
+    <h2 id="avatares-titulo">{titulo}</h2>
     <BotonIcono icono="cerrar" etiqueta="Cerrar" sobrePapel onclick={oncerrar} />
   </header>
   <div class="series">

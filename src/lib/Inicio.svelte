@@ -73,7 +73,7 @@
     <img src="/img/cepa.svg" alt="CEPA Coria" />
     <span>
       Carlos Cruz González y Rodrigo Muñoz Martínez<br />
-      CEPA de Coria, 2024 · CC BY-SA
+      CEPA Coria, 2024 · CC BY-SA
     </span>
   </footer>
 </main>
