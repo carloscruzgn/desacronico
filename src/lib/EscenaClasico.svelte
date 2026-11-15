@@ -424,7 +424,7 @@
     outline-offset: 2px;
     transition: outline-color 0.25s;
   }
-  .activo .aro { outline-color: var(--papel); }
+  .activo .aro { outline-color: var(--acento); }
   .fuera { opacity: 0.45; }
   .nombre {
     font-size: min(0.85rem, 2.6cqh);
@@ -553,6 +553,10 @@
   .mano .elegida {
     transform: translateY(-14%);
     filter: drop-shadow(0 14px 10px rgb(0 0 0 / 0.5));
+  }
+  .mano .elegida :global(.cara) {
+    outline: 2.5px solid var(--acento);
+    outline-offset: 2px;
   }
   .carta-boton {
     display: block;

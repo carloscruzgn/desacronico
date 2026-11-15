@@ -1715,17 +1715,17 @@
       outline-color 0.3s,
       transform 0.3s var(--curva-posar);
   }
-  /* Quien juega: un aro de papel alrededor de su moneda, sin brillo. */
+  /* Quien juega: un aro mostaza (el color del realce) alrededor de su moneda, sin brillo. */
   .jugadores li.activo { color: var(--papel); }
   .jugadores li.activo .nombre { font-weight: 700; }
   .jugadores li.activo :global(.moneda) {
-    outline-color: var(--papel);
+    outline-color: var(--acento);
     transform: scale(1.08);
   }
   .jugadores li.ganador { color: var(--papel); }
   .jugadores li.ganador .nombre { font-weight: 700; }
   .jugadores li.ganador :global(.moneda) {
-    outline: 3px solid var(--papel);
+    outline: 3px solid var(--acento);
   }
   .jugadores li.ausente :global(.moneda) { opacity: 0.5; }
   .jugadores li.ausente .nombre::after {
@@ -2313,6 +2313,11 @@
   .mano .elegida .cuerpo {
     transform: translateY(-12%);
     filter: drop-shadow(0 14px 10px rgb(0 0 0 / 0.55));
+  }
+  /* y lleva el realce mostaza, el mismo de las series elegidas y del foco */
+  .mano .elegida :global(.cara) {
+    outline: 2.5px solid var(--acento);
+    outline-offset: 2px;
   }
   @media (hover: hover) {
     .mano .naipe:not(.elegida):hover .cuerpo { transform: translateY(-5%); }
