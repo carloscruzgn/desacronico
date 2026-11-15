@@ -7,7 +7,7 @@
   import { AMBITOS, eraDe, type Carta as TCarta, type Era, type Fecha } from '../../compartido/tipos'
   import Carta from './Carta.svelte'
   import { anioHablado, anioTexto, enMillones, textoPlano } from './datos'
-  import { dialogo } from './dialogo'
+  import { capa, cerrarCapa } from './capas'
   import { dura } from './movimiento'
 
   interface Props {
@@ -45,9 +45,9 @@
   aria-modal="true"
   aria-label="Carta ampliada: {textoPlano(carta)}"
   aria-describedby="ficha-carta"
-  use:dialogo
+  use:capa={oncerrar}
   transition:fade={{ duration: dura(160) }}
-  onclick={(e) => e.target === e.currentTarget && oncerrar()}
+  onclick={(e) => e.target === e.currentTarget && cerrarCapa()}
 >
   <div class="carta-grande" in:scale={{ duration: dura(260), start: 0.8, easing: cubicOut }}>
     <Carta {carta} {fecha} volteada={reverso} imagen="grande" />
@@ -63,7 +63,7 @@
     </dl>
     <div class="botones">
       {#if fecha}<button class="boton secundario" onclick={onvolver}>Dar la vuelta</button>{/if}
-      <button class="boton" data-foco onclick={oncerrar}>Cerrar</button>
+      <button class="boton" data-foco onclick={cerrarCapa}>Cerrar</button>
     </div>
   </div>
 </div>

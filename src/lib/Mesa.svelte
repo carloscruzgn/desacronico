@@ -11,7 +11,8 @@
   import { anioHablado, anioTexto, cuentaPorAmbito, enLista, enMillones, porId, textoPlano } from './datos'
   import BotonIcono from './BotonIcono.svelte'
   import Confirmar from './Confirmar.svelte'
-  import { dialogo } from './dialogo'
+  import { abrirCapa, capa, cerrarCapa, guardiaAtras, type Capa } from './capas'
+  import { Toca, toca } from './aparato'
   import ListaCrono from './ListaCrono.svelte'
   import { desplazamiento, dura } from './movimiento'
   import Marca from './Marca.svelte'
@@ -38,7 +39,8 @@
   }
 
   // svelte-ignore state_referenced_locally
-  const { asiento, anfitrion, inicial } = control
+  // `control.anfitrion` y `control.aLaSala` no se copian: en línea cambian si el anfitrión se desconecta.
+  const { asiento, inicial } = control
   /** Jugador cuya mano se enseña: la propia en línea; la de quien tiene el turno si el dispositivo es de todos. */
   const manoDe = (v: VistaClasico) => (typeof asiento === 'number' ? asiento : v.turno)
 
@@ -202,6 +204,36 @@
 
   let menu = $state(false)
   let confirma = $state<'' | 'abandonar' | 'sala' | 'quitar'>('')
+
+  // Las ventanas de la mesa son capas (capas.ts): cada una apunta un paso en el historial, así que el «atrás»
+  // del móvil, la X y Escape cierran la de arriba. Las que traen su propio diálogo (Reglas, Confirmar) se
+  // abren con abrirCapa; las de aquí llevan use:capa en su marcado.
+  let capaReglas: Capa | null = null
+  function abrirReglas() {
+    reglas = true
+    capaReglas = abrirCapa(() => (reglas = false))
+  }
+  let capaConfirma: Capa | null = null
+  /** Del menú a una pregunta: el menú se cierra y su paso en el historial pasa a ser el de la pregunta. */
+  function preguntar(que: 'abandonar' | 'sala' | 'quitar') {
+    cerrarCapa()
+    confirma = que
+    // El selector de a quién se quita es una ventana de aquí (use:capa); las otras dos, Confirmar.
+    if (que !== 'quitar') capaConfirma = abrirCapa(() => (confirma = ''))
+  }
+  let capaQuitando: Capa | null = null
+  function pedirQuitar(i: number) {
+    quitando = i
+    capaQuitando = abrirCapa(() => (quitando = null))
+  }
+  /** En local se cambian jugadores o mazo; en línea se vuelve a la sala, donde se cambian los ajustes. */
+  const textoCambiar = local ? 'Cambiar jugadores o mazo' : 'Cambiar ajustes'
+  /** En línea, quién reparte la siguiente si no eres tú: el primero que sigue conectado. */
+  const quienReparte = $derived.by(() => {
+    if (!conectados) return ''
+    const i = conectados.findIndex(Boolean)
+    return i >= 0 ? (vista.jugadores[i]?.nombre ?? '') : ''
+  })
   /** En local, quitar a alguien que se va de la mesa: solo si quedan al menos dos jugando. */
   const enJuego = $derived(vista.jugadores.flatMap((j, i) => (j.eliminado ? [] : [i])))
   const puedeQuitar = $derived(local && !solo && !fin && enJuego.length > 1)
@@ -328,8 +360,18 @@
       cola.push(s)
       if (!atendiendo) atender()
     })
+    // «Atrás» sin ninguna ventana abierta no saca de la partida: abre el menú «La partida». Con la partida
+    // acabada, sí vuelve al menú de inicio.
+    const soltar = guardiaAtras(() => {
+      if (fin) return false
+      menu = true
+      return true
+    })
     repartir().then(atender)
-    return dejar
+    return () => {
+      dejar()
+      soltar()
+    }
   })
 
   /** Un aviso a la vista. No habla: lo que oye el lector de pantalla va junto en `narra`, una vez por jugada.
@@ -370,6 +412,8 @@
       // «Empieza Ana»: quién abre la partida lo ha echado a suertes (o rota en «Otra partida»).
       const cinta = cintaDe(v.turno, sinEmpezar)
       narra = cinta.antes ? `${cinta.antes} ${cinta.titulo}` : cinta.titulo
+      // En línea, a quien le toca le vibra el móvil, por si no está mirando (A11Y-18).
+      if (!local && v.turno === asiento) control.tuTurno?.()
       await avisar(cinta)
     }
     prisa.calma()
@@ -380,8 +424,10 @@
   function poner(s: Suceso) {
     const v = s.vista
     // Si el turno cambia sin jugada (se quita a alguien), también se cuenta.
-    if (v.turno !== vista.turno && !v.ganadores.length)
+    if (v.turno !== vista.turno && !v.ganadores.length) {
       narra = asiento === v.turno ? 'Tu turno' : `Turno de ${v.jugadores[v.turno].nombre}`
+      if (!local && asiento === v.turno) control.tuTurno?.()
+    }
     vista = v
     conectados = s.conectados ?? null
     anotar(s.fechas)
@@ -616,7 +662,10 @@
       const debe = v.jugadores[visible]?.mano ?? []
       mano = mano.filter((x) => debe.includes(x))
       for (const x of debe) if (!mano.includes(x)) mano.push(x)
-      if (!local && asiento === v.turno && jugador !== asiento) await avisar(cintaDe(v.turno))
+      if (!local && asiento === v.turno && jugador !== asiento) {
+        control.tuTurno?.()
+        await avisar(cintaDe(v.turno))
+      }
     }
     if (seleccionada && !mano.includes(seleccionada)) seleccionada = null
     prisa.calma()
@@ -637,7 +686,7 @@
   }
   /** Jugar desde la lista: se cierra y la jugada se anima en la mesa. */
   function colocarDesdeLista(posicion: number) {
-    verLista = false
+    cerrarCapa()
     jugarEn(posicion)
   }
 
@@ -682,18 +731,9 @@
 <svelte:window
   onresize={medirVentana}
   onkeydown={(e) => {
-    if (confirma || quitando !== null) return
-    if (menu) {
-      if (e.key === 'Escape') menu = false
-      return
-    }
-    if (e.key === 'Escape') {
-      if (ampliada) return void (ampliada = null)
-      if (verLista) return void (verLista = false)
-      if (fin && verFin) return void cerrarFin()
-      apresurar()
-    }
-    if (verLista || reglas) return
+    // Con una ventana abierta, Escape es suyo (capas.ts lo atiende) y las flechas no mueven la mesa.
+    if (confirma || quitando !== null || menu || ampliada || verLista || reglas || (fin && verFin)) return
+    if (e.key === 'Escape') apresurar()
     flechas(e)
     if (e.key === 'Escape' && quitando === null) {
       // el hueco con el foco va a desaparecer: el foco vuelve a la carta que estaba elegida
@@ -709,7 +749,7 @@
   <header class="barra">
     <BotonIcono icono="atras" etiqueta={fin ? 'Salir al menú' : 'Salir o abandonar la partida'} onclick={() => (fin ? onsalir() : (menu = true))} />
     <span class="titulo"><Marca /></span>
-    <BotonIcono icono="reglas" etiqueta="Reglamento" onclick={() => (reglas = true)} />
+    <BotonIcono icono="reglas" etiqueta="Reglamento" onclick={abrirReglas} />
     <div class="pilas">
       <figure>
         <Mazo n={nMazo} bind:el={mazoEl} />
@@ -832,21 +872,21 @@
         <p class="texto" in:fade={{ duration: dura(180) }}>{@html porId[seleccionada].texto}</p>
       {/key}
       <p class="pista">
-        {#if puedeColocar}{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? Toca el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
+        {#if puedeColocar}{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? {Toca()} el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
         <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
       </p>
     {:else}
       {#if !ocupado && miTurno}
         <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'}</p>
         {#if novato(vista.turno)}
-          <p class="pista">{crono.length < 2 ? 'Ordena las cartas por fecha: elige una y colócala antes o después' : 'Toca una carta para leerla; tócala otra vez para ampliarla'}</p>
+          <p class="pista">{crono.length < 2 ? 'Ordena las cartas por fecha: elige una y colócala antes o después' : `${Toca()} una carta para leerla; ${toca() === 'toca' ? 'tócala' : 'púlsala'} otra vez para ampliarla`}</p>
         {/if}
       {:else if !ocupado}
         <p class="pista grande">Juega {nombreTurno}…</p>
         {#if conectados && !conectados[vista.turno]}
           <p class="pista">
             {nombreTurno} se ha desconectado. Esperando a que vuelva…
-            {#if anfitrion}<button class="enlace" onclick={() => (quitando = vista.turno)}>Quitar de la partida</button>{/if}
+            {#if control.anfitrion}<button class="enlace" onclick={() => pedirQuitar(vista.turno)}>Quitar de la partida</button>{/if}
           </p>
         {:else if fuera}
           <p class="pista">Ya no juegas esta partida, pero puedes seguir mirándola. Podrás jugar en la siguiente.</p>
@@ -873,6 +913,7 @@
         <button class="boton" onclick={() => (verFin = true)}>Resultados</button>
         <button class="boton secundario" onclick={() => abrirLista('cronologia')}>Lista</button>
         {#if onotra}<button class="boton secundario" onclick={onotra}>Otra partida</button>{/if}
+        {#if oncambiar}<button class="boton secundario" onclick={oncambiar}>{local ? 'Cambiar' : 'Ajustes'}<span class="sr-only">{local ? ' jugadores o mazo' : ' de la sala'}</span></button>{/if}
         <button class="boton secundario" onclick={onsalir}>Menú</button>
       </div>
     {:else}
@@ -902,7 +943,7 @@
 </main>
 
 {#if reglas}
-  <Reglas oncerrar={() => (reglas = false)} />
+  <Reglas oncerrar={() => capaReglas?.cerrar()} />
 {/if}
 
 {#if verLista}
@@ -931,32 +972,32 @@
 {/if}
 
 {#if menu}
-  <div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && (menu = false)} role="presentation">
-    <div class="premio" role="dialog" aria-modal="true" aria-labelledby="menu-titulo" use:dialogo in:scale={{ duration: dura(220), start: 0.9 }}>
+  <div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && cerrarCapa()} role="presentation">
+    <div class="premio" role="dialog" aria-modal="true" aria-labelledby="menu-titulo" use:capa={() => (menu = false)} in:scale={{ duration: dura(220), start: 0.9 }}>
       <h2 id="menu-titulo">La partida</h2>
       <ul class="condiciones" aria-label="Condiciones de esta partida">
         {#each condiciones as c (c)}<li>{c}</li>{/each}
       </ul>
       <div class="acciones">
-        <button class="boton" data-foco onclick={() => (menu = false)}>Seguir jugando</button>
+        <button class="boton" data-foco onclick={cerrarCapa}>Seguir jugando</button>
         <button class="opcion" onclick={onsalir}>
           <b>Salir al menú</b>
-          <small>{local ? 'La partida queda guardada para continuarla' : 'La partida sigue: podrás volver con el código de la sala'}</small>
+          <small>{local ? 'La partida queda guardada para continuarla' : 'La partida sigue: podrás volver con el código de la sala. Mientras, en tu turno los demás tendrán que esperarte'}</small>
         </button>
         {#if puedeQuitar}
-          <button class="opcion" onclick={() => ((menu = false), (confirma = 'quitar'))}>
+          <button class="opcion" onclick={() => preguntar('quitar')}>
             <b>Quitar a un jugador</b>
             <small>Si alguien se va de la mesa: sus cartas van a los descartes y los demás siguen</small>
           </button>
         {/if}
         {#if control.aLaSala}
-          <button class="opcion" onclick={() => ((menu = false), (confirma = 'sala'))}>
+          <button class="opcion" onclick={() => preguntar('sala')}>
             <b>Volver todos a la sala de espera</b>
             <small>Termina esta partida para todos</small>
           </button>
         {/if}
         {#if !mirando && !fuera}
-          <button class="opcion" onclick={() => ((menu = false), (confirma = 'abandonar'))}>
+          <button class="opcion" onclick={() => preguntar('abandonar')}>
             <b>{local ? 'Terminar la partida' : 'Abandonar la partida'}</b>
             <small>{local ? (solo ? 'Se termina aquí y no se guarda' : 'Se acaba para todos y no se guarda') : 'Tus cartas van a los descartes y los demás siguen'}</small>
           </button>
@@ -968,14 +1009,14 @@
 
 {#if confirma === 'quitar'}
   <!-- En local: quién se va de la mesa. -->
-  <div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && (confirma = '')} role="presentation">
-    <div class="premio" role="dialog" aria-modal="true" aria-labelledby="quitar-titulo" use:dialogo in:scale={{ duration: dura(220), start: 0.9 }}>
+  <div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && cerrarCapa()} role="presentation">
+    <div class="premio" role="dialog" aria-modal="true" aria-labelledby="quitar-titulo" use:capa={() => (confirma = '')} in:scale={{ duration: dura(220), start: 0.9 }}>
       <h2 id="quitar-titulo">¿A quién quitas?</h2>
       <p class="corona">Sus cartas van a los descartes y los demás siguen jugando.</p>
       <ul class="quien">
         {#each enJuego as i (i)}
           <li>
-            <button class="opcion fila-jugador" onclick={() => ((confirma = ''), (quitando = i))}>
+            <button class="opcion fila-jugador" onclick={() => (cerrarCapa(), pedirQuitar(i))}>
               <Moneda avatar={vista.jugadores[i].avatar} nombre={vista.jugadores[i].nombre} />
               <b>{vista.jugadores[i].nombre}</b>
             </button>
@@ -983,7 +1024,7 @@
         {/each}
       </ul>
       <div class="acciones">
-        <button class="boton secundario" data-foco onclick={() => (confirma = '')}>Cancelar</button>
+        <button class="boton secundario" data-foco onclick={cerrarCapa}>Cancelar</button>
       </div>
     </div>
   </div>
@@ -994,11 +1035,11 @@
     si={local ? 'Terminar' : 'Abandonar'}
     no="Seguir jugando"
     onsi={() => {
-      confirma = ''
+      capaConfirma?.cerrar()
       control.abandonar()
       if (local) onsalir()
     }}
-    onno={() => (confirma = '')}
+    onno={() => capaConfirma?.cerrar()}
   />
 {:else if confirma === 'sala'}
   <Confirmar
@@ -1006,8 +1047,12 @@
     texto="Esta partida se termina para todos los jugadores."
     si="Volver a la sala"
     no="Seguir jugando"
-    onsi={() => ((confirma = ''), control.aLaSala?.())}
-    onno={() => (confirma = '')}
+    onsi={() => {
+      const ir = control.aLaSala
+      capaConfirma?.cerrar()
+      ir?.()
+    }}
+    onno={() => capaConfirma?.cerrar()}
   />
 {/if}
 
@@ -1016,14 +1061,18 @@
     titulo="¿Quitar a {vista.jugadores[quitando]?.nombre} de la partida?"
     texto={local ? 'Sus cartas van a los descartes y no podrá volver a esta partida.' : 'No podrá volver a esta partida.'}
     si="Quitar"
-    onsi={() => (control.quitar?.(quitando!), (quitando = null))}
-    onno={() => (quitando = null)}
+    onsi={() => {
+      const i = quitando!
+      capaQuitando?.cerrar()
+      control.quitar?.(i)
+    }}
+    onno={() => capaQuitando?.cerrar()}
   />
 {/if}
 
 {#if fin && verFin}
-  <div class="velo" transition:fade={{ duration: dura(250) }} onclick={(e) => e.target === e.currentTarget && cerrarFin()} role="presentation">
-    <div class="premio final-partida" role="dialog" aria-modal="true" aria-labelledby="fin-titulo" aria-describedby="fin-causa" use:dialogo in:scale={{ duration: dura(450), start: 0.85, easing: cubicOut }}>
+  <div class="velo" transition:fade={{ duration: dura(250) }} onclick={(e) => e.target === e.currentTarget && cerrarCapa()} role="presentation">
+    <div class="premio final-partida" role="dialog" aria-modal="true" aria-labelledby="fin-titulo" aria-describedby="fin-causa" use:capa={cerrarFin} in:scale={{ duration: dura(450), start: 0.85, easing: cubicOut }}>
       <p class="corona">{solo ? 'Cronología completada' : 'Fin de la partida'}</p>
       <!-- Quien gana: su moneda da una vuelta y se le estampa el sello, en tinta, como en la imprenta. -->
       <div class="podio" aria-hidden="true">
@@ -1066,10 +1115,10 @@
         {#if onotra}
           <button class="boton" onclick={onotra}>Otra partida</button>
         {:else}
-          <p class="corona">El anfitrión puede empezar otra partida.</p>
+          <p class="corona">{quienReparte ? `Esperando a que ${quienReparte} reparta otra` : 'Quien reparte puede empezar otra partida'}</p>
         {/if}
-        {#if oncambiar}<button class="boton secundario" onclick={oncambiar}>Cambiar jugadores o mazo</button>{/if}
-        <button class="boton secundario" onclick={cerrarFin}>Ver la cronología</button>
+        {#if oncambiar}<button class="boton secundario" onclick={oncambiar}>{textoCambiar}</button>{/if}
+        <button class="boton secundario" onclick={cerrarCapa}>Ver la cronología</button>
       </div>
     </div>
   </div>
@@ -1180,22 +1229,29 @@
     scrollbar-width: none;
     mask-image: linear-gradient(90deg, #000 calc(100% - 12px), transparent);
   }
+  /* La ficha tiene un ancho mínimo y crece con el nombre (A11Y-9): con el texto al 200 % el nombre va en dos
+     renglones y, si aun así no cabe, la lista se desplaza. */
   .jugadores li {
     flex: none;
     display: flex;
     flex-direction: column-reverse;
     align-items: center;
     gap: 5px;
-    width: var(--ficha);
+    min-width: var(--ficha);
+    max-width: max(var(--ficha), 5.4em);
     padding-top: 4px;
     color: var(--gris-claro);
     transition: opacity 0.3s;
   }
   .jugadores .nombre {
     max-width: 100%;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    text-align: center;
     font-size: 0.82rem;
     line-height: 1.15;
   }
@@ -1957,12 +2013,12 @@
       justify-content: flex-end;
       gap: 14px;
       width: auto;
+      max-width: none;
       padding: 6px 0 2px 6px;
     }
     .jugadores .nombre {
       font-size: 1.08rem;
-      white-space: normal;
-      overflow-wrap: anywhere;
+      text-align: left;
     }
     .leyenda {
       align-self: stretch;

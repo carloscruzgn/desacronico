@@ -7,7 +7,8 @@
   import { eraDe, type Fecha } from '../../compartido/tipos'
   import BotonIcono from './BotonIcono.svelte'
   import { anioHablado, anioTexto, porId, textoPlano } from './datos'
-  import { dialogo } from './dialogo'
+  import { Toca } from './aparato'
+  import { capa, cerrarCapa } from './capas'
   import { dura } from './movimiento'
 
   interface Props {
@@ -59,11 +60,11 @@
   }
 </script>
 
-<div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && oncerrar()} role="presentation">
-  <div class="hoja" bind:this={hojaEl} role="dialog" aria-modal="true" aria-labelledby="lista-titulo" use:dialogo in:fly={{ y: 24, duration: dura(240) }}>
+<div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && cerrarCapa()} role="presentation">
+  <div class="hoja" bind:this={hojaEl} role="dialog" aria-modal="true" aria-labelledby="lista-titulo" use:capa={oncerrar} in:fly={{ y: 24, duration: dura(240) }}>
     <header>
       <h2 id="lista-titulo">La partida en lista</h2>
-      <BotonIcono icono="cerrar" etiqueta="Cerrar la lista" sobrePapel onclick={oncerrar} />
+      <BotonIcono icono="cerrar" etiqueta="Cerrar la lista" sobrePapel onclick={cerrarCapa} />
     </header>
 
     {#if juego}
@@ -74,7 +75,7 @@
             <p class="tuya elegida">{@html porId[elegida].texto}</p>
             <button class="cambiar" onclick={() => (cambiando = true)}>Cambiar</button>
           </div>
-          <p class="pista">Toca «Colocar aquí» donde creas que va.</p>
+          <p class="pista">{Toca()} «Colocar aquí» donde creas que va.</p>
         {:else}
           <h3 id="lista-tuyas">Elige una de tus cartas</h3>
           <ul>
