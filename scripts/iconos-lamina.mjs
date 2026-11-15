@@ -4,11 +4,12 @@
 // los colores por los del juego: el contorno pasa a currentColor (tinta sobre papel, papel sobre el
 // tapete) y el resto, a los tres colores de la identidad (ver ICONOS).
 //
-// Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> > src/lib/iconos.ts
+// Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> <v3.svg> <v4.svg> > src/lib/iconos.ts
+// v1 y v2: portada (En local, En línea, Cómo se juega, Reglamento). v3 y v4: Repartir, Crear sala, Unirse y Lámina.
 // Las láminas no están en el repositorio (van en _local/iconos/).
 import { readFileSync } from 'node:fs'
 
-const [v1, v2] = process.argv.slice(2).map((f) => readFileSync(f, 'utf8'))
+const [v1, v2, v3, v4] = process.argv.slice(2).map((f) => readFileSync(f, 'utf8'))
 const LADO = 48
 
 // Solo tres colores, más el contorno: principal (P), secundario (S) y acento (A). Sin tonos intermedios ni
@@ -16,7 +17,9 @@ const LADO = 48
 // o se señala (la carta que vuela, la que cae en el hueco, el marcapáginas). El tercer argumento de
 // icono() cambia el color de un trazo concreto, por su número dentro del icono.
 const P = 'var(--principal)', S = 'var(--secundario)', A = 'var(--acento)'
-const TINTA = { 'rgb(21,18,20)': 'currentColor', 'rgb(25,21,23)': 'currentColor' }
+const TINTA = { 'rgb(21,18,20)': 'currentColor', 'rgb(25,21,23)': 'currentColor', 'rgb(24,21,23)': 'currentColor', 'rgb(0,0,0)': 'currentColor' }
+// En v3 y v4 el contorno es una forma negra por debajo de los colores: los blancos no pueden quedar
+// transparentes (se vería el negro), así que van a uno de los tres colores.
 
 function trazos(svg) {
   return [...svg.matchAll(/<path d="([^"]+)" fill="([^"]+)"/g)].map(([, d, fill]) => {
@@ -75,6 +78,22 @@ const ICONOS = {
   reglas: icono(cuadrante(v1, 3), {
     'rgb(186,151,43)': P, 'rgb(197,116,120)': P, 'rgb(78,142,154)': A,
   }, { 4: A }),
+  // un montón (P) del que sale un abanico de cartas (S)
+  repartir: icono(cuadrante(v4, 0), {
+    'rgb(185,76,65)': P, 'rgb(135,158,145)': S, 'rgb(133,146,140)': S,
+  }),
+  // una mesa (S) con un «+» (A)
+  sala: icono(cuadrante(v4, 1), {
+    'rgb(250,249,248)': S, 'rgb(215,149,74)': A, 'rgb(177,175,173)': S, 'rgb(89,89,86)': S,
+  }),
+  // la tarjeta del código (S) con sus casillas (P) y una llave (A)
+  unirse: icono(cuadrante(v4, 2), {
+    'rgb(135,158,145)': S, 'rgb(215,149,74)': A, 'rgb(250,249,248)': A, 'rgb(191,124,60)': A,
+  }, { 3: P, 5: P, 7: P }),
+  // un cartel (S) con la línea del tiempo: cartas en P y A
+  lamina: icono(cuadrante(v3, 3), {
+    'rgb(148,163,158)': S, 'rgb(249,247,245)': S, 'rgb(220,147,73)': A, 'rgb(187,82,59)': P,
+  }),
 }
 
 console.log(`// Generado por scripts/iconos-lamina.mjs: no se edita a mano.

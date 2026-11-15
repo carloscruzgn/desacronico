@@ -6,6 +6,7 @@
   import { cartas, configGuardada, guardarConfig, guardarJugadores, jugadoresGuardados } from './datos'
   import Avatares from './Avatares.svelte'
   import BotonIcono from './BotonIcono.svelte'
+  import Icono from './Icono.svelte'
   import Moneda from './Moneda.svelte'
   import Opciones from './Opciones.svelte'
 
@@ -142,7 +143,7 @@
     {#if hayGuardada && !error}<p class="nota">Al repartir se pierde la partida que quedó a medias.</p>{/if}
     <button class="boton repartir" disabled={!!error} onclick={empezar}>
       <span class="dos-lineas">
-        <span>Repartir</span>
+        <span class="titulo-repartir"><Icono nombre="repartir" lado={32} />Repartir</span>
         <small>{resumen}</small>
       </span>
     </button>
@@ -177,6 +178,12 @@
     box-shadow:
       0 3px 0 #b9b6a0,
       0 10px 24px rgb(0 0 0 / 0.55);
+  }
+  .titulo-repartir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35em;
   }
   .dos-lineas {
     display: grid;

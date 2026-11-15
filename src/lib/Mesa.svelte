@@ -25,6 +25,7 @@
   import { desplazamiento, dura, reducido } from './movimiento'
   import Marca from './Marca.svelte'
   import Mazo from './Mazo.svelte'
+  import Icono from './Icono.svelte'
   import Moneda from './Moneda.svelte'
   import { crearPrisa, tiempoDeLectura } from './prisa'
   import Reglas from './Reglas.svelte'
@@ -1338,9 +1339,9 @@
     {#if fin}
       <div class="final" in:fade>
         <button class="boton" onclick={() => (verFin = true)}>Resultados</button>
-        <button class="boton secundario" onclick={() => (verLamina = true)}>Lámina</button>
+        <button class="boton secundario" onclick={() => (verLamina = true)}><Icono nombre="lamina" lado={26} />Lámina</button>
         <button class="boton secundario" onclick={() => abrirLista('cronologia')}>Lista</button>
-        {#if onotra}<button class="boton secundario" onclick={onotra}>Otra partida</button>{/if}
+        {#if onotra}<button class="boton secundario" onclick={onotra}><Icono nombre="repartir" lado={26} />Otra partida</button>{/if}
         {#if oncambiar}<button class="boton secundario" onclick={oncambiar}>{local ? 'Cambiar' : 'Ajustes'}<span class="sr-only">{local ? ' jugadores o mazo' : ' de la sala'}</span></button>{/if}
         <button class="boton secundario" onclick={onsalir}>Menú</button>
       </div>
@@ -1556,7 +1557,7 @@
       {/if}
       <div class="acciones">
         {#if onotra}
-          <button class="boton" onclick={onotra}>Otra partida</button>
+          <button class="boton" onclick={onotra}><Icono nombre="repartir" lado={30} />Otra partida</button>
         {:else}
           <p class="corona">{quienReparte ? `Esperando a que ${quienReparte} reparta otra` : 'Quien reparte puede empezar otra partida'}</p>
         {/if}

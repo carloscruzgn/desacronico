@@ -13,6 +13,7 @@
   import Moneda from './Moneda.svelte'
   import { dura } from './movimiento'
   import BotonIcono from './BotonIcono.svelte'
+  import Icono from './Icono.svelte'
   import Confirmar from './Confirmar.svelte'
   import { cartas, enLista } from './datos'
   import Marca from './Marca.svelte'
@@ -300,7 +301,7 @@
 
       {#if invitacion}
         <!-- Con invitación, el código ya se sabe: un solo botón ancho para entrar. -->
-        <button class="boton ancho" disabled={cargando}>Entrar en la sala <span class="codigo-boton">{invitacion}</span></button>
+        <button class="boton ancho" disabled={cargando}><Icono nombre="unirse" lado={40} />Entrar en la sala <span class="codigo-boton">{invitacion}</span></button>
         <p class="error campo-error" role="alert">{errorCodigo}</p>
       {:else}
         <div class="opcion">
@@ -331,7 +332,7 @@
           </div>
           <p class="error campo-error" id="codigo-error" role="alert">{errorCodigo}</p>
           <p class="ayuda menor" id="unirse-ayuda">Las cuatro letras que te dé quien creó la sala.</p>
-          <button class="boton ancho" disabled={cargando}>Unirse a la sala</button>
+          <button class="boton ancho" disabled={cargando}><Icono nombre="unirse" lado={40} />Unirse a la sala</button>
         </div>
       {/if}
       <p class="error" role="alert">{error}</p>
@@ -342,7 +343,7 @@
     {:else}
       <div class="opcion">
         <h2>O crear una nueva</h2>
-        <button class="boton secundario" disabled={cargando} onclick={() => entrar(true)}>Crear sala</button>
+        <button class="boton secundario" disabled={cargando} onclick={() => entrar(true)}><Icono nombre="sala" lado={30} />Crear sala</button>
       </div>
     {/if}
   </main>
@@ -419,7 +420,7 @@
       <p class="error" role="alert">{conexion.error || (mazo < minimo ? `Hacen falta al menos ${minimo} cartas en el mazo.` : '')}</p>
       {#if anfitrion}
         {#if sala.jugadores.length === 1}<p class="ayuda centrado">Aún no ha entrado nadie más. Quien llegue después de repartir solo podrá mirar.</p>{/if}
-        <button class="boton" disabled={mazo < minimo} onclick={() => repartir('empezar')}>Repartir</button>
+        <button class="boton" disabled={mazo < minimo} onclick={() => repartir('empezar')}><Icono nombre="repartir" lado={32} />Repartir</button>
       {:else}
         <p class="ayuda centrado">Esperando a que {sala.jugadores[sala.anfitrion]?.nombre ?? 'el anfitrión'} reparta…</p>
       {/if}
