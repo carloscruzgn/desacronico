@@ -1,7 +1,8 @@
 <script lang="ts">
   // La moneda de un jugador: su personaje grabado, con el gesto del momento y, si se pide,
   // las cartas que le quedan en una pestaña de papel.
-  import { esAvatar } from '../../compartido/avatares'
+  import { esAvatar, tieneParpadeo } from '../../compartido/avatares'
+  import { reducido } from './movimiento'
 
   interface Props {
     avatar?: string
@@ -16,6 +17,40 @@
     abre?: boolean
   }
   let { avatar = '', nombre = '', gesto = 'normal', n, fuera = false, abre = false }: Props = $props()
+
+  // El parpadeo (ANIM-17): solo al pensar, que en la mesa es a quien le toca. Un segundo fotograma, con los ojos
+  // cerrados, se enseña de golpe 120-150 ms cada 4-7 s, encima del de siempre: la imagen del {#key gesto} no cambia,
+  // así que no se repite el «acunar». La imagen se pide solo cuando la moneda piensa, y el primer parpadeo espera a
+  // que haya cargado. Nunca con movimiento reducido ni con la pestaña oculta.
+  // Con movimiento reducido al empezar a pensar, ni se pide la imagen; si se activa después, cada parpadeo lo mira.
+  const parpadea = $derived(gesto === 'pensando' && tieneParpadeo(avatar) && !reducido())
+  let ojos = $state<HTMLImageElement>()
+  let cerrados = $state(false)
+  $effect(() => {
+    const img = ojos
+    if (!parpadea || !img) return
+    let vivo = true
+    let reloj: ReturnType<typeof setTimeout> | undefined
+    const programar = () => (reloj = setTimeout(parpadear, 4000 + Math.random() * 3000))
+    function parpadear() {
+      if (!vivo) return
+      if (document.hidden || reducido()) return void programar()
+      cerrados = true
+      reloj = setTimeout(() => {
+        cerrados = false
+        programar()
+      }, 120 + Math.random() * 30)
+    }
+    ;(img.complete ? Promise.resolve() : img.decode()).then(
+      () => vivo && programar(),
+      () => {},
+    )
+    return () => {
+      vivo = false
+      clearTimeout(reloj)
+      cerrados = false
+    }
+  })
 </script>
 
 <span class="moneda {gesto}">
@@ -23,6 +58,11 @@
     {#key gesto}
       <img src="/avatares/{avatar}-{gesto}.webp" alt="" draggable="false" />
     {/key}
+    {#if parpadea}
+      {#key avatar}
+        <img class="ojos" class:cerrados bind:this={ojos} src="/avatares/{avatar}-pensando-b.webp" alt="" aria-hidden="true" draggable="false" />
+      {/key}
+    {/if}
   {:else}
     <span class="inicial" aria-hidden="true">{nombre.trim().charAt(0).toUpperCase() || '?'}</span>
   {/if}
@@ -53,6 +93,14 @@
     border-radius: 50%;
     animation: acunar 0.35s ease-out;
   }
+  /* El fotograma del parpadeo, encima y escondido; se ve de golpe, sin transición. */
+  .ojos {
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+    animation: none;
+  }
+  .ojos.cerrados { visibility: visible; }
   @keyframes acunar {
     from {
       opacity: 0.2;
