@@ -236,9 +236,12 @@
     border-radius: 4px;
     border: 1.5px dashed rgb(235 233 217 / 0.35);
   }
+  /* La serie elegida lleva el mismo realce que el campo con el foco: un anillo mostaza separado del hueco. */
   .dentro .hueco {
-    border: 2px solid var(--papel);
+    border: 0;
     background: var(--lomo);
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
   }
   .hueco svg {
     width: 20px;

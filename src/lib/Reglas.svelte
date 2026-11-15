@@ -659,7 +659,7 @@
       background-color: var(--tapete-2);
       color: var(--papel);
       box-shadow: inset -10px 0 14px -10px rgb(0 0 0 / 0.6);
-      --foco: #e8c66a;
+      --foco: var(--acento);
     }
     .portada {
       display: grid;

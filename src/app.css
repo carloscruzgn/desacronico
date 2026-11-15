@@ -77,9 +77,9 @@
   --tapete: #23302b;
   --tapete-2: #18211e;
 
-  /* Anillo de foco: dorado sobre el tapete; las superficies de papel lo cambian a tinta.
-     Es accesibilidad, no adorno: el único dorado que queda en la web. */
-  --foco: #e8c66a;
+  /* Anillo de foco: mostaza sobre el tapete; las superficies de papel lo cambian a tinta.
+     Es accesibilidad, pero también el realce de lo elegido (las series del mazo). */
+  --foco: var(--acento);
 
   /* Materiales de la mesa. El tapete es fieltro: un ruido fino al 6 % y una viñeta que oscurece los bordes.
      Se usa como fondo de cualquier capa que haga de mesa: background: var(--fondo-mesa). */
