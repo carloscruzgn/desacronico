@@ -309,7 +309,8 @@
 
   .fallo {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    /* una al lado de otra en cualquier móvil; con el texto muy grande, una debajo de otra */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
     gap: 8px;
     margin: 0;
     padding: 0;
