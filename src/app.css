@@ -62,6 +62,13 @@
   --moderna: #5da09d;
   --contemporanea: #4e56a1;
 
+  /* Identidad de la web: el tapete y el papel, más tres colores que casan con ellos.
+     Principal (terracota), secundario (salvia) y acento (mostaza), en esa proporción de uso:
+     iconos propios, franja de la portada y detalles. No son los de las edades, que son de las cartas. */
+  --principal: #b8613f;
+  --secundario: #8aa58f;
+  --acento: #d0a046;
+
   --acierto: #3d7a4a;
   --fallo: #a63d3d;
 

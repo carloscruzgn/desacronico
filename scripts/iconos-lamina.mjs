@@ -2,7 +2,7 @@
 // tr1qYYIjkIr7FuRIol7P): cada lámina trae cuatro iconos en una rejilla de 2x2 sobre un fondo claro.
 // Separa los trazos por cuadrante, quita el fondo, lleva cada icono a un cuadro de 48x48 y cambia
 // los colores por los del juego: el contorno pasa a currentColor (tinta sobre papel, papel sobre el
-// tapete) y el resto, a los colores de las cuatro edades de la franja.
+// tapete) y el resto, a los tres colores de la identidad (ver COLORES).
 //
 // Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> > src/lib/iconos.ts
 // Las láminas no están en el repositorio (van en _local/iconos/).
@@ -11,19 +11,23 @@ import { readFileSync } from 'node:fs'
 const [v1, v2] = process.argv.slice(2).map((f) => readFileSync(f, 'utf8'))
 const LADO = 48
 
+// Tres colores de la identidad (principal, secundario y acento), más el papel como neutro. Lo que en la
+// lámina era rosa pasa a principal; ocre, a secundario; turquesa, a papel; y añil y salmón, que son
+// detalles pequeños (la carta que vuela, el lomo, el marcapáginas), a acento. Los tonos oscuros de
+// cada color, que hacen de canto, se quedan un poco más oscuros.
 const COLORES = {
   'rgb(21,18,20)': 'currentColor',
   'rgb(25,21,23)': 'currentColor',
-  'rgb(174,93,114)': 'var(--antigua)',
-  'rgb(197,116,120)': 'var(--antigua)',
-  'rgb(244,125,123)': 'color-mix(in srgb, var(--antigua) 60%, #fff)',
-  'rgb(157,139,105)': 'var(--media)',
-  'rgb(186,151,43)': 'var(--media)',
-  'rgb(142,127,102)': 'color-mix(in srgb, var(--media) 80%, #000)',
-  'rgb(72,160,176)': 'var(--moderna)',
-  'rgb(78,142,154)': 'var(--moderna)',
-  'rgb(83,139,160)': 'color-mix(in srgb, var(--moderna) 80%, #000)',
-  'rgb(54,51,114)': 'var(--contemporanea)',
+  'rgb(174,93,114)': 'var(--principal)',
+  'rgb(197,116,120)': 'var(--principal)',
+  'rgb(157,139,105)': 'var(--secundario)',
+  'rgb(186,151,43)': 'var(--secundario)',
+  'rgb(142,127,102)': 'color-mix(in srgb, var(--secundario) 80%, #000)',
+  'rgb(72,160,176)': 'var(--papel-2)',
+  'rgb(78,142,154)': 'var(--papel-2)',
+  'rgb(83,139,160)': 'color-mix(in srgb, var(--papel-2) 82%, #000)',
+  'rgb(54,51,114)': 'var(--acento)',
+  'rgb(244,125,123)': 'var(--acento)',
   'rgb(251,249,249)': 'var(--papel-2)',
 }
 
