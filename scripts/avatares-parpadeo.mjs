@@ -16,6 +16,7 @@
 //
 // Uso: node scripts/avatares-parpadeo.mjs <dir-láminas> <dir-salida> [id ...]
 // No forma parte de la compilación: los webp se suben ya hechos.
+// Sale con el aro de moneda: después hay que pasar scripts/avatares-circulo.mjs para dejarlos en círculo limpio.
 
 import { existsSync } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'

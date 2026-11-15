@@ -81,10 +81,8 @@
     width: var(--lado, 46px);
     aspect-ratio: 1;
     border-radius: 50%;
-    background: var(--papel);
-    box-shadow:
-      0 1px 0 #b9b6a0,
-      0 3px 8px rgb(0 0 0 / 0.45);
+    /* Un círculo limpio, sin canto ni aro: no es una moneda. */
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
   }
   img {
     display: block;
@@ -113,7 +111,7 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    box-shadow: inset 0 0 0 2px rgb(29 29 27 / 0.55);
+    background: var(--papel);
     color: var(--tinta);
     font-family: var(--fell-sc);
     font-size: calc(var(--lado, 46px) * 0.5);

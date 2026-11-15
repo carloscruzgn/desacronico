@@ -110,8 +110,9 @@ export function jugadoresGuardados(): JugadoresGuardados | null {
       j.nombres.length <= MAX_JUGADORES &&
       j.nombres.length === j.avatares.length &&
       j.nombres.every((n: unknown) => typeof n === 'string') &&
-      j.avatares.every(esAvatar) &&
-      new Set(j.avatares).size === j.avatares.length
+      // '' es «sin elegir»: se da uno al azar al repartir.
+      j.avatares.every((a: unknown) => a === '' || esAvatar(a)) &&
+      new Set(j.avatares.filter(Boolean)).size === j.avatares.filter(Boolean).length
     return valen ? { nombres: j.nombres.map((n: string) => n.slice(0, 14)), avatares: j.avatares } : null
   } catch {
     return null

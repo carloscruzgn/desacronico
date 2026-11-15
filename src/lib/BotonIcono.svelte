@@ -29,23 +29,28 @@
     display: grid;
     place-items: center;
     padding: 0;
-    border: 1px solid rgb(235 233 217 / 0.32);
+    border: 0;
     border-radius: 50%;
-    background: rgb(235 233 217 / 0.08);
-    color: var(--papel);
+    /* Navegación bien visible: sobre el tapete, de papel con el trazo de tinta, como «Repartir». */
+    background: var(--grano-papel), var(--papel);
+    color: var(--tinta);
+    box-shadow:
+      0 2px 0 #b9b6a0,
+      0 4px 10px rgb(0 0 0 / 0.3);
     cursor: pointer;
     transition:
-      background 0.15s,
+      filter 0.15s,
       transform 0.12s;
   }
-  .icono:hover { background: rgb(235 233 217 / 0.18); }
+  .icono:hover { filter: brightness(1.06); }
   .icono:active { transform: scale(0.92); }
+  /* Sobre papel, al revés: de tinta con el trazo de papel. */
   .icono.sobrePapel {
-    border-color: rgb(29 29 27 / 0.3);
-    background: rgb(29 29 27 / 0.06);
-    color: var(--tinta);
+    background: var(--tinta);
+    color: var(--papel);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
   }
-  .icono.sobrePapel:hover { background: rgb(29 29 27 / 0.14); }
+  .icono.sobrePapel:hover { filter: brightness(1.25); }
   svg {
     width: 22px;
     height: 22px;

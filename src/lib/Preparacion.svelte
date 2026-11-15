@@ -3,7 +3,6 @@
   import { AVATARES, avatarLibre } from '../../compartido/avatares'
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import type { Config } from '../../compartido/protocolo'
-  import { Toca } from './aparato'
   import { cartas, configGuardada, guardarConfig, guardarJugadores, jugadoresGuardados } from './datos'
   import Avatares from './Avatares.svelte'
   import BotonIcono from './BotonIcono.svelte'
@@ -20,10 +19,10 @@
 
   let config = $state.raw(configGuardada())
   // Se proponen los jugadores de la última partida; si no hay, dos sin nombre.
-  // Cada jugador nuevo empieza con una moneda al azar, distinta de las demás; puede cambiarla.
+  // Cada jugador nuevo empieza sin avatar (un círculo con «+»); al repartir, el que no lo haya elegido
+  // recibe uno al azar entre los que nadie ha cogido.
   function nuevos() {
-    const primera = avatarLibre([])
-    return { nombres: ['', ''], avatares: [primera, avatarLibre([primera])] }
+    return { nombres: ['', ''], avatares: ['', ''] }
   }
   const deAntes = jugadoresGuardados() ?? nuevos()
   let nombres = $state<string[]>(deAntes.nombres)
@@ -48,7 +47,7 @@
 
   function anadir() {
     nombres.push('')
-    avatares.push(avatarLibre(avatares))
+    avatares.push('')
     enfocar(nombres.length - 1)
   }
   function quitar(i: number) {
@@ -70,10 +69,13 @@
 
   function empezar() {
     guardarConfig(config)
+    // Se guardan las elecciones tal cual: quien no eligió avatar vuelve a salir sin él la próxima vez.
     guardarJugadores({ nombres: nombres.map((n) => n.trim()), avatares: [...avatares] })
+    const finales: string[] = []
+    for (const a of avatares) finales.push(a || avatarLibre([...avatares, ...finales]))
     onempezar(
       nombres.map((n, i) => n.trim() || `Jugador ${i + 1}`),
-      [...avatares],
+      finales,
       ids,
       config,
     )
@@ -94,9 +96,15 @@
       <div class="jugadores" bind:this={lista}>
         {#each nombres as _, i (i)}
           <div class="jugador">
-            <button class="moneda" aria-label="Avatar del jugador {i + 1}: {AVATARES[avatares[i]] ?? 'sin elegir'}. Cambiar" title="Cambiar el avatar" onclick={() => (eligiendo = i)}>
-              <Moneda avatar={avatares[i]} />
-            </button>
+            {#if avatares[i]}
+              <button class="moneda" aria-label="Avatar del jugador {i + 1}: {AVATARES[avatares[i]]}. Cambiar" title="Cambiar el avatar" onclick={() => (eligiendo = i)}>
+                <Moneda avatar={avatares[i]} />
+              </button>
+            {:else}
+              <button class="moneda" aria-label="Elegir el avatar del jugador {i + 1} (si no, se da uno al azar)" title="Elegir el avatar" onclick={() => (eligiendo = i)}>
+                <span class="vacio" aria-hidden="true">+</span>
+              </button>
+            {/if}
             <input type="text" maxlength="14" placeholder="Jugador {i + 1}" aria-label="Nombre del jugador {i + 1}" bind:value={nombres[i]} autocomplete="off" enterkeyhint="next" />
             {#if nombres.length > 1}
               <button class="quitar" aria-label="Quitar al jugador {i + 1}{nombres[i].trim() ? `, ${nombres[i].trim()}` : ''}" onclick={() => quitar(i)}>×</button>
@@ -107,10 +115,9 @@
           <button class="anadir" onclick={anadir}>+ Añadir jugador</button>
         {/if}
         {#if hayNombres}
-          <button class="anadir" onclick={empezarDeCero}>Nuevos jugadores</button>
+          <button class="de-cero" onclick={empezarDeCero}>Nuevos jugadores</button>
         {/if}
       </div>
-      <p class="nota izquierda">{Toca()} un avatar para cambiarlo.</p>
     </section>
 
     <div class="ajustes">
@@ -146,13 +153,16 @@
     margin: 0 auto;
     padding: 16px 16px 0;
   }
+  /* El título, centrado en la pantalla y no pegado a la flecha. */
   header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 44px 1fr 44px;
     align-items: center;
     gap: 14px;
   }
   h1 {
     margin: 0;
+    text-align: center;
     font-size: 1.5rem;
     line-height: 1.1;
   }
@@ -216,20 +226,55 @@
     font: inherit;
     font-size: 1.1rem;
   }
+  /* Sin avatar elegido: un círculo vacío con «+», del tamaño del avatar. */
+  .vacio {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    aspect-ratio: 1;
+    border: 1.5px dashed rgb(235 233 217 / 0.5);
+    border-radius: 50%;
+    color: var(--papel);
+    font-size: 1.6rem;
+    line-height: 1;
+    transition: background 0.15s;
+  }
+  .moneda:hover .vacio { background: rgb(235 233 217 / 0.1); }
   input::placeholder { color: #a3a297; }
+  /* Quitar y añadir, de papel como «Repartir»: se ven como botones. */
   .quitar,
   .anadir {
     min-height: 46px;
-    border: 1px dashed rgb(235 233 217 / 0.35);
+    border: 0;
     border-radius: var(--radio-ficha);
-    background: transparent;
+    background: var(--grano-papel), var(--papel);
+    color: var(--tinta);
+    box-shadow: 0 2px 0 #b9b6a0;
     cursor: pointer;
+    transition:
+      filter 0.15s,
+      transform 0.12s;
   }
+  .quitar:hover,
+  .anadir:hover { filter: brightness(1.06); }
+  .quitar:active,
+  .anadir:active { transform: translateY(2px); }
   .quitar {
     width: 46px;
     font-size: 1.4rem;
   }
-  .anadir { color: var(--gris-claro); }
+  .anadir {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .de-cero {
+    min-height: 46px;
+    border: 1px dashed rgb(235 233 217 / 0.35);
+    border-radius: var(--radio-ficha);
+    background: transparent;
+    color: var(--gris-claro);
+    cursor: pointer;
+  }
 
   .nota {
     margin: 0;
@@ -237,10 +282,6 @@
     font-style: italic;
     font-size: 0.95rem;
     text-align: center;
-  }
-  .nota.izquierda {
-    margin-top: 8px;
-    text-align: left;
   }
   .error {
     margin: 0;

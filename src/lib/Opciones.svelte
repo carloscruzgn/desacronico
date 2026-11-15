@@ -55,7 +55,7 @@
 </script>
 
 <section>
-  <h2>Mazo <small>{total} cartas{fija ? '' : ` · ${toca()} una serie para quitarla o ponerla`}</small></h2>
+  <h2>Mazo{#if !fija} <small>{toca()} una serie para quitarla o ponerla</small>{/if}</h2>
   <div class="mazos">
     <div class="monton" class:vacio={!elegidos.length} aria-hidden="true">
       {#each elegidos as a, i (a)}

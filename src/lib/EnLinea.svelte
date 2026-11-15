@@ -529,11 +529,14 @@
     gap: 16px;
     text-align: center;
   }
+  /* El título, centrado en la pantalla y no pegado a la flecha. */
   header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 44px 1fr 44px;
     align-items: center;
     gap: 14px;
   }
+  header h1 { text-align: center; }
   h1 {
     margin: 0;
     font-size: 1.5rem;
