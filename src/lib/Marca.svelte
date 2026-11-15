@@ -27,7 +27,8 @@
   /* Al acabar no queda ningún tope (fill backwards): la palabra es la de siempre. */
   .despliega .crece {
     display: inline-block;
-    vertical-align: top;
+    /* por abajo, no por arriba: con «top», «es» y «rónico» quedaban 2 px más altos que la «d» y la «a» */
+    vertical-align: bottom;
     overflow: hidden;
     animation: abrir 0.95s var(--curva-deslizar) 0.75s backwards;
   }
