@@ -4,12 +4,12 @@
 // los colores por los del juego: el contorno pasa a currentColor (tinta sobre papel, papel sobre el
 // tapete) y el resto, a los tres colores de la identidad (ver ICONOS).
 //
-// Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> <v3.svg> <v4.svg> <v5.svg> <v6.svg> > src/lib/iconos.ts
-// v1 y v2: portada (En local, En línea, Cómo se juega, Reglamento). v3 y v4: Repartir y Lámina. v5: Crear sala (puerta abierta con llave). v6: Unirse (puerta con flecha que entra).
+// Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> <v3.svg> <v4.svg> <v6.svg> > src/lib/iconos.ts
+// v1 y v2: portada (En local, En línea, Cómo se juega, Reglamento). v3 y v4: Repartir y Lámina. Crear sala, a mano. v6: Unirse (puerta con flecha que entra).
 // Las láminas no están en el repositorio (van en _local/iconos/).
 import { readFileSync } from 'node:fs'
 
-const [v1, v2, v3, v4, v5, v6] = process.argv.slice(2).map((f) => readFileSync(f, 'utf8'))
+const [v1, v2, v3, v4, v6] = process.argv.slice(2).map((f) => readFileSync(f, 'utf8'))
 const LADO = 48
 
 // Solo tres colores, más el contorno: principal (P), secundario (S) y acento (A). Sin tonos intermedios ni
@@ -17,7 +17,7 @@ const LADO = 48
 // o se señala (la carta que vuela, la que cae en el hueco, el marcapáginas). El tercer argumento de
 // icono() cambia el color de un trazo concreto, por su número dentro del icono.
 const P = 'var(--principal)', S = 'var(--secundario)', A = 'var(--acento)'
-const TINTA = { 'rgb(21,18,20)': 'currentColor', 'rgb(25,21,23)': 'currentColor', 'rgb(24,21,23)': 'currentColor', 'rgb(0,0,0)': 'currentColor', 'rgb(18,14,16)': 'currentColor', 'rgb(20,17,23)': 'currentColor' }
+const TINTA = { 'rgb(21,18,20)': 'currentColor', 'rgb(25,21,23)': 'currentColor', 'rgb(24,21,23)': 'currentColor', 'rgb(0,0,0)': 'currentColor', 'rgb(20,17,23)': 'currentColor' }
 // En v3 y v4 el contorno es una forma negra por debajo de los colores: los blancos no pueden quedar
 // transparentes (se vería el negro), así que van a uno de los tres colores.
 
@@ -57,6 +57,18 @@ function icono(ts, colores, trazo = {}) {
     .join('')
 }
 
+// Iconos dibujados a mano en el mismo cuadro de 48x48, con contorno de 1,3 en currentColor. Desde el
+// 2026-11-15 los iconos nuevos se hacen así, no con Recraft.
+const CONTORNO = 'stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"'
+const A_MANO = {
+  sala:
+    `<path d="M11 44V14.5a9 9 0 0 1 9-9h8a9 9 0 0 1 9 9V44h-4.6V15a4.6 4.6 0 0 0-4.6-4.6h-7.6A4.6 4.6 0 0 0 15.6 15v29z" fill="${A}" ${CONTORNO}/>` +
+    `<path d="M15.6 44V15a4.6 4.6 0 0 1 4.6-4.6h7.6a4.6 4.6 0 0 1 4.6 4.6v29z" fill="currentColor"/>` +
+    `<path d="M23.6 13.6 32.4 11V43.2L23.6 46z" fill="${S}" ${CONTORNO}/>` +
+    `<path d="M18.6 25.9A6.4 6.4 0 1 1 22.6 25.9V31H26V34H22.6V35.6H25.2V38.6H22.6V41.4L20.6 43.6 18.6 41.4z" fill="${P}" ${CONTORNO}/>` +
+    `<circle cx="20.6" cy="19.8" r="2.3" fill="currentColor" ${CONTORNO}/>`,
+}
+
 const ICONOS = {
   // un móvil (P) con un abanico de cartas (S) y la de encima en acento
   local: icono(cuadrante(v2, 0), {
@@ -82,10 +94,9 @@ const ICONOS = {
   repartir: icono(cuadrante(v4, 0), {
     'rgb(185,76,65)': P, 'rgb(135,158,145)': S, 'rgb(133,146,140)': S,
   }),
-  // una puerta abierta (marco A, hoja S) con una llave dentro (P)
-  sala: icono(cuadrante(v5, 1), {
-    'rgb(221,148,59)': A, 'rgb(138,172,161)': S, 'rgb(192,88,61)': P, 'rgb(247,245,237)': S,
-  }),
+  // Dibujado a mano (la llave de Recraft no convenció): la misma puerta que «unirse», con marco
+  // redondeado (A), hueco oscuro y hoja abierta (S), y una llave (P) en lugar de la flecha.
+  sala: A_MANO.sala,
   // una puerta abierta (marco A, hoja S) con una flecha que entra (P)
   unirse: icono(cuadrante(v6, 0), {
     'rgb(236,154,21)': A, 'rgb(143,160,160)': S, 'rgb(207,101,68)': P, 'rgb(251,251,250)': 'none', 'rgb(237,229,224)': 'none',
