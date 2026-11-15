@@ -20,6 +20,7 @@
   import Confirmar from './Confirmar.svelte'
   import { abrirCapa, capa, cerrarCapa, guardiaAtras, type Capa } from './capas'
   import { Toca, toca } from './aparato'
+  import Lamina from './Lamina.svelte'
   import ListaCrono from './ListaCrono.svelte'
   import { desplazamiento, dura, reducido } from './movimiento'
   import Marca from './Marca.svelte'
@@ -101,6 +102,8 @@
   let fin = $state<number[] | null>(null)
   let verFin = $state(false)
   let verLista = $state(false)
+  /** La lámina de la cronología (ANIM-16), al acabar. */
+  let verLamina = $state(false)
   let pestanaLista = $state<'cronologia' | 'descartes'>('cronologia')
   interface Veredicto {
     tipo: 'ok' | 'fallo' | 'recoloca'
@@ -1101,7 +1104,7 @@
   onresize={medirVentana}
   onkeydown={(e) => {
     // Con una ventana abierta, Escape es suyo (capas.ts lo atiende) y las flechas no mueven la mesa.
-    if (confirma || quitando !== null || menu || ampliada || verLista || reglas || (fin && verFin)) return
+    if (confirma || quitando !== null || menu || ampliada || verLista || verLamina || reglas || (fin && verFin)) return
     if (e.key === 'Escape') apresurar()
     flechas(e)
     if (e.key === 'Escape' && quitando === null) {
@@ -1315,6 +1318,7 @@
     {#if fin}
       <div class="final" in:fade>
         <button class="boton" onclick={() => (verFin = true)}>Resultados</button>
+        <button class="boton secundario" onclick={() => (verLamina = true)}>Lámina</button>
         <button class="boton secundario" onclick={() => abrirLista('cronologia')}>Lista</button>
         {#if onotra}<button class="boton secundario" onclick={onotra}>Otra partida</button>{/if}
         {#if oncambiar}<button class="boton secundario" onclick={oncambiar}>{local ? 'Cambiar' : 'Ajustes'}<span class="sr-only">{local ? ' jugadores o mazo' : ' de la sala'}</span></button>{/if}
@@ -1367,6 +1371,15 @@
     oncolocar={colocarDesdeLista}
     onampliar={(id, reverso) => (ampliada = { id, reverso })}
     oncerrar={() => (verLista = false)}
+  />
+{/if}
+
+{#if verLamina && fin}
+  <Lamina
+    cronologia={crono.filter((p) => p.volteada).map((p) => p.id)}
+    {fechas}
+    subtitulo="{solo ? 'Cronología completada' : ganan(fin)} · {cartas(crono.length)}"
+    oncerrar={() => (verLamina = false)}
   />
 {/if}
 
@@ -1528,7 +1541,8 @@
           <p class="corona">{quienReparte ? `Esperando a que ${quienReparte} reparta otra` : 'Quien reparte puede empezar otra partida'}</p>
         {/if}
         {#if oncambiar}<button class="boton secundario" onclick={oncambiar}>{textoCambiar}</button>{/if}
-        <button class="boton secundario" onclick={cerrarCapa}>Ver la cronología</button>
+        <!-- La cronología, compuesta en una lámina que se puede guardar. -->
+        <button class="boton secundario" onclick={() => (cerrarCapa(), (verLamina = true))}>Ver la cronología</button>
       </div>
     </div>
   </div>
