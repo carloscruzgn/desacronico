@@ -84,9 +84,9 @@
     align-items: center;
     gap: 8px;
     margin: 12px 0 8px;
-    font-family: var(--fell-sc);
-    font-weight: normal;
-    font-size: 1.1rem;
+    font-family: var(--ui);
+    font-weight: 700;
+    font-size: 1.05rem;
   }
   h3::before {
     content: '';

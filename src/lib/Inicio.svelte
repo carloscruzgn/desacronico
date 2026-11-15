@@ -259,9 +259,9 @@
   }
   .entrada .codigo {
     display: inline;
-    font-family: var(--fell-sc);
-    font-weight: normal;
-    letter-spacing: 0.06em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
   .entrada svg {
     flex: none;

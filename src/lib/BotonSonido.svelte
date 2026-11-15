@@ -151,7 +151,7 @@
   }
   .titulo {
     margin: 0 2px;
-    font: 1.15rem/1.2 var(--fell-sc);
+    font: 700 1.1rem/1.2 var(--ui);
   }
   .titulo small {
     font: italic 0.9rem var(--ui);

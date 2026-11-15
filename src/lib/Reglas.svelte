@@ -618,8 +618,8 @@
     color: #55544c;
   }
   .valor {
-    font: 2rem/1 var(--fell-sc);
-    font-variant-numeric: lining-nums;
+    font: 700 1.9rem/1 var(--ui);
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .detalle {
     font-size: 0.88rem;

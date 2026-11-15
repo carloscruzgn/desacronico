@@ -167,10 +167,9 @@
   }
   .texto p { margin: 0; }
   .paso {
-    font-family: var(--fell-sc);
-    font-size: 1.2rem;
+    font-weight: 700;
+    font-size: 1rem;
     color: var(--papel);
-    opacity: 0.8;
   }
   .explica {
     margin-top: 0.2em !important;

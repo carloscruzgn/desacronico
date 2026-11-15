@@ -116,7 +116,8 @@
     0 20px 60px rgb(0 0 0 / 0.6);
   --borde-fantasma: inset 0 0 0 1px color-mix(in srgb, currentColor 45%, transparent);
 
-  /* Dos voces: IM Fell da el tono (marca, cartas, títulos, avisos); Alegreya Sans lleva la interfaz. */
+  /* Dos voces: IM Fell es la del juego impreso (marca de la portada, cartas, reglamento, lámina y sellos);
+     Alegreya Sans lleva toda la interfaz, títulos incluidos, con negrita para títulos y cifras. */
   --fell: 'Fell', 'Times New Roman', serif;
   --fell-sc: 'Fell SC', 'Fell', serif;
   --ui: 'Alegreya Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -245,8 +246,15 @@ h2:focus {
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* Títulos de la interfaz: Alegreya Sans en negrita, caja normal. Lo que deba ir en IM Fell lo declara aparte. */
 h1,
 h2 {
-  font-family: 'Fell SC', 'Fell', serif;
-  font-weight: normal;
+  font-family: var(--ui);
+  font-weight: 700;
+}
+/* Las notas junto a un título («de 1 a 6») no son título: peso normal. */
+h1 small,
+h2 small,
+h3 small {
+  font-weight: 400;
 }

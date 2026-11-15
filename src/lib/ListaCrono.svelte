@@ -179,9 +179,9 @@
   }
   h3 {
     margin: 0 0 6px;
-    font-family: var(--fell-sc);
-    font-weight: normal;
-    font-size: 1.05rem;
+    font-family: var(--ui);
+    font-weight: 700;
+    font-size: 1rem;
   }
   .tuyas {
     margin: 8px 14px 0;

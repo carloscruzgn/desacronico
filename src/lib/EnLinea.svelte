@@ -540,7 +540,7 @@
   header h1 { text-align: center; }
   h1 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     line-height: 1.1;
   }
   h2 {
@@ -568,9 +568,10 @@
     font-size: 0.95rem;
   }
   .sala-codigo {
-    font-family: var(--fell-sc);
+    font-family: var(--ui);
     font-style: normal;
-    font-weight: normal;
+    font-weight: 700;
+    text-transform: uppercase;
     font-size: 1.2em;
     letter-spacing: 0.08em;
     color: var(--papel);
@@ -623,9 +624,10 @@
     margin-top: 12px;
   }
   .codigo-boton {
-    font-family: var(--fell-sc);
-    font-weight: normal;
-    letter-spacing: 0.08em;
+    font-family: var(--ui);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
   .otra-sala {
     margin: 18px 0 0;
@@ -648,7 +650,9 @@
     border-radius: var(--radio-ficha);
     background: var(--grano-papel), var(--papel);
     color: var(--tinta);
-    font-family: var(--fell-sc);
+    font-family: var(--ui);
+    font-weight: 700;
+    text-transform: uppercase;
     font-size: clamp(1.8rem, 9vw, 2.6rem);
     line-height: 1;
     box-shadow:
@@ -755,10 +759,12 @@
     place-items: center;
     background: var(--tinta);
     color: var(--papel);
-    font-family: var(--fell-sc);
+    font-family: var(--ui);
+    font-weight: 700;
+    text-transform: uppercase;
     font-size: 15cqw;
     line-height: 1;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
   }
   .invitar {
     display: grid;
@@ -814,7 +820,9 @@
   }
   .grande {
     margin: 8px 0 0;
-    font-family: 'Fell SC', serif;
+    font-family: var(--ui);
+    font-weight: 700;
+    text-transform: uppercase;
     font-size: 3.4rem;
     line-height: 1;
     letter-spacing: 0.12em;
@@ -919,9 +927,8 @@
     box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
   }
   .aviso b {
-    font-family: var(--fell-sc);
-    font-weight: normal;
-    font-size: 1.35rem;
+    font-weight: 700;
+    font-size: 1.25rem;
     line-height: 1.1;
   }
   .aviso span {

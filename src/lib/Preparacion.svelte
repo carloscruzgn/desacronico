@@ -211,13 +211,11 @@
   h1 {
     margin: 0;
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     line-height: 1.1;
   }
   h2 {
     margin: 1.4em 0 0.5em;
-    font-family: 'Fell SC', serif;
-    font-weight: normal;
     font-size: 1.25rem;
     border-bottom: 1px solid rgb(235 233 217 / 0.25);
     padding-bottom: 0.2em;
@@ -313,7 +311,7 @@
   }
   .anadir {
     font-size: 1.05rem;
-    font-weight: 600;
+    font-weight: 700;
   }
   .de-cero {
     min-height: 46px;

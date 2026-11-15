@@ -115,8 +115,8 @@
     border-radius: 50%;
     background: var(--papel);
     color: var(--tinta);
-    font-family: var(--fell-sc);
-    font-size: calc(var(--lado, 46px) * 0.5);
+    font-weight: 700;
+    font-size: calc(var(--lado, 46px) * 0.45);
     line-height: 1;
   }
   /* Las cartas que quedan: una cartita de papel que asoma por el canto */
@@ -132,8 +132,9 @@
     box-shadow:
       0 0 0 1px rgb(29 29 27 / 0.55),
       0 2px 4px rgb(0 0 0 / 0.5);
-    font-family: var(--fell-sc);
-    font-size: calc(var(--lado, 46px) * 0.4);
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    font-size: calc(var(--lado, 46px) * 0.36);
     line-height: 1.35;
     text-align: center;
   }

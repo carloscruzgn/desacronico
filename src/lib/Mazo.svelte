@@ -49,7 +49,8 @@
   }
   .n {
     color: var(--papel);
-    font-family: var(--fell-sc);
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
     font-size: 1.15rem;
     line-height: 1;
   }

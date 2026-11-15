@@ -122,18 +122,18 @@
 <style>
   h2 {
     margin: 1.4em 0 0.5em;
-    font-family: 'Fell SC', serif;
-    font-weight: normal;
     font-size: 1.25rem;
     border-bottom: 1px solid rgb(235 233 217 / 0.25);
     padding-bottom: 0.2em;
   }
-  /* Los apartados de Ajustes: sin filete, más pequeños que el título. */
+  /* Los apartados de Ajustes: sin filete, pequeños, en mayúsculas de verdad (no versalitas falsas). */
   h3 {
     margin: 1.1em 0 0.5em;
-    font-family: var(--fell-sc);
-    font-weight: normal;
-    font-size: 1.08rem;
+    font-family: var(--ui);
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     color: var(--gris-claro);
   }
   h2 + h3 { margin-top: 0.6em; }
@@ -189,12 +189,15 @@
     background: var(--papel);
     color: var(--tinta);
     box-shadow: 0 2px 8px rgb(0 0 0 / 0.5);
-    font-family: var(--fell-sc);
-    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    font-size: 1.25rem;
     line-height: 1.5;
   }
   .total small {
     margin: 0;
+    font-weight: 400;
+    font-style: normal;
     color: #55544c;
     font-size: 0.85rem;
   }
@@ -293,9 +296,9 @@
   .contador b {
     min-width: 1.6em;
     text-align: center;
-    font-family: 'Fell SC', serif;
-    font-weight: normal;
-    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    font-size: 1.4rem;
   }
   .contador button {
     width: 44px;

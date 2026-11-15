@@ -1622,7 +1622,8 @@
     border-radius: 3px;
     display: grid;
     place-items: center;
-    font-family: 'Fell SC', serif;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
     font-size: 1.05rem;
     padding: 0;
   }
@@ -1657,8 +1658,9 @@
     box-shadow:
       0 0 0 1px rgb(29 29 27 / 0.55),
       0 2px 4px rgb(0 0 0 / 0.5);
-    font-family: var(--fell-sc);
-    font-size: 0.85rem;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    font-size: 0.8rem;
     line-height: 20px;
     text-align: center;
   }
@@ -1749,8 +1751,9 @@
   }
   .monton .n {
     color: var(--papel);
-    font-family: var(--fell-sc);
-    font-size: 1.7rem;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    font-size: 1.6rem;
     line-height: 1;
   }
   .monton .canto {
@@ -1801,8 +1804,8 @@
   }
   .franja .ronda {
     color: var(--papel);
-    font-family: var(--fell-sc);
-    font-size: 1.02rem;
+    font-weight: 700;
+    font-size: 1rem;
   }
   .franja .estado { font-style: italic; }
 
@@ -2104,12 +2107,12 @@
     font-size: 1.2rem;
   }
   /* El veredicto, en tinta de papel para todos: acertar y fallar se dicen con palabras, no con un color que
-     señale a nadie. El título corto va en Fell SC; los años, debajo y en letra de interfaz, en un renglón. */
+     señale a nadie. El título corto va en negrita; los años, debajo y en letra de interfaz, en un renglón. */
   .veredicto,
   .resultado {
     color: var(--papel);
-    font-family: var(--fell-sc);
-    font-size: 1.5rem;
+    font-weight: 700;
+    font-size: 1.4rem;
     line-height: 1.15;
   }
   .veredicto .sub {
@@ -2137,7 +2140,7 @@
   .pista.nota { font-size: 0.88rem; }
 
   /* La cinta de turno (UI-6): una tira de papel con la moneda de quien juega, «Turno de» en cursiva y el nombre en
-     Fell SC, enmarcada con un filete de tinta, como un rótulo impreso. El mismo papel para los avisos de dos niveles. */
+     negrita, enmarcada con un filete de tinta, como un rótulo impreso. El mismo papel para los avisos de dos niveles. */
   .cinta {
     display: flex;
     align-items: center;
@@ -2178,12 +2181,12 @@
     line-height: 1.1;
   }
   .cinta-titulo i {
-    font-family: var(--fell);
-    font-size: 1.15rem;
+    font-weight: 400;
+    font-size: 1.05rem;
   }
   .cinta-titulo b {
-    font-family: var(--fell-sc);
-    font-weight: normal;
+    font-weight: 700;
+    font-size: 1.5rem;
     overflow-wrap: anywhere;
   }
   .cinta-detalle {
@@ -2369,6 +2372,13 @@
   }
   .premio h2 {
     margin: 0.1em 0 0.3em;
+    font-size: 1.6rem;
+    line-height: 1.1;
+  }
+  /* «¡Gana…!»: el único titular de celebración, en IM Fell, como un rótulo impreso. */
+  .final-partida h2 {
+    font-family: var(--fell-sc);
+    font-weight: normal;
     font-size: 2.1rem;
     line-height: 1.1;
   }

@@ -573,7 +573,7 @@
     position: absolute;
     z-index: 2;
     padding-bottom: 2px;
-    font: italic min(0.95rem, 3.2cqh) var(--fell);
+    font: italic min(0.95rem, 3.2cqh) var(--ui);
     color: var(--papel);
     white-space: nowrap;
     pointer-events: none;
