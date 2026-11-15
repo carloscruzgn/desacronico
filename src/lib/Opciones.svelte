@@ -9,7 +9,8 @@
   import { barajar } from '../../compartido/clasico'
   import Carta from './Carta.svelte'
   import { cartas, cuentaPorAmbito } from './datos'
-  import { toca } from './aparato'
+  import AjustesSonido from './AjustesSonido.svelte'
+  import { esteAparato, toca } from './aparato'
   import { dura } from './movimiento'
 
   interface Props {
@@ -114,6 +115,12 @@
       <span>La carta se queda en su sitio correcto y se roba otra. Más fácil.</span>
     </label>
   </fieldset>
+</section>
+
+<!-- El sonido es de cada aparato, no de la partida: se puede cambiar aunque los ajustes sean del anfitrión. -->
+<section>
+  <h2>Sonido <small>en {esteAparato()}</small></h2>
+  <AjustesSonido />
 </section>
 
 <style>

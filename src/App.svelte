@@ -12,7 +12,7 @@
   import { reducido } from './lib/movimiento'
   import Preparacion from './lib/Preparacion.svelte'
   import Reglas from './lib/Reglas.svelte'
-  import Tutorial from './lib/Tutorial.svelte'
+  import Tutorial, { narrarTutorial } from './lib/Tutorial.svelte'
 
   type Pantalla = 'inicio' | 'preparacion' | 'mesa' | 'enlinea'
 
@@ -165,7 +165,7 @@
 
 {#if tutorial}
   <!-- «¡A jugar!»: se cierra el tutorial y su paso en el historial pasa a ser el de la preparación. -->
-  <Tutorial oncerrar={() => capaTutorial?.cerrar()} onjugar={() => (capaTutorial?.cerrar(), ir('preparacion'))} />
+  <Tutorial oncerrar={() => capaTutorial?.cerrar()} onjugar={() => (capaTutorial?.cerrar(), ir('preparacion'))} onnarrar={narrarTutorial} />
 {/if}
 
 <style>

@@ -12,8 +12,9 @@
   import Marca from './Marca.svelte'
   import Miniatura from './Miniatura.svelte'
   import Portadilla from './Portadilla.svelte'
-  import Tutorial from './Tutorial.svelte'
+  import Tutorial, { narrarTutorial } from './Tutorial.svelte'
   import { alVer } from './alVer'
+  import { abrirCapa, type Capa } from './capas'
   import { anioTexto, porId, textoPlano } from './datos'
   import { dialogo } from './dialogo'
   import { desplazamiento, dura } from './movimiento'
@@ -37,6 +38,12 @@
   let { oncerrar }: { oncerrar: () => void } = $props()
 
   let tutorial = $state(false)
+  // El tutorial abierto desde aquí tiene su propio paso en el historial: «atrás» lo cierra y deja el reglamento.
+  let capaT: Capa | null = null
+  function abrirTutorial() {
+    tutorial = true
+    capaT = abrirCapa(() => (tutorial = false))
+  }
   let texto: HTMLElement | undefined = $state()
   let guion: HTMLElement | undefined = $state()
   /** Capítulo que se está leyendo. */
@@ -164,7 +171,7 @@
       <section class="capitulo" aria-labelledby="cap-{CAPITULOS[0].id}">
         <Portadilla capitulo={CAPITULOS[0]} numero={1} giro={giro(0)} />
         <div class="resumen">{@html resumen}</div>
-        <button class="boton tinta" onclick={() => (tutorial = true)}>
+        <button class="boton tinta" onclick={abrirTutorial}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
           Ver el tutorial animado
         </button>
@@ -280,7 +287,7 @@
 </svg>
 
 {#if tutorial}
-  <Tutorial oncerrar={() => (tutorial = false)} />
+  <Tutorial oncerrar={() => capaT?.cerrar()} onnarrar={narrarTutorial} />
 {/if}
 
 <style>

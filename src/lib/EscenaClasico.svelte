@@ -14,6 +14,7 @@
   import Moneda from './Moneda.svelte'
   import { dura, reducido } from './movimiento'
   import { ANIOS_MUESTRA, ANIOS_REGLAS } from './muestras'
+  import { efecto, vibrar } from './sonido'
   import { PASOS_ESCENA } from './textos'
 
   interface Props {
@@ -176,7 +177,9 @@
   let mensaje = $state('')
   let repartida = false
 
-  function repartir() {
+  /** Reparte la práctica. Solo suena al pedir «Otra vez»: la primera vez llega con el desplazamiento, sin un toque. */
+  function repartir(conSonido = false) {
+    if (conSonido) efecto('barajar')
     const b = barajar(BARAJA)
     pCrono = [v('137')]
     pMano = b.slice(0, 3)
@@ -205,9 +208,16 @@
     const bien = cabe(antes, ANIOS_REGLAS, id, pos)
     pMano = pMano.filter((x) => x !== id)
     pCrono = [...pCrono.slice(0, pos), oculta(id), ...pCrono.slice(pos)]
+    efecto('deslizar')
     await espera(450)
     pCrono = pCrono.map((p) => (p.id === id ? v(id, bien ? 'ok' : '') : p))
-    await espera(800)
+    efecto('voltear')
+    await espera(250)
+    if (bien) {
+      efecto('asentar')
+      vibrar('acierto')
+    } else vibrar('fallo')
+    await espera(550)
     if (bien) {
       mensaje = `¡Bien! ${textoPlano(porId[id])}: ${dicho(id)}.`
     } else {
@@ -218,7 +228,10 @@
       await espera(1300)
       pCrono = pCrono.filter((p) => p.id !== id)
       pDescarte = id
+      efecto('apartar')
       if (pMazo.length) {
+        await espera(350)
+        efecto('robar')
         pMano = [...pMano, pMazo[0]]
         pMazo = pMazo.slice(1)
       }
@@ -348,7 +361,7 @@
       </div>
     {/each}
     {#if jugable && !pMano.length && !ocupado}
-      <button class="boton pequeno otra" in:fade={{ duration: dura(200) }} onclick={repartir}>Otra vez</button>
+      <button class="boton pequeno otra" in:fade={{ duration: dura(200) }} onclick={() => repartir(true)}>Otra vez</button>
     {/if}
   </div>
 </div>
