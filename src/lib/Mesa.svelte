@@ -1630,11 +1630,13 @@
     gap: 8px;
     padding: calc(10px + env(safe-area-inset-top)) 18px 4px 12px;
   }
-  /* La marca ocupa lo que dejan los botones; si no cabe entera (texto muy grande), no se enseña a trozos. */
+  /* La marca ocupa lo que dejan los botones, centrada entre «volver» y el reglamento; si no cabe entera (texto muy
+     grande), no se enseña a trozos. */
   .titulo {
     flex: 1 1 0;
     min-width: 0;
     overflow: hidden;
+    text-align: center;
     font-size: 1.5rem;
     container-type: inline-size;
   }

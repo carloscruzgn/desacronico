@@ -1,5 +1,7 @@
 <script lang="ts">
-  // Botón redondo de navegación: volver, cerrar, abrir el reglamento.
+  // Botón redondo de navegación: volver, cerrar, abrir el reglamento. El reglamento lleva su icono propio,
+  // el mismo libro abierto de la portada; volver y cerrar, un trazo de tinta.
+  import Icono from './Icono.svelte'
   interface Props {
     icono: 'atras' | 'cerrar' | 'reglas'
     /** Texto para lectores de pantalla y al pasar el ratón. */
@@ -13,12 +15,11 @@
   const trazos = {
     atras: 'M19 12H5.5M11.5 5.5 5 12l6.5 6.5',
     cerrar: 'M6.5 6.5l11 11M17.5 6.5l-11 11',
-    reglas: 'M12 6.5C9.5 5 6.5 5 4 6v12.5c2.5-1 5.5-1 8 .5 2.5-1.5 5.5-1.5 8-.5V6c-2.5-1-5.5-1-8 .5zm0 0V19',
   }
 </script>
 
 <button class="icono" class:sobrePapel aria-label={etiqueta} title={etiqueta} {onclick}>
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path d={trazos[icono]} /></svg>
+  {#if icono === 'reglas'}<Icono nombre="reglas" lado={32} />{:else}<svg viewBox="0 0 24 24" aria-hidden="true"><path d={trazos[icono]} /></svg>{/if}
 </button>
 
 <style>
