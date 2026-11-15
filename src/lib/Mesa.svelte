@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
   import { crossfade, fade, fly, scale } from 'svelte/transition'
@@ -10,6 +10,8 @@
   import type { Controlador, Suceso } from './control'
   import { anioHablado, anioTexto, cuentaPorAmbito, enLista, enMillones, porId, textoPlano } from './datos'
   import BotonIcono from './BotonIcono.svelte'
+  import BotonSonido from './BotonSonido.svelte'
+  import { callar, efecto, leerCarta, sonido, vibrar } from './sonido'
   import Confirmar from './Confirmar.svelte'
   import { abrirCapa, capa, cerrarCapa, guardiaAtras, type Capa } from './capas'
   import { Toca, toca } from './aparato'
@@ -132,6 +134,11 @@
   }
   // La carta elegida tiene que estar en la mano que se ve: si se eligió durante la animación de otra
   // jugada y la mano ha cambiado, no sirve para colocar.
+  // Lo que se estaba leyendo en voz alta era de la carta elegida: si cambia, se calla.
+  $effect(() => {
+    void seleccionada
+    untrack(callar)
+  })
   const puedeColocar = $derived(!!seleccionada && mano.includes(seleccionada) && !ocupado && miTurno)
   const nombreTurno = $derived(vista.jugadores[vista.turno]?.nombre ?? '')
 
@@ -371,6 +378,8 @@
     return () => {
       dejar()
       soltar()
+      // Que no siga leyendo una carta en el menú.
+      callar()
     }
   })
 
@@ -396,14 +405,17 @@
       await espera(300)
     } else {
       origen = mazoEl ?? null
+      efecto('barajar')
       await espera(300)
       crono.push({ id: v.cronologia[0], volteada: false, marca: '' })
       await espera(520)
       anotar(inicial.fechas)
       crono[0].volteada = true
+      efecto('voltear')
       await espera(450)
       for (const id of v.jugadores[visible]?.mano ?? []) {
         mano.push(id)
+        efecto('repartir')
         await espera(150)
       }
       await espera(350)
@@ -426,6 +438,7 @@
     // Si el turno cambia sin jugada (se quita a alguien), también se cuenta.
     if (v.turno !== vista.turno && !v.ganadores.length) {
       narra = asiento === v.turno ? 'Tu turno' : `Turno de ${v.jugadores[v.turno].nombre}`
+      efecto('moneda')
       if (!local && asiento === v.turno) control.tuTurno?.()
     }
     vista = v
@@ -497,6 +510,7 @@
 
   /** Se acabó el mazo: los descartes, barajados, pasan a ser el mazo. */
   async function rebarajar() {
+    efecto('barajar')
     nMazo += descartes.length
     descartes = []
     await avisar({ titulo: 'Se acabó el mazo', detalle: 'Se barajan los descartes' })
@@ -520,6 +534,7 @@
     origen = chips[jugador] ?? null
     mano = mano.filter((x) => x !== id)
     crono.splice(Math.min(r.posicion, crono.length), 0, { id, volteada: false, marca: '' })
+    efecto('deslizar')
     cuentas[jugador]--
     // Se centra cuando los huecos ya se han cerrado, para acertar con el sitio definitivo.
     await espera(320)
@@ -530,6 +545,7 @@
     const pieza = crono.find((p) => p.id === id)!
     anotar(s.fechas)
     pieza.volteada = true
+    efecto('voltear')
     await espera(800)
 
     // Cómo se cuenta: «tú» si la jugada es de este dispositivo; si no, con el nombre.
@@ -546,6 +562,8 @@
       const igual = mismoAnio(antes.cronologia, anios, id, r.posicion)
       detalle = igual ? `Mismo año que «${textoPlano(porId[igual])}»: vale a un lado o al otro` : ''
       pieza.marca = 'ok'
+      efecto('asentar')
+      if (suya || tu) vibrar('acierto')
       veredicto = { tipo: 'ok', titulo: solo ? '¡Correcto!' : tu ? '¡Aciertas!' : `¡${quien} acierta!`, detalle, notas }
       partes.push(`Correcto.${igual ? ' Tiene el mismo año que la carta de al lado.' : ''}`)
       // El veredicto se ve al menos 600 ms aunque se toque la mesa.
@@ -572,12 +590,13 @@
       const sinMazo = !!r.robada && !!r.barajado && nMazo === 0
       partes.push(`No encaja: ${dondeDicho}. ${destino}.${sinMazo ? ' Se acabó el mazo: se barajan los descartes.' : ''}${roba ? ` ${roba} carta.` : ''}`)
       detalle = `${donde} · ${detalle}`
-      if (suya) navigator.vibrate?.(120)
+      if (suya || tu) vibrar('fallo')
       await espera(1700, 600)
       if (r.recolocada === null) {
         // 3a. Fallo: a los descartes
         crono = crono.filter((p) => p.id !== id)
         descartes = [...descartes, id]
+        efecto('apartar')
         await espera(520)
       } else {
         // 3b. Fallo con recolocación: la carta se desliza hasta su sitio
@@ -585,6 +604,7 @@
         const resto = crono.filter((p) => p.id !== id)
         resto.splice(r.recolocada, 0, pieza)
         crono = resto
+        efecto('deslizar')
         await tick()
         centrar(id)
         await espera(1100)
@@ -597,6 +617,7 @@
         }
         origen = mazoEl ?? null
         if (suya) mano.push(r.robada)
+        efecto('robar')
         cuentas[jugador]++
         nMazo = Math.max(0, nMazo - 1)
         await espera(520)
@@ -656,6 +677,7 @@
       await espera(230)
       visible = manoDe(v)
       mano = [...v.jugadores[visible].mano]
+      efecto('moneda')
       await avisar(cintaDe(v.turno))
     } else {
       origen = mazoEl ?? null
@@ -664,6 +686,7 @@
       for (const x of debe) if (!mano.includes(x)) mano.push(x)
       if (!local && asiento === v.turno && jugador !== asiento) {
         control.tuTurno?.()
+        efecto('moneda')
         await avisar(cintaDe(v.turno))
       }
     }
@@ -750,6 +773,7 @@
     <BotonIcono icono="atras" etiqueta={fin ? 'Salir al menú' : 'Salir o abandonar la partida'} onclick={() => (fin ? onsalir() : (menu = true))} />
     <span class="titulo"><Marca /></span>
     <BotonIcono icono="reglas" etiqueta="Reglamento" onclick={abrirReglas} />
+    <BotonSonido />
     <div class="pilas">
       <figure>
         <Mazo n={nMazo} bind:el={mazoEl} />
@@ -873,7 +897,13 @@
       {/key}
       <p class="pista">
         {#if puedeColocar}{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? {Toca()} el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
-        <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
+        <span class="botones-carta">
+          <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
+          <!-- Las cartas de la mano van boca abajo: se lee el texto, sin el año. Suena aunque la voz esté apagada. -->
+          <button class="ampliar" onclick={() => (sonido.hablando ? callar() : leerCarta(seleccionada!))}>
+            {#if sonido.hablando}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg> Parar{:else}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg> Escuchar{/if}
+          </button>
+        </span>
       </p>
     {:else}
       {#if !ocupado && miTurno}
@@ -1619,11 +1649,17 @@
     content: '\00a0·';
     margin-right: 0.4em;
   }
+  .botones-carta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
   .ampliar {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    margin-left: 8px;
     min-height: 44px;
     padding: 0 12px 0 9px;
     border: 0;
@@ -2059,8 +2095,17 @@
     .acabada .leyenda .pista { display: none; }
     .acabada .resultado { font-size: 1.25rem; }
   }
+  /* En un móvil la barra lleva cuatro botones y las dos pilas: la marca, algo menor, y menos aire entre ellos. */
+  @media (max-width: 459.98px) {
+    .barra {
+      gap: 6px;
+      padding-right: 12px;
+    }
+    .pilas { gap: 12px; }
+    .titulo { font-size: 1.08rem; }
+  }
   /* En los móviles más estrechos, la barra deja la marca para que quepan los botones y las pilas. */
-  @media (max-width: 379.98px) {
+  @media (max-width: 374.98px) {
     .titulo { visibility: hidden; }
   }
 

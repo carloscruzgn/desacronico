@@ -9,6 +9,8 @@
   import { anioHablado, anioTexto, enMillones, textoPlano } from './datos'
   import { capa, cerrarCapa } from './capas'
   import { dura } from './movimiento'
+  import { callar, leerCarta, sonido } from './sonido'
+  import { onDestroy } from 'svelte'
 
   interface Props {
     carta: TCarta
@@ -35,6 +37,8 @@
     if (fecha.anio < 0) n.push(`${anioTexto({ anio: fecha.anio, circa: false })} = ${enMillones(fecha.anio) ? '' : 'año '}${anioHablado({ anio: fecha.anio, circa: false })}`)
     return n
   })
+  // Al cerrar la carta deja de leerse.
+  onDestroy(callar)
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -62,6 +66,8 @@
       <div><dt>Imagen</dt><dd>{carta.credito}</dd></div>
     </dl>
     <div class="botones">
+      <!-- Escuchar: el texto y, si se ve el reverso, el año. -->
+      <button class="boton secundario" onclick={() => (sonido.hablando ? callar() : leerCarta(carta.id, reverso ? fecha : null))}>{sonido.hablando ? 'Parar' : 'Escuchar'}</button>
       {#if fecha}<button class="boton secundario" onclick={onvolver}>Dar la vuelta</button>{/if}
       <button class="boton" data-foco onclick={cerrarCapa}>Cerrar</button>
     </div>
@@ -137,11 +143,12 @@
   }
   .botones {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
   }
   .botones .boton {
-    flex: 1;
+    flex: 1 1 auto;
     max-width: 220px;
     padding-inline: 0.8em;
     white-space: nowrap;
