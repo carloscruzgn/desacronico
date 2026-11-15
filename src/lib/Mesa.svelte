@@ -96,7 +96,8 @@
     jugador?: number
   }
   let aviso = $state<Aviso | null>(null)
-  let ampliada = $state<{ id: string; reverso: boolean } | null>(null)
+  /** La carta ampliada y la carta de la mesa de la que sale y a la que vuelve (ANIM-15). */
+  let ampliada = $state.raw<{ id: string; reverso: boolean; desde?: HTMLElement | null } | null>(null)
   let fin = $state<number[] | null>(null)
   let verFin = $state(false)
   let verLista = $state(false)
@@ -671,13 +672,140 @@
   function elegir(id: string) {
     // En local, mientras se anima una jugada la mano va a cambiar de dueño: no se elige nada.
     if (fin || (local && ocupado)) return
-    if (seleccionada === id) ampliada = { id, reverso: false }
+    if (performance.now() < trasArrastre) return
+    if (seleccionada === id) ampliada = { id, reverso: false, desde: manoEl?.querySelector<HTMLElement>(`.naipe[data-mano="${id}"]`) }
     else {
       // Al elegir, las cartas de la mesa encogen para que quepan más huecos: se conserva la que estaba en el centro.
       const central = !seleccionada && miTurno && !ocupado ? cartaCentral() : null
       seleccionada = id
       if (central) setTimeout(() => centrar(central), 300)
     }
+  }
+
+  // Arrastrar una carta de la mano a un hueco (ANIM-10): la carta sigue al dedo y, cerca de un hueco, un imán la
+  // lleva a él. Al soltarla sobre un hueco se juega ahí; si no, vuelve a la mano y queda elegida. Tocar la carta
+  // y luego el hueco, y las flechas del teclado, siguen igual (WCAG 2.5.7): esto es solo un atajo.
+  interface Arrastre {
+    id: string
+    el: HTMLElement
+    puntero: number
+    x0: number
+    y0: number
+    /** Dónde se cogió la carta, respecto a su esquina. */
+    ox: number
+    oy: number
+    w: number
+    h: number
+    fantasma: HTMLElement | null
+  }
+  let arrastre: Arrastre | null = null
+  /** El hueco al que tira el imán. */
+  let imantado = $state<number | null>(null)
+  /** Tras soltar un arrastre llega un «click» a la carta: no debe elegirla ni ampliarla. */
+  let trasArrastre = 0
+  const puedeArrastrar = () => !fin && !ocupado && miTurno && !mirando && !fuera
+
+  function bajarMano(e: PointerEvent, id: string) {
+    if (e.button > 0 || !puedeArrastrar()) return
+    const el = e.currentTarget as HTMLElement
+    arrastre = { id, el, puntero: e.pointerId, x0: e.clientX, y0: e.clientY, ox: 0, oy: 0, w: 0, h: 0, fantasma: null }
+  }
+  function moverMano(e: PointerEvent) {
+    const a = arrastre
+    if (!a || e.pointerId !== a.puntero) return
+    if (!a.fantasma) {
+      if (Math.hypot(e.clientX - a.x0, e.clientY - a.y0) < 10) return
+      if (!puedeArrastrar()) return void (arrastre = null)
+      // Empieza: la carta queda elegida (se abren los huecos) y una copia sigue al dedo.
+      a.el.setPointerCapture(e.pointerId)
+      if (seleccionada !== a.id) elegir(a.id)
+      const cuerpo = a.el.querySelector<HTMLElement>('.cuerpo')!
+      const r = cuerpo.getBoundingClientRect()
+      const copia = cuerpo.cloneNode(true) as HTMLElement
+      copia.querySelector('.lupa')?.remove()
+      copia.style.transform = 'none'
+      const f = document.createElement('div')
+      f.setAttribute('aria-hidden', 'true')
+      Object.assign(f.style, {
+        position: 'fixed',
+        zIndex: '30',
+        left: `${r.left}px`,
+        top: `${r.top}px`,
+        width: `${r.width}px`,
+        pointerEvents: 'none',
+        rotate: '-2deg',
+        filter: 'drop-shadow(0 18px 14px rgb(0 0 0 / 0.5))',
+      })
+      f.style.setProperty('--ancho', `${r.width}px`)
+      f.append(copia)
+      document.body.append(f)
+      Object.assign(a, { fantasma: f, ox: a.x0 - r.left, oy: a.y0 - r.top, w: r.width, h: r.height })
+      a.el.style.opacity = '0'
+    }
+    // El imán: el hueco más cercano, si está a menos de una carta de distancia.
+    const huecos = [...cronoEl.querySelectorAll<HTMLElement>('.hueco')]
+    let mejor: number | null = null
+    let distancia = Infinity
+    huecos.forEach((h, i) => {
+      const r = h.getBoundingClientRect()
+      if (!r.width) return
+      const d = Math.hypot(r.left + r.width / 2 - e.clientX, r.top + r.height / 2 - e.clientY)
+      if (d < distancia) [mejor, distancia] = [i, d]
+    })
+    imantado = distancia < a.w * 1.15 ? mejor : null
+    let x = e.clientX - a.ox
+    let y = e.clientY - a.oy
+    if (imantado !== null) {
+      const r = huecos[imantado].getBoundingClientRect()
+      x += (r.left + r.width / 2 - a.w / 2 - x) * 0.6
+      y += (r.top + r.height / 2 - a.h / 2 - y) * 0.6
+    }
+    a.fantasma!.style.left = `${x}px`
+    a.fantasma!.style.top = `${y}px`
+    // Cerca de los bordes de la cronología, esta se desplaza para llegar a los huecos que no se ven.
+    const c = cronoEl.getBoundingClientRect()
+    if (e.clientY > c.top && e.clientY < c.bottom) {
+      if (e.clientX < c.left + 44) cronoEl.scrollLeft -= 14
+      else if (e.clientX > c.right - 44) cronoEl.scrollLeft += 14
+    }
+  }
+  function soltarMano(e: PointerEvent) {
+    const a = arrastre
+    if (!a || e.pointerId !== a.puntero) return
+    arrastre = null
+    const f = a.fantasma
+    if (!f) return
+    trasArrastre = performance.now() + 400
+    const destino = imantado
+    imantado = null
+    if (destino !== null && e.type === 'pointerup' && puedeColocar) {
+      // Se juega ahí: la carta de la mano sale de donde se soltó, no de la mano.
+      const d = f.getBoundingClientRect()
+      const r = a.el.querySelector<HTMLElement>('.cuerpo')!.getBoundingClientRect()
+      a.el.style.transition = 'none'
+      a.el.style.rotate = '0deg'
+      a.el.style.translate = `${d.left - r.left}px ${d.top - r.top}px`
+      a.el.style.opacity = ''
+      f.remove()
+      jugarEn(destino)
+      // Si la jugada no llega a hacerse (sin conexión), la carta vuelve a su sitio en la mano.
+      setTimeout(() => {
+        if (!a.el.isConnected) return
+        a.el.style.translate = a.el.style.rotate = a.el.style.transition = ''
+      }, 4500)
+      return
+    }
+    // No hay hueco: la copia vuelve a la mano y la carta sigue elegida.
+    const r = a.el.querySelector<HTMLElement>('.cuerpo')!.getBoundingClientRect()
+    const d = f.getBoundingClientRect()
+    f.animate([{ transform: 'none' }, { transform: `translate(${r.left - d.left}px, ${r.top - d.top}px) rotate(2deg)` }], {
+      duration: dura(220),
+      easing: 'cubic-bezier(0.3, 0.1, 0.2, 1)',
+      fill: 'forwards',
+    }).finished.finally(() => {
+      f.remove()
+      a.el.style.opacity = ''
+    })
   }
 
   function jugarEn(posicion: number) {
@@ -1054,7 +1182,7 @@
           {#if sitio && sitio.despues === p.id}
             <div class="silueta" transition:abrir aria-hidden="true"><span class="iba"><i>Iba aquí:</i> <span class="cifras">{sitio.etiqueta}</span></span></div>
           {/if}
-          <button class="hueco" inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
+          <button class="hueco" class:imantado={imantado === i} inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
             <span>+</span>
           </button>
           <button
@@ -1063,7 +1191,7 @@
             style:--ladeo="{ladeo(p.id)}deg"
             in:recibir={{ key: p.id }}
             out:enviar={{ key: p.id }}
-            onclick={() => (ampliada = { id: p.id, reverso: p.volteada })}
+            onclick={(e) => (ampliada = { id: p.id, reverso: p.volteada, desde: e.currentTarget })}
             aria-label="{p.volteada && anioDe(p.id) ? anioDicho(p.id) + '. ' : ''}{textoPlano(porId[p.id])}"
           >
             <div class="cuerpo {p.marca}">
@@ -1071,7 +1199,7 @@
             </div>
           </button>
           {#if i === crono.length - 1}
-            <button class="hueco" inert={!puedeColocar} onclick={() => jugarEn(crono.length)} aria-label="Colocar aquí, al final, después de {anioDicho(p.id, false) || 'la última'}">
+            <button class="hueco" class:imantado={imantado === crono.length} inert={!puedeColocar} onclick={() => jugarEn(crono.length)} aria-label="Colocar aquí, al final, después de {anioDicho(p.id, false) || 'la última'}">
               <span>+</span>
             </button>
             {#if sitio && !sitio.despues}
@@ -1144,7 +1272,7 @@
       <p class="pista">
         {#if puedeColocar}{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? {Toca()} el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
         <span class="botones-carta">
-          <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
+          <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false, desde: manoEl?.querySelector<HTMLElement>('.naipe.elegida') })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
           <!-- Las cartas de la mano van boca abajo: se lee el texto, sin el año. Suena aunque la voz esté apagada. -->
           <button class="ampliar" onclick={() => (sonido.hablando ? callar() : leerCarta(seleccionada!))}>
             {#if sonido.hablando}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg> Parar{:else}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg> Escuchar{/if}
@@ -1205,7 +1333,12 @@
           animate:flip={{ duration: dura(300), easing: cubicOut }}
           in:recibir={{ key: id }}
           out:enviar={{ key: id }}
+          data-mano={id}
           onclick={() => elegir(id)}
+          onpointerdown={(e) => bajarMano(e, id)}
+          onpointermove={moverMano}
+          onpointerup={soltarMano}
+          onpointercancel={soltarMano}
           aria-label="{textoPlano(porId[id])}{seleccionada === id ? ', elegida' : ''}"
         >
           <div class="cuerpo">
@@ -1242,6 +1375,7 @@
     carta={porId[ampliada.id]}
     fecha={fechas[ampliada.id]}
     reverso={ampliada.reverso}
+    desde={ampliada.desde}
     onvolver={() => ampliada && (ampliada = { ...ampliada, reverso: !ampliada.reverso })}
     oncerrar={() => (ampliada = null)}
   />
@@ -1844,6 +1978,11 @@
   .hueco:focus-visible {
     background: rgb(235 233 217 / 0.2);
   }
+  /* El hueco al que tira el imán mientras se arrastra una carta: se llena un poco y su borde se cierra. */
+  .hueco.imantado {
+    border-style: solid;
+    background: rgb(235 233 217 / 0.3);
+  }
   @keyframes latir {
     50% { background: rgb(235 233 217 / 0.2); }
   }
@@ -2113,6 +2252,8 @@
     rotate: var(--giro, 0deg);
     translate: 0 var(--baja, 0px);
     transform-origin: 50% 120%;
+    /* se puede arrastrar al hueco (ANIM-10) sin que el navegador desplace la página */
+    touch-action: none;
     transition:
       opacity 0.2s,
       rotate 0.25s var(--curva-posar),
