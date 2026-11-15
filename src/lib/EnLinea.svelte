@@ -257,7 +257,7 @@
     {#if invitacion}
       <p class="ayuda">Te han invitado a la sala <b class="sala-codigo">{invitacion}</b>. Escribe tu nombre para entrar.</p>
     {:else}
-      <p class="ayuda">Cada jugador en su móvil. No hace falta registrarse: basta un nombre.</p>
+      <p class="ayuda">Únete a una partida desde tu móvil. No hace falta registro.</p>
     {/if}
 
     <form
@@ -327,12 +327,12 @@
               enterkeyhint="go"
             />
             {#each letras as l, k (k)}
-              <span class="ficha" class:actual={codigoEnfocado && k === Math.min(codigo.length, 3)} aria-hidden="true">{l}</span>
+              <span class="ficha" class:actual={codigoEnfocado && k === Math.min(codigo.length, 3)} class:cursor={k === letras.indexOf('')} aria-hidden="true">{l}</span>
             {/each}
           </div>
           <p class="error campo-error" id="codigo-error" role="alert">{errorCodigo}</p>
-          <p class="ayuda menor" id="unirse-ayuda">Las cuatro letras que te dé quien creó la sala.</p>
-          <button class="boton ancho" disabled={cargando}><Icono nombre="unirse" lado={34} />Unirse a la sala</button>
+          <p class="ayuda menor" id="unirse-ayuda">Introduce el código de cuatro letras de la sala a la que quieres unirte.</p>
+          <button class="boton ancho icono-izq" disabled={cargando}><Icono nombre="unirse" lado={34} />Unirse</button>
         </div>
       {/if}
       <p class="error" role="alert">{error}</p>
@@ -342,8 +342,8 @@
       <p class="otra-sala"><button class="enlace" disabled={cargando} onclick={() => entrar(true)}>O crear una sala nueva</button></p>
     {:else}
       <div class="opcion">
-        <h2>O crear una nueva</h2>
-        <button class="boton secundario" disabled={cargando} onclick={() => entrar(true)}><Icono nombre="sala" lado={34} />Crear sala</button>
+        <h2>Crear una nueva sala</h2>
+        <button class="boton secundario icono-izq" disabled={cargando} onclick={() => entrar(true)}><Icono nombre="sala" lado={34} />Crear</button>
       </div>
     {/if}
   </main>
@@ -623,6 +623,17 @@
     width: 100%;
     margin-top: 12px;
   }
+  /* Unirse y Crear: el icono, a la izquierda y a la misma distancia del borde en los dos; el texto, centrado */
+  .boton.icono-izq {
+    position: relative;
+    padding-inline: 64px;
+  }
+  .boton.icono-izq > :global(svg) {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    translate: 0 -50%;
+  }
   .codigo-boton {
     font-family: var(--ui);
     font-weight: 700;
@@ -665,6 +676,23 @@
     transform: translateY(-3px);
     outline: 2px solid var(--foco);
     outline-offset: 3px;
+  }
+  /* la raya de escribir, en la primera ficha vacía: parpadea despacio aunque el campo no tenga el foco,
+     para que se vea que ahí se escribe */
+  .ficha.cursor::after {
+    content: '';
+    width: 3px;
+    height: 46%;
+    border-radius: 2px;
+    background: currentColor;
+    animation: parpadeo 1.6s ease-in-out infinite;
+  }
+  @keyframes parpadeo {
+    0%, 45% { opacity: 1; }
+    55%, 100% { opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ficha.cursor::after { animation: none; opacity: 0.7; }
   }
   .fichas.invalido .ficha {
     box-shadow:
