@@ -12,10 +12,23 @@ export interface Opciones {
   alFallar: 'descartar' | 'recolocar'
   /** Series con las que se hizo el mazo, para contarlo en la mesa. Falta en las partidas guardadas antes de tenerla. */
   series?: Ambito[]
+  /**
+   * Cartas con las que la cronología está completa: si al cerrar una ronda tiene esas o más, la partida acaba
+   * y gana quien tenga menos cartas en la mano. Falta en las partidas guardadas antes de tenerla, que siguen sin tope.
+   */
+  topeCronologia?: number
 }
-export const OPCIONES: Opciones = { cartasIniciales: 4, alFallar: 'descartar' }
+export const OPCIONES: Opciones = { cartasIniciales: 4, alFallar: 'descartar', topeCronologia: 30 }
 export const MANO_MIN = 2
 export const MANO_MAX = 8
+export const TOPE_MIN = 15
+export const TOPE_MAX = 60
+export const TOPE_PASO = 5
+/** Un tope de cronología válido, o el de siempre si no lo es. */
+export function topeValido(t: unknown): number {
+  const n = Number(t)
+  return Number.isInteger(n) && n >= TOPE_MIN && n <= TOPE_MAX ? n : OPCIONES.topeCronologia!
+}
 export const MAX_JUGADORES = 6
 
 export interface Jugador {
@@ -45,8 +58,10 @@ export interface EstadoClasico {
   ronda: number
   /** Jugadores que se están desempatando: acabaron a la vez y siguen jugando. Falta o está vacío si no hay desempate. */
   desempate?: number[]
-  /** Vacío mientras se juega. Más de uno solo si no quedan cartas para desempatar. */
+  /** Vacío mientras se juega. Más de uno si no quedan cartas para desempatar o si empatan al completarse la cronología. */
   ganadores: number[]
+  /** La partida acabó porque la cronología llegó a su tope. */
+  completa?: boolean
 }
 
 /** Lo que puede ver cualquier jugador: todo menos el orden del mazo. Los años van aparte. */
@@ -65,6 +80,8 @@ export interface Cierre {
   ganadores: number[]
   /** Se acabó el mazo y se barajaron los descartes para seguir robando. */
   barajado?: boolean
+  /** La ronda cerró con la cronología completa: gana quien tenga menos cartas. */
+  completa?: boolean
 }
 
 export interface Resultado extends Cierre {
@@ -120,7 +137,7 @@ export function crear(
   const primero = empieza === undefined ? Math.min(nj - 1, Math.floor(azar() * nj)) : ((empieza % nj) + nj) % nj
   return {
     modo: 'clasico',
-    opciones: { ...opciones },
+    opciones: { ...opciones, topeCronologia: topeValido(opciones.topeCronologia) },
     mazo,
     descartes: [],
     cronologia: [mazo.shift()!],
@@ -212,6 +229,15 @@ function pasarTurno(e: EstadoClasico, orden: number[], c: Cierre, azar: () => nu
   const acabaron = enJuego.filter((i) => e.jugadores[i].mano.length === 0)
   if (acabaron.length === 1) {
     e.ganadores = c.ganadores = acabaron
+    return
+  }
+  // Cronología completa: gana quien tenga menos cartas, y los empatados comparten la victoria (también los que
+  // acabaron a la vez, que así no desempatan).
+  const tope = e.opciones.topeCronologia
+  if (tope && e.cronologia.length >= tope && enJuego.length) {
+    const menos = Math.min(...enJuego.map((i) => e.jugadores[i].mano.length))
+    e.ganadores = c.ganadores = enJuego.filter((i) => e.jugadores[i].mano.length === menos)
+    e.completa = c.completa = true
     return
   }
   if (acabaron.length > 1) {

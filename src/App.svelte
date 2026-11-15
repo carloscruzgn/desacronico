@@ -1,6 +1,6 @@
 <script lang="ts">
   import { flushSync, tick } from 'svelte'
-  import { crear } from '../compartido/clasico'
+  import { crear, topeValido } from '../compartido/clasico'
   import { esCodigo, type Config } from '../compartido/protocolo'
   import { abrirCapa, alVolver, apuntar, quedarse, volverAtras, type Capa, type Paso } from './lib/capas'
   import { salaGuardada } from './lib/conexion.svelte'
@@ -112,7 +112,10 @@
       nombres: g.jugadores.map((j) => j.nombre),
       avatares: g.jugadores.map((j) => j.avatar ?? ''),
       ids: cartas.filter((c) => ambitos.includes(c.ambito)).map((c) => c.id),
-      config: { ambitos, opciones: { cartasIniciales: g.opciones.cartasIniciales, alFallar: g.opciones.alFallar } },
+      config: {
+        ambitos,
+        opciones: { cartasIniciales: g.opciones.cartasIniciales, alFallar: g.opciones.alFallar, topeCronologia: topeValido(g.opciones.topeCronologia) },
+      },
     }
     partida = { n: (partida?.n ?? 0) + 1, control: controlLocal(g, await cargarAnios()) }
     ir('mesa')

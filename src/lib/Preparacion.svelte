@@ -134,7 +134,7 @@
     </section>
 
     <div class="ajustes">
-      <Opciones {config} oncambio={(c) => (config = c)} />
+      <Opciones {config} jugadores={nombres.length} oncambio={(c) => (config = c)} />
     </div>
   </div>
 

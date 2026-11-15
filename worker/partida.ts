@@ -8,6 +8,7 @@ import {
   jugar,
   MANO_MAX,
   MANO_MIN,
+  topeValido,
   MAX_JUGADORES,
   OPCIONES,
   siguienteEnEmpezar,
@@ -295,5 +296,12 @@ function validar(c: Config): Config {
   const n = Number(c?.opciones?.cartasIniciales)
   if (!ambitos.length) throw new Error('Elige al menos una serie')
   if (!Number.isInteger(n) || n < MANO_MIN || n > MANO_MAX) throw new Error('Número de cartas no válido')
-  return { ambitos, opciones: { cartasIniciales: n, alFallar: c.opciones.alFallar === 'recolocar' ? 'recolocar' : 'descartar' } }
+  return {
+    ambitos,
+    opciones: {
+      cartasIniciales: n,
+      alFallar: c.opciones.alFallar === 'recolocar' ? 'recolocar' : 'descartar',
+      topeCronologia: topeValido(c.opciones.topeCronologia),
+    },
+  }
 }

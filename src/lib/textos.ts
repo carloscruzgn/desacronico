@@ -13,6 +13,7 @@ export const resumen = `
 <li>Si la carta tiene el mismo año que una de la mesa, vale a un lado o al otro. <i>c.</i> quiere decir que la fecha es aproximada, y el guion delante del año, que es antes de Cristo: -490 es el año 490 antes de Cristo.</li>
 <li>Una ronda es una vuelta completa: juegan todos una vez, empezando por quien abrió la partida.</li>
 <li>Gana quien es el único en colocar su última carta en una ronda. Quien se queda sin cartas espera a que los demás terminen la ronda; si alguien más acaba en esa misma ronda, desempatan entre ellos y los demás quedan fuera.</li>
+<li>Si al terminar una ronda la cronología tiene treinta cartas o más (se puede cambiar en los ajustes), está completa y la partida acaba: gana quien tenga menos cartas en la mano, y si hay empate se comparte la victoria.</li>
 </ol>
 `
 
@@ -141,6 +142,10 @@ export const ACLARACIONES: { titulo: string; html: string }[] = [
   {
     titulo: 'Tras fallo',
     html: 'Como en el reglamento, la carta va a los descartes y se roba otra. Con la opción «se recoloca», la carta fallada se queda en su sitio correcto de la cronología, y también se roba otra.',
+  },
+  {
+    titulo: 'Cronología completa',
+    html: 'Para que la partida no se alargue sin fin, si al terminar una ronda la cronología tiene treinta cartas o más, se acaba: gana quien tenga menos cartas en la mano, y si hay empate se comparte la victoria. En los ajustes se puede elegir de 15 a 60 cartas. En la mesa puede usarse igual, como regla opcional, cuando la cronología ya no cabe.',
   },
   { titulo: 'Fechas aproximadas', html: 'Las cartas con <i>c.</i> se ordenan por el año que muestran, como las demás.' },
   { titulo: 'Mazo agotado', html: 'Si hay que robar y el mazo se ha agotado, se baraja la pila de descartes y pasa a ser el nuevo mazo.' },

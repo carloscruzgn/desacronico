@@ -223,12 +223,15 @@
     }
     lista.push(`${o.cartasIniciales} cartas por jugador`)
     lista.push(o.alFallar === 'recolocar' ? 'Tras fallo, se recoloca' : 'Tras fallo, se descarta')
+    if (o.topeCronologia) lista.push(`Cronología completa con ${o.topeCronologia} cartas (hay ${vista.cronologia.length})`)
     lista.push(`Ronda ${vista.ronda}`)
     return lista
   })
 
   /** La ronda en curso: quién la abre, quién falta y quién ya no tiene cartas (INFO-1). */
   const ronda = $derived(enRonda(vista))
+  /** Cartas que faltan para completar la cronología; null en las partidas sin tope. */
+  const restan = $derived(vista.opciones.topeCronologia ? vista.opciones.topeCronologia - vista.cronologia.length : null)
   /** Los jugadores en la barra, en orden de turno: a la izquierda quien abre la partida y, detrás, los que le
       siguen, para que la ronda se lea de izquierda a derecha. */
   const enOrden = $derived(vista.jugadores.map((_, k) => (vista.inicial + k) % vista.jugadores.length))
@@ -252,6 +255,13 @@
       const n = ronda.sinCartas.length
       estado = `Última ronda: ${enLista(ronda.sinCartas.map(nombre))} ya no ${n > 1 ? 'tienen' : 'tiene'} cartas`
       if (ronda.faltan.length) estado += ` · ${ronda.faltan.length > 1 ? 'faltan' : 'falta'} ${enLista(ronda.faltan.map(nombre))}`
+    }
+    // La cronología completa manda sobre lo demás: esta ronda es la última pase lo que pase.
+    if (restan !== null && restan <= 0) {
+      estado = 'Cronología completa: última ronda'
+      if (ronda.faltan.length) estado += ` · ${ronda.faltan.length > 1 ? 'faltan' : 'falta'} ${enLista(ronda.faltan.map(nombre))}`
+    } else if (restan !== null && restan <= 5 && !estado) {
+      estado = `${restan === 1 ? 'Falta 1 carta' : `Faltan ${restan} cartas`} para completar la cronología`
     }
     return { ronda: `Ronda ${v.ronda}`, estado }
   })
@@ -1012,6 +1022,7 @@
       partes.push('Se acabó el mazo: se barajan los descartes.')
       await rebarajar()
     }
+    const habia = vista.cronologia.length
     vista = v
     contar(v)
     const quedan = v.jugadores[jugador]?.mano.length ?? 0
@@ -1019,7 +1030,8 @@
       partes.push(`${tu ? 'Te' : `A ${quien} le`} ${quedan === 1 ? 'queda 1 carta' : `quedan ${quedan} cartas`}.`)
 
     if (v.ganadores.length) {
-      narra = [...partes, solo ? 'Cronología completada.' : `${ganan(v.ganadores)}.`].join(' ')
+      const completa = v.completa ? `Cronología completa con ${v.cronologia.length} cartas. ` : ''
+      narra = [...partes, completa + (solo ? (completa ? 'Fin de la partida.' : 'Cronología completada.') : `${ganan(v.ganadores)}.`)].join(' ')
       await espera(300)
       fin = v.ganadores
       verFin = true
@@ -1032,6 +1044,10 @@
     // Quien coloca su última carta no gana todavía: los demás acaban la ronda.
     if (r.acierto && !r.finRonda && quedan === 0)
       avisos.push({ titulo: '¡Última ronda!', detalle: `${tu && !local ? 'Te quedas' : quien + ' se queda'} sin cartas: los demás terminan la ronda` })
+    // La jugada que completa la cronología a mitad de ronda: los demás terminan la ronda y se acaba.
+    const tope = v.opciones.topeCronologia
+    if (tope && habia < tope && v.cronologia.length >= tope && !r.finRonda)
+      avisos.push({ titulo: '¡Cronología completa!', detalle: 'Los demás terminan la ronda y gana quien tenga menos cartas' })
     if (r.desempate.length) {
       const roban = r.desempate.filter((d) => d.carta)
       const empatados = enLista(roban.map((d) => v.jugadores[d.jugador].nombre))
@@ -1111,6 +1127,15 @@
   const causa = $derived.by(() => {
     if (!fin) return ''
     const v = vista
+    if (v.completa) {
+      const llego = `La cronología se completó con ${v.cronologia.length} cartas en la ronda ${v.ronda}`
+      if (solo) return `${llego}: te ${v.jugadores[0].mano.length === 1 ? 'quedó 1 carta' : `quedaron ${cartas(v.jugadores[0].mano.length)}`}.`
+      // El resto lo cuenta el marcador de debajo.
+      const menos = v.jugadores[fin[0]].mano.length
+      if (menos === 0) return `${llego}. ${nombres(fin)} ${fin.length > 1 ? 'colocaron' : 'colocó'} su última carta en esa ronda.`
+      const varios = fin.length > 1
+      return `${llego}. ${nombres(fin)} ${varios ? 'son quienes acabaron' : 'es quien acabó'} con menos: ${cartas(menos)}${varios ? ' cada uno' : ''}.`
+    }
     if (solo) {
       const j = v.jugadores[0]
       return `Has colocado todas tus cartas: ${j.aciertos} ${j.aciertos === 1 ? 'acierto' : 'aciertos'} y ${j.fallos} ${j.fallos === 1 ? 'fallo' : 'fallos'}.`

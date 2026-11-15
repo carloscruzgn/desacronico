@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import aniosReales from './anios.json'
-import { abandonar, cabe, crear, enRonda, jugar, lugarCorrecto, minimoCartas, mismoAnio, OPCIONES, siguienteEnEmpezar, vecinas, vistaDe, type Anios, type EstadoClasico } from './clasico'
+import { abandonar, cabe, crear, enRonda, jugar, lugarCorrecto, minimoCartas, mismoAnio, OPCIONES, topeValido, siguienteEnEmpezar, vecinas, vistaDe, type Anios, type EstadoClasico } from './clasico'
 
 // Cartas «a1900»… cuyo año va en el propio id.
 const anios: Anios = {}
@@ -223,5 +223,62 @@ describe('modo clásico', () => {
     f.jugadores[0].eliminado = true
     f.turno = 1
     expect(enRonda(f).abre).toBe(1)
+  })
+
+  describe('cronología completa', () => {
+    const conTope = (manos: string[][], tope: number | undefined) => {
+      const e = estado(manos, ['a1010', 'a1020', 'a1025', 'a1030'], ['a1035', 'a1036'])
+      e.opciones.topeCronologia = tope
+      return e
+    }
+
+    it('al cerrar la ronda con el tope, gana quien tenga menos cartas', () => {
+      let e = conTope([['a1015', 'a1016'], ['a1001', 'a1003']], 5)
+      let r
+      ;({ estado: e, resultado: r } = jugar(e, anios, 'a1015', 1))
+      expect(r.ganadores).toEqual([]) // ya hay cinco cartas, pero la ronda no ha terminado
+      ;({ estado: e, resultado: r } = jugar(e, anios, 'a1003', 2)) // falla y roba
+      expect(r.finRonda).toBe(true)
+      expect(r.completa).toBe(true)
+      expect(e.completa).toBe(true)
+      expect(e.ganadores).toEqual([0])
+    })
+
+    it('con las mismas cartas, comparten la victoria', () => {
+      let e = conTope([['a1015', 'a1016'], ['a1001', 'a1003']], 5)
+      ;({ estado: e } = jugar(e, anios, 'a1015', 1))
+      ;({ estado: e } = jugar(e, anios, 'a1001', 0))
+      expect(e.ganadores).toEqual([0, 1])
+    })
+
+    it('los que acaban a la vez con el tope comparten la victoria sin desempatar', () => {
+      let e = conTope([['a1015'], ['a1001'], ['a1002', 'a1003']], 5)
+      ;({ estado: e } = jugar(e, anios, 'a1015', 1))
+      ;({ estado: e } = jugar(e, anios, 'a1001', 0))
+      ;({ estado: e } = jugar(e, anios, 'a1002', 1))
+      expect(e.ganadores).toEqual([0, 1])
+      expect(e.completa).toBe(true)
+    })
+
+    it('quien es el único en acabar gana como siempre, aunque se llegue al tope', () => {
+      let e = conTope([['a1015'], ['a1001', 'a1003']], 5)
+      ;({ estado: e } = jugar(e, anios, 'a1015', 1))
+      ;({ estado: e } = jugar(e, anios, 'a1001', 0))
+      expect(e.ganadores).toEqual([0])
+      expect(e.completa).toBeUndefined()
+    })
+
+    it('las partidas guardadas sin tope siguen sin él', () => {
+      let e = conTope([['a1015', 'a1016'], ['a1001', 'a1003']], undefined)
+      ;({ estado: e } = jugar(e, anios, 'a1015', 1))
+      ;({ estado: e } = jugar(e, anios, 'a1001', 0))
+      expect(e.ganadores).toEqual([])
+    })
+
+    it('el tope va de 15 a 60; si no vale, 30', () => {
+      expect([topeValido(15), topeValido(60), topeValido(45)]).toEqual([15, 60, 45])
+      expect([topeValido(10), topeValido(61), topeValido('x'), topeValido(undefined)]).toEqual([30, 30, 30, 30])
+      expect(crear(ids, ['Ana', 'Luis'], { cartasIniciales: 4, alFallar: 'descartar' }, sinAzar).opciones.topeCronologia).toBe(30)
+    })
   })
 })
