@@ -5,16 +5,18 @@ import { claveAnio, EFECTOS, leerAjustes, trozosCarta, urlAnio, urlCarta, VIBRAC
 const textos = { carta: 'texto de la carta', anio: 'el año dicho' }
 
 describe('sonido: ajuste guardado', () => {
-  it('la primera visita (o un ajuste roto) deja todo apagado', () => {
-    expect(leerAjustes(null)).toEqual({ efectos: false, voz: false })
-    expect(leerAjustes('')).toEqual({ efectos: false, voz: false })
-    expect(leerAjustes('{roto')).toEqual({ efectos: false, voz: false })
-    expect(leerAjustes('"sí"')).toEqual({ efectos: false, voz: false })
-    expect(leerAjustes('{"efectos":"true","voz":1}')).toEqual({ efectos: false, voz: false })
+  it('la primera visita (o un ajuste roto) deja los efectos encendidos y la voz apagada', () => {
+    const inicial = { efectos: true, voz: false, volumen: 0.55 }
+    expect(leerAjustes(null)).toEqual(inicial)
+    expect(leerAjustes('')).toEqual(inicial)
+    expect(leerAjustes('{roto')).toEqual(inicial)
+    expect(leerAjustes('"sí"')).toEqual(inicial)
+    expect(leerAjustes('{"efectos":"true","voz":1,"volumen":3}')).toEqual(inicial)
   })
-  it('lee los dos interruptores por separado', () => {
-    expect(leerAjustes('{"efectos":true}')).toEqual({ efectos: true, voz: false })
-    expect(leerAjustes('{"efectos":false,"voz":true}')).toEqual({ efectos: false, voz: true })
+  it('lee los dos interruptores y el volumen por separado', () => {
+    expect(leerAjustes('{"efectos":true}')).toEqual({ efectos: true, voz: false, volumen: 0.55 })
+    expect(leerAjustes('{"efectos":false,"voz":true}')).toEqual({ efectos: false, voz: true, volumen: 0.55 })
+    expect(leerAjustes('{"efectos":true,"volumen":0.2}')).toEqual({ efectos: true, voz: false, volumen: 0.2 })
   })
 })
 

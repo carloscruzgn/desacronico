@@ -1,6 +1,6 @@
 // Sonido de mesa y voz (ANIM-6, ANIM-5 y A11Y-11). Un solo ajuste, guardado en este aparato, con dos
 // interruptores: efectos (papel y cartulina, más la vibración de refuerzo) y voz (leer cartas y narrar el
-// tutorial). Los dos están apagados en la primera visita. Nada se descarga hasta que hace falta: los efectos,
+// tutorial). En la primera visita, los efectos están encendidos y la voz apagada. Los efectos tienen su volumen. Nada se descarga hasta que hace falta: los efectos,
 // la primera vez que suena uno (o al encenderlos); cada clip de voz, cuando se pide. Nada suena con la
 // pestaña oculta, nada va en bucle y todo se calla con `callar()`.
 //
@@ -16,6 +16,8 @@
 //   sonido.efectos, sonido.voz     estado reactivo (vale en plantillas y $derived/$effect de Svelte 5).
 //   sonido.hablando                true mientras suena una voz (para un botón «Escuchar»/«Parar»).
 //   ponerEfectos(b), ponerVoz(b)   cambian el ajuste y lo guardan. Encender los efectos suena un «voltear».
+//   sonido.volumen, ponerVolumen(v) volumen de los efectos, de 0 a 1 (la voz va al volumen del aparato: en iOS
+//                                  el de un elemento de audio no se puede cambiar desde la página).
 //
 // El AudioContext se crea y se desbloquea en un gesto del usuario (iOS lo exige). Los efectos van por Web Audio
 // (decodeAudioData de MP3); la voz, por un único HTMLAudioElement que se reutiliza (en iOS no lo calla el
@@ -31,24 +33,32 @@ export type Efecto = (typeof EFECTOS)[number]
 export interface Ajustes {
   efectos: boolean
   voz: boolean
+  /** Volumen de los efectos, de 0 a 1. */
+  volumen: number
 }
+
+export const AJUSTES_INICIALES: Ajustes = { efectos: true, voz: false, volumen: 0.55 }
 
 /** Patrones de vibración: del mismo peso al acertar y al fallar, solo como refuerzo. */
 export const VIBRACION = { acierto: [20], fallo: [20, 40, 20] } as const
 
 const CLAVE = 'desacronico.sonido'
-const VOLUMEN_EFECTOS = 0.55
 const PAUSA_VOZ = 260
 
 // ---- Lógica pura (con pruebas en sonido.test.ts) ------------------------------------------------
 
-/** Lee el ajuste guardado. Cualquier cosa rara vale como «todo apagado». */
+/** Lee el ajuste guardado. Lo que falte o sea raro vale lo de la primera visita: efectos sí, voz no. */
 export function leerAjustes(texto: string | null | undefined): Ajustes {
   try {
     const a = JSON.parse(texto ?? 'null') as Partial<Ajustes> | null
-    return { efectos: a?.efectos === true, voz: a?.voz === true }
+    const v = a?.volumen
+    return {
+      efectos: a?.efectos !== false,
+      voz: a?.voz === true,
+      volumen: typeof v === 'number' && v >= 0 && v <= 1 ? v : AJUSTES_INICIALES.volumen,
+    }
   } catch {
-    return { efectos: false, voz: false }
+    return { ...AJUSTES_INICIALES }
   }
 }
 
@@ -85,10 +95,10 @@ function guardado(): Ajustes {
   try {
     return leerAjustes(localStorage.getItem(CLAVE))
   } catch {
-    return { efectos: false, voz: false }
+    return { ...AJUSTES_INICIALES }
   }
 }
-const estado: Ajustes = hayVentana ? guardado() : { efectos: false, voz: false }
+const estado: Ajustes = hayVentana ? guardado() : { ...AJUSTES_INICIALES }
 let hablando = false
 
 let avisar: (() => void) | null = null
@@ -107,6 +117,10 @@ export const sonido = {
   get voz() {
     suscribir()
     return estado.voz
+  },
+  get volumen() {
+    suscribir()
+    return estado.volumen
   },
   get hablando() {
     suscribir()
@@ -134,6 +148,17 @@ export function ponerEfectos(si: boolean) {
   } else contexto?.suspend().catch(() => {})
 }
 
+/** Cambia el volumen de los efectos (0 a 1). Con `probar`, suena un «voltear» para oírlo. */
+export function ponerVolumen(v: number, probar = false) {
+  v = Math.min(1, Math.max(0, v))
+  if (estado.volumen !== v) {
+    estado.volumen = v
+    if (salida) salida.gain.value = v
+    guardar()
+  }
+  if (probar) efecto('voltear')
+}
+
 export function ponerVoz(si: boolean) {
   if (estado.voz === si) return
   estado.voz = si
@@ -157,7 +182,7 @@ function crearContexto(): AudioContext | null {
   try {
     contexto = new C()
     salida = contexto.createGain()
-    salida.gain.value = VOLUMEN_EFECTOS
+    salida.gain.value = estado.volumen
     salida.connect(contexto.destination)
   } catch {
     contexto = null

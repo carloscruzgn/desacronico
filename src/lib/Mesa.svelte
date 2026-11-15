@@ -201,7 +201,7 @@
       lista.push(`Mazo: ${cuales} (${total} cartas)`)
     }
     lista.push(`${o.cartasIniciales} cartas por jugador`)
-    lista.push(o.alFallar === 'recolocar' ? 'Al fallar se recoloca' : 'Al fallar se descarta')
+    lista.push(o.alFallar === 'recolocar' ? 'Tras fallo, se recoloca' : 'Tras fallo, se descarta')
     lista.push(`Ronda ${vista.ronda}`)
     return lista
   })

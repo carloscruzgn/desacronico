@@ -1,6 +1,6 @@
 <script lang="ts">
   // Ajustes de la partida: mazo, cartas iniciales y qué pasa al fallar. Sirve para la local y para la sala en línea.
-  import { MANO_MAX, MANO_MIN, OPCIONES } from '../../compartido/clasico'
+  import { MANO_MAX, MANO_MIN } from '../../compartido/clasico'
   import type { Config } from '../../compartido/protocolo'
   import { AMBITOS, type Ambito } from '../../compartido/tipos'
   import { flip } from 'svelte/animate'
@@ -10,7 +10,7 @@
   import Carta from './Carta.svelte'
   import { cartas, cuentaPorAmbito } from './datos'
   import AjustesSonido from './AjustesSonido.svelte'
-  import { esteAparato, toca } from './aparato'
+  import { toca } from './aparato'
   import { dura } from './movimiento'
 
   interface Props {
@@ -89,12 +89,10 @@
 </section>
 
 <section>
-  <h2>Dificultad</h2>
+  <h2>Ajustes</h2>
+  <h3>Juego</h3>
   <div class="fila">
-    <span>
-      Cartas por jugador
-      <small>{n === OPCIONES.cartasIniciales ? 'como en el reglamento' : n < OPCIONES.cartasIniciales ? 'partida más corta' : 'partida más larga'}</small>
-    </span>
+    <span>Cartas por jugador</span>
     <span class="contador">
       <button disabled={fija || n <= MANO_MIN} aria-label="Menos cartas por jugador" onclick={() => opciones({ cartasIniciales: n - 1 })}>−</button>
       <b aria-live="polite" aria-atomic="true"><span class="sr-only">Cartas por jugador: </span>{n}</b>
@@ -103,23 +101,21 @@
   </div>
   <!-- Botones de opción nativos: las flechas cambian de opción, como en cualquier formulario. -->
   <fieldset class="fallo" disabled={fija}>
-    <legend class="sr-only">Al fallar</legend>
+    <legend class="sr-only">Tras fallo</legend>
     <label>
       <input type="radio" name={nombreGrupo} value="descartar" checked={config.opciones.alFallar === 'descartar'} onchange={() => opciones({ alFallar: 'descartar' })} />
-      <b>Al fallar, se descarta</b>
-      <span>La carta sale de la mesa y se roba otra. Como en el reglamento.</span>
+      <b>Tras fallo, se descarta</b>
+      <span>La carta sale de la mesa y se roba otra.</span>
     </label>
     <label>
       <input type="radio" name={nombreGrupo} value="recolocar" checked={config.opciones.alFallar === 'recolocar'} onchange={() => opciones({ alFallar: 'recolocar' })} />
-      <b>Al fallar, se recoloca</b>
-      <span>La carta se queda en su sitio correcto y se roba otra. Más fácil.</span>
+      <b>Tras fallo, se recoloca</b>
+      <span>La carta se queda en su sitio correcto y se roba otra.</span>
     </label>
   </fieldset>
-</section>
 
-<!-- El sonido es de cada aparato, no de la partida: se puede cambiar aunque los ajustes sean del anfitrión. -->
-<section>
-  <h2>Sonido <small>en {esteAparato()}</small></h2>
+  <!-- El sonido es de cada aparato, no de la partida: se puede cambiar aunque los ajustes sean del anfitrión. -->
+  <h3>Sonido</h3>
   <AjustesSonido />
 </section>
 
@@ -132,6 +128,15 @@
     border-bottom: 1px solid rgb(235 233 217 / 0.25);
     padding-bottom: 0.2em;
   }
+  /* Los apartados de Ajustes: sin filete, más pequeños que el título. */
+  h3 {
+    margin: 1.1em 0 0.5em;
+    font-family: var(--fell-sc);
+    font-weight: normal;
+    font-size: 1.08rem;
+    color: var(--gris-claro);
+  }
+  h2 + h3 { margin-top: 0.6em; }
   small {
     font-family: var(--ui);
     font-style: italic;
@@ -279,10 +284,6 @@
     gap: 12px;
     margin-bottom: 10px;
     font-size: 1.08rem;
-  }
-  .fila small {
-    display: block;
-    margin-left: 0;
   }
   .contador {
     display: inline-flex;

@@ -139,7 +139,7 @@ export const ACLARACIONES: { titulo: string; html: string }[] = [
   { titulo: 'El mazo', html: 'Se puede jugar con una sola serie o con varias mezcladas, como en la mesa.' },
   { titulo: 'Cartas por jugador', html: 'El reglamento dice cuatro. En la web se pueden repartir de 2 a 8, para una partida más corta o más larga.' },
   {
-    titulo: 'Al fallar',
+    titulo: 'Tras fallo',
     html: 'Como en el reglamento, la carta va a los descartes y se roba otra. Con la opción «se recoloca», la carta fallada se queda en su sitio correcto de la cronología, y también se roba otra.',
   },
   { titulo: 'Fechas aproximadas', html: 'Las cartas con <i>c.</i> se ordenan por el año que muestran, como las demás.' },

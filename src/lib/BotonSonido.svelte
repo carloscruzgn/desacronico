@@ -81,7 +81,7 @@
 
   {#if abierto}
     <div class="menu" style:left="{izquierda}px" {id} role="group" aria-label="Sonido">
-      <p class="titulo">Sonido <small>en este aparato</small></p>
+      <p class="titulo">Sonido</p>
       <AjustesSonido sobrePapel />
       {#if sonido.hablando}
         <button class="callar" onclick={callar}>Callar la voz</button>
