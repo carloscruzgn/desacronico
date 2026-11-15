@@ -13,6 +13,9 @@
   import Icono from './Icono.svelte'
   import Marca from './Marca.svelte'
   import { reducido } from './movimiento'
+  import { aparato } from './aparato'
+  import GuiaInstalar from './GuiaInstalar.svelte'
+  import { instalacion, instalarDirecta } from './instalar.svelte'
 
   interface Props {
     hayGuardada: boolean
@@ -28,6 +31,15 @@
   let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas, ontutorial }: Props = $props()
 
   const yaDesplegada = desplegadas++ > 0
+
+  // Instalar la web como app: un enlace discreto bajo el menú, solo donde se puede y si aún no va como app.
+  // Con Chrome o Edge sale su propio diálogo; en iPhone y iPad, la guía de los tres pasos.
+  let guia = $state(false)
+  const dondeInstalar = aparato() === 'móvil' ? ' en tu móvil' : aparato() === 'ordenador' ? ' en tu ordenador' : ''
+  function instalar() {
+    if (instalacion.directa) instalarDirecta()
+    else guia = true
+  }
 
   // Abanico decorativo: cinco cartas al azar, una de cada ámbito
   const abanico = ['comunicacion', 'social', 'cientifico', 'mujer', 'coria'].map(
@@ -130,6 +142,10 @@
     </div>
   </nav>
 
+  {#if instalacion.directa || instalacion.aMano}
+    <button class="instalar" onclick={instalar}><Icono nombre="instalar" lado={24} />Instala la app{dondeInstalar}</button>
+  {/if}
+
   <footer>
     <!-- La franja del icono de la app: las cuatro edades, de la Antigua a la Contemporánea. Solo sale aquí. -->
     <span class="franja" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
@@ -145,6 +161,10 @@
     </span>
   </footer>
 </main>
+
+{#if guia}
+  <GuiaInstalar oncerrar={() => (guia = false)} />
+{/if}
 
 <style>
   main {
@@ -292,6 +312,25 @@
     gap: 10px;
     padding-inline: 14px 8px;
   }
+  /* Instalar: un enlace, no un botón más del menú; se hace una vez y no debe pesar como jugar. */
+  .instalar {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin: -4px 0 14px;
+    padding: 0 8px;
+    border: 0;
+    background: none;
+    color: var(--papel);
+    font: inherit;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: rgb(235 233 217 / 0.5);
+    text-underline-offset: 4px;
+    cursor: pointer;
+  }
+  .instalar:hover { text-decoration-color: currentColor; }
   footer {
     display: grid;
     justify-items: center;

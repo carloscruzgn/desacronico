@@ -87,6 +87,12 @@ const A_MANO = {
     `<path d="M24 14.5C29.5 10.6 35 9.6 39.4 10.1 40.6 10.2 41.5 11.2 41.5 12.4V37.6c0 1.3-1.1 2.3-2.4 2.2C34 39.4 29 40.4 24 43.5z" fill="${P}" ${CONTORNO}/>` +
     `<path d="M30.5 11.6V25.5l2.6-2.4 2.6 2.4V10.3" fill="${A}" ${CONTORNO}/>` +
     `<path d="M10.5 17.5c3.5-.4 7 .3 9.8 2.1M10.5 23c3.5-.4 7 .3 9.8 2.1M10.5 28.5c3.5-.4 7 .3 9.8 2.1" fill="none" ${CONTORNO}/>`,
+  // instalar la app: un móvil (S) con la pantalla en tinta y una flecha (A) que entra en ella
+  instalar:
+    `<rect x="12.5" y="4.5" width="23" height="39" rx="4.5" fill="${S}" ${CONTORNO}/>` +
+    `<rect x="16" y="9.5" width="16" height="27" rx="1.6" fill="var(--tinta)" ${CONTORNO}/>` +
+    `<path d="M21.6 12.5h4.8v9.2h4.4L24 30.2l-6.8-8.5h4.4z" fill="${A}" ${CONTORNO}/>` +
+    `<circle cx="24" cy="40" r="1.3" fill="var(--tinta)"/>`,
   // el altavoz del botón de sonido de la mesa: la caja (S) y la bocina (P); el sonido, en ondas (A), o tachado
   altavoz:
     `<rect x="5" y="17.5" width="9" height="13" rx="2.2" fill="${S}" ${CONTORNO}/>` +
@@ -128,6 +134,8 @@ const ICONOS = {
   sonido: A_MANO.altavoz + A_MANO.onda(5.5, 9, 46) + A_MANO.onda(12.5, 16, 44),
   sonidoUno: A_MANO.altavoz + A_MANO.onda(5.5, 9, 46),
   sonidoApagado: A_MANO.altavoz + A_MANO.aspa,
+  // a mano: el enlace para instalar la web como app, bajo el menú de la portada
+  instalar: A_MANO.instalar,
   // un montón (P) del que sale un abanico de cartas (S), con el trazo del movimiento (10 y 11) en A
   repartir: icono(cuadrante(v4, 0), {
     'rgb(185,76,65)': P, 'rgb(135,158,145)': S, 'rgb(133,146,140)': S,
