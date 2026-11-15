@@ -1,6 +1,6 @@
 # desacrónico
 
-Versión web de *desacrónico*, el juego de cartas para hacer cronologías de Carlos Cruz González y Rodrigo Muñoz Martínez (CEPA de Coria, 2024).
+Versión web de *desacrónico*, un juego de cartas para hacer cronologías de Carlos Cruz González y Rodrigo Muñoz Martínez (CEPA de Coria, 2024).
 
 Las cartas se dibujan en el navegador con el diseño del juego impreso; las partidas en línea las lleva un Worker de Cloudflare con un Durable Object por partida.
 

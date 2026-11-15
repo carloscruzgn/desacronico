@@ -1,7 +1,7 @@
 {
   "name": "desacrónico",
   "short_name": "desacrónico",
-  "description": "El juego de cartas para hacer cronologías del CEPA de Coria.",
+  "description": "Un juego de cartas para hacer cronologías del CEPA Coria.",
   "lang": "es",
   "start_url": "/",
   "display": "standalone",

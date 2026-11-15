@@ -88,7 +88,7 @@
     </div>
 
     <h1 tabindex="-1" data-titulo><Marca /></h1>
-    <p class="lema">El juego de cartas para hacer cronologías</p>
+    <p class="lema">Un juego de cartas para hacer cronologías</p>
   </div>
 
   <nav aria-label="Menú">
