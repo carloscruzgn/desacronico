@@ -37,7 +37,24 @@
   interface Pieza {
     id: string
     volteada: boolean
-    marca: '' | 'ok' | 'fallo'
+    /** «alza»: se levanta para darse la vuelta; «ok»: se asienta de golpe; «fallo»: se queda alzada y ladeada. */
+    marca: '' | 'alza' | 'ok' | 'fallo'
+  }
+  /** La carta que se está revelando (ANIM-7): solo ella se voltea como cartulina y deja caer su año. */
+  let revelada = $state<string | null>(null)
+  /**
+   * El fallo que enseña (ANIM-8): una silueta de papel donde iba la carta, entre `antes` y `despues` de la
+   * cronología, con su etiqueta; y el trazo de lápiz que va de la carta a la silueta.
+   */
+  let sitio = $state<{ antes: string | null; despues: string | null; etiqueta: string } | null>(null)
+  let lapiz = $state<{ d: string; punta: string; ancho: number; alto: number } | null>(null)
+  /** Un toque ha pedido prisa: las animaciones de la jugada en curso saltan a su final. */
+  let deprisa = $state(false)
+  /** Cada carta de la cronología, ladeada un pelo, como puesta a mano (ANIM-11): siempre la misma para la misma carta. */
+  function ladeo(id: string) {
+    let h = 0
+    for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 997
+    return ((h % 17) / 16 - 0.5) * 1.6
   }
 
   // svelte-ignore state_referenced_locally
@@ -148,7 +165,14 @@
   const espera = prisa.espera
   /** Un toque en la mesa mientras se anima una jugada o se lee un aviso: lo que queda va deprisa. */
   function apresurar() {
-    if (ocupado || aviso) prisa.apresurar()
+    if (!ocupado && !aviso) return
+    prisa.apresurar()
+    deprisa = true
+  }
+  /** La jugada ha terminado: lo siguiente vuelve a ir a su paso. */
+  function calmar() {
+    prisa.calma()
+    deprisa = false
   }
 
   const anioDe = (id: string) => anioTexto(fechas[id])
@@ -307,6 +331,44 @@
     cronoEl.scrollTo({ left: x + el.offsetWidth / 2 - cronoEl.clientWidth / 2, behavior: desplazamiento() })
   }
 
+  /** Posición de un elemento de la cronología en la tira, por su sitio en la maquetación (no en pantalla). */
+  function enTira(el: HTMLElement) {
+    let x = 0
+    let y = 0
+    for (let n: HTMLElement | null = el; n && !n.classList.contains('tira'); n = n.offsetParent as HTMLElement | null) {
+      x += n.offsetLeft
+      y += n.offsetTop
+    }
+    return { x, y, w: el.offsetWidth, h: el.offsetHeight }
+  }
+  /** El trazo de lápiz del fallo: de lo alto de la carta fallada a lo alto de la silueta, en un arco bajo; y la
+      vista se coloca para que se vean las dos o, si no caben, la silueta, que es lo que enseña. */
+  function trazar(id: string) {
+    const tira = cronoEl?.querySelector<HTMLElement>('.tira')
+    const carta = cronoEl?.querySelector<HTMLElement>(`.naipe[data-id="${id}"]`)
+    const hueco = cronoEl?.querySelector<HTMLElement>('.silueta')
+    if (!tira || !carta || !hueco) return
+    const c = enTira(carta)
+    const s = enTira(hueco)
+    const y = c.y + c.h * 0.16
+    const x1 = c.x + c.w / 2
+    const x2 = s.x + s.w / 2
+    const dx = x2 - x1
+    const arco = Math.min(c.h * 0.14, Math.abs(dx) * 0.22 + 6)
+    // un pelo de temblor, como a mano
+    const mx = (x1 + x2) / 2
+    const d = `M ${x1} ${y} Q ${mx} ${y - arco * 2} ${x2 - Math.sign(dx) * 6} ${y - 2}`
+    const lado = Math.sign(dx) || 1
+    const punta = `M ${x2 - lado * 16} ${y - 9} L ${x2 - lado * 6} ${y - 2} L ${x2 - lado * 17} ${y + 4}`
+    lapiz = { d, punta, ancho: tira.scrollWidth, alto: tira.offsetHeight }
+    const izq = Math.min(x1, x2) - c.w / 2
+    const der = Math.max(x1, x2) + c.w / 2
+    const visible = cronoEl.clientWidth
+    // Si no caben las dos, la silueta entera junto al borde del lado de la carta, y el lápiz entra desde ese borde.
+    const izqVista = der - izq <= visible ? (izq + der) / 2 - visible / 2 : dx > 0 ? s.x + s.w + 16 - visible : s.x - 16
+    cronoEl.scrollTo({ left: izqVista + tira.offsetLeft, behavior: desplazamiento() })
+  }
+
   /** Tras una jugada, el foco se ha quedado en un hueco que se cierra o en una carta que ya no está:
       va a la mano de quien juega ahora o, si no le toca a este dispositivo, a la carta recién colocada. */
   async function recuperarFoco(id: string) {
@@ -346,6 +408,11 @@
       easing: cubicOut,
       css: (t: number, u: number) => `transform: translateY(${u * 70}%); opacity: ${t}`,
     }
+  }
+  /** La silueta del fallo se abre en la cronología, empujando a las de al lado, y se cierra igual. */
+  function abrir(node: HTMLElement) {
+    const w = node.offsetWidth
+    return { duration: dura(300), easing: cubicOut, css: (t: number) => `width: ${t * w}px; margin-inline: ${t * 4}px; opacity: ${t}` }
   }
   const [enviar, recibir] = crossfade({ duration: () => dura(480), easing: cubicOut, fallback: entrada })
 
@@ -410,9 +477,11 @@
       crono.push({ id: v.cronologia[0], volteada: false, marca: '' })
       await espera(520)
       anotar(inicial.fechas)
+      revelada = v.cronologia[0]
       crono[0].volteada = true
       efecto('voltear')
-      await espera(450)
+      await espera(900)
+      revelada = null
       for (const id of v.jugadores[visible]?.mano ?? []) {
         mano.push(id)
         efecto('repartir')
@@ -428,7 +497,7 @@
       if (!local && v.turno === asiento) control.tuTurno?.()
       await avisar(cinta)
     }
-    prisa.calma()
+    calmar()
     ocupado = false
   }
 
@@ -523,7 +592,7 @@
     const suya = visible === jugador
     /** La partida antes de la jugada: con ella se dice dónde iba la carta. */
     const antes = vista
-    prisa.calma()
+    calmar()
     ocupado = true
     // Quien lee una de sus cartas mientras juega otro no pierde la selección.
     if (seleccionada === id || visible === jugador) seleccionada = null
@@ -541,12 +610,15 @@
     centrar(id)
     await espera(300)
 
-    // 2. Se voltea y enseña el año
+    // 2. La revelación (ANIM-7): la carta se alza, se voltea como una cartulina, la banda se estampa con el color
+    //    de su era y caen las cifras del año. Al acertar, se asienta de golpe. Todo en 1,8 s como mucho.
     const pieza = crono.find((p) => p.id === id)!
     anotar(s.fechas)
+    revelada = id
+    pieza.marca = 'alza'
     pieza.volteada = true
     efecto('voltear')
-    await espera(800)
+    await espera(900)
 
     // Cómo se cuenta: «tú» si la jugada es de este dispositivo; si no, con el nombre.
     const quien = antes.jugadores[jugador]?.nombre ?? ''
@@ -569,6 +641,7 @@
       // El veredicto se ve al menos 600 ms aunque se toque la mesa.
       await espera(800, 600)
       pieza.marca = ''
+      revelada = null
     } else {
       // Dónde iba: entre qué años de la cronología que había antes de jugar.
       const [a, b] = vecinas(antes.cronologia, anios, id)
@@ -591,7 +664,16 @@
       partes.push(`No encaja: ${dondeDicho}. ${destino}.${sinMazo ? ' Se acabó el mazo: se barajan los descartes.' : ''}${roba ? ` ${roba} carta.` : ''}`)
       detalle = `${donde} · ${detalle}`
       if (suya || tu) vibrar('fallo')
-      await espera(1700, 600)
+      // El fallo enseña (ANIM-8): la silueta se abre donde iba, el lápiz va de la carta a ella y la etiqueta lo
+      // dice. En la misma pausa de siempre: con lo que tarda la carta en irse, menos de 3 s.
+      sitio = { antes: a, despues: b, etiqueta: junto ? `junto a la de ${anioDe(a)}` : a && b ? `entre ${anioDe(a)} y ${anioDe(b)}` : a ? `después de ${anioDe(a)}` : `antes de ${anioDe(b!)}` }
+      await tick()
+      await espera(320)
+      revelada = null
+      trazar(id)
+      await espera(1380, 600)
+      lapiz = null
+      sitio = null
       if (r.recolocada === null) {
         // 3a. Fallo: a los descartes
         crono = crono.filter((p) => p.id !== id)
@@ -644,7 +726,7 @@
       await espera(300)
       fin = v.ganadores
       verFin = true
-      prisa.calma()
+      calmar()
       return
     }
 
@@ -691,7 +773,7 @@
       }
     }
     if (seleccionada && !mano.includes(seleccionada)) seleccionada = null
-    prisa.calma()
+    calmar()
     ocupado = false
     recuperarFoco(id)
   }
@@ -767,7 +849,7 @@
 />
 
 <!-- Un toque en cualquier sitio de la mesa acelera lo que queda de la jugada (MENU-15). -->
-<main class="mesa" class:eligiendo={puedeColocar} class:acabada={!!fin} onpointerdown={apresurar}>
+<main class="mesa" class:eligiendo={puedeColocar} class:acabada={!!fin} class:deprisa onpointerdown={apresurar}>
   <h1 class="sr-only" tabindex="-1" data-titulo>Partida</h1>
   <header class="barra">
     <BotonIcono icono="atras" etiqueta={fin ? 'Salir al menú' : 'Salir o abandonar la partida'} onclick={() => (fin ? onsalir() : (menu = true))} />
@@ -830,29 +912,47 @@
     <!-- Cada carta lleva delante su hueco; la última, también el de detrás. Así la lista tiene una entrada por carta. -->
     <div class="tira" class:entintada={!!fin && !solo} role="list" style:--n={Math.max(1, crono.length)}>
       {#each crono as p, i (p.id)}
-        <div class="pieza" role="listitem" animate:flip={{ duration: dura(600), easing: cubicOut }}>
+        <!-- Cada carta dibuja su tramo de la línea del tiempo, del color de su era (ANIM-11). -->
+        {@const era = p.volteada && p.marca !== 'fallo' && p.marca !== 'alza' && fechas[p.id] ? eraDe(fechas[p.id].anio) : null}
+        <div class="pieza {era ? `tramo ${era}` : ''}" class:nuevo={p.marca === 'ok'} style:--orden={i} role="listitem" animate:flip={{ duration: dura(600), easing: cubicOut }}>
+          {#if sitio && sitio.despues === p.id}
+            <div class="silueta" transition:abrir aria-hidden="true"><span class="iba"><i>Iba aquí:</i> <span class="cifras">{sitio.etiqueta}</span></span></div>
+          {/if}
           <button class="hueco" inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
             <span>+</span>
           </button>
           <button
             class="naipe"
             data-id={p.id}
+            style:--ladeo="{ladeo(p.id)}deg"
             in:recibir={{ key: p.id }}
             out:enviar={{ key: p.id }}
             onclick={() => (ampliada = { id: p.id, reverso: p.volteada })}
             aria-label="{p.volteada && anioDe(p.id) ? anioDicho(p.id) + '. ' : ''}{textoPlano(porId[p.id])}"
           >
             <div class="cuerpo {p.marca}">
-              <Carta carta={porId[p.id]} fecha={fechas[p.id]} volteada={p.volteada} />
+              <Carta carta={porId[p.id]} fecha={fechas[p.id]} volteada={p.volteada} revelar={revelada === p.id} />
             </div>
           </button>
           {#if i === crono.length - 1}
             <button class="hueco" inert={!puedeColocar} onclick={() => jugarEn(crono.length)} aria-label="Colocar aquí, al final, después de {anioDicho(p.id, false) || 'la última'}">
               <span>+</span>
             </button>
+            {#if sitio && !sitio.despues}
+              <div class="silueta" transition:abrir aria-hidden="true"><span class="iba"><i>Iba aquí:</i> <span class="cifras">{sitio.etiqueta}</span></span></div>
+            {/if}
           {/if}
         </div>
       {/each}
+      {#if lapiz}
+        <!-- El trazo de lápiz que va de la carta fallada a su sitio. -->
+        <svg class="lapiz" style:width="{lapiz.ancho}px" style:height="{lapiz.alto}px" viewBox="0 0 {lapiz.ancho} {lapiz.alto}" aria-hidden="true">
+          <path class="halo" d={lapiz.d} pathLength="1" />
+          <path class="trazo" d={lapiz.d} pathLength="1" />
+          <path class="halo punta" d={lapiz.punta} pathLength="1" />
+          <path class="trazo punta" d={lapiz.punta} pathLength="1" />
+        </svg>
+      {/if}
     </div>
   </div>
 
@@ -1386,21 +1486,90 @@
   .acabada .tira {
     --carta-crono: clamp(min(var(--alto), max(124px, 54cqw), 260px), var(--reparto), min(260px, var(--alto)));
   }
-  /* Al acabar, la línea del tiempo se entinta de punta a punta, como una pasada de rodillo. */
-  .tira.entintada::before {
+  /* La línea del tiempo, por eras (ANIM-11): cada carta descubierta pinta su tramo, del color de su era, sobre la
+     línea grabada. El color dice la era, no adorna. El tramo nuevo se entinta al acertar, como una pasada de
+     rodillo; al acabar la partida, la cronología entera se vuelve a entintar de punta a punta. */
+  .pieza.tramo::before {
     content: '';
     position: absolute;
-    left: 6px;
-    right: 6px;
-    top: calc(50% - 1px);
-    height: 2.5px;
-    border-radius: 2px;
-    background: rgb(235 233 217 / 0.7);
+    z-index: -1;
+    left: 0;
+    right: 0;
+    top: calc(50% - 1.5px);
+    height: 3px;
+    background: var(--tramo);
+    opacity: 0.85;
     transform-origin: left;
-    animation: entintar 1.4s var(--curva-deslizar) 0.5s both;
+  }
+  .tramo.antigua { --tramo: var(--antigua); }
+  .tramo.media { --tramo: var(--media); }
+  .tramo.moderna { --tramo: var(--moderna); }
+  .tramo.contemporanea { --tramo: var(--contemporanea); }
+  .pieza.tramo.nuevo::before {
+    animation: entintar 0.45s var(--curva-deslizar) both;
+  }
+  .tira.entintada .pieza.tramo::before {
+    animation: entintar 0.5s var(--curva-deslizar) calc(0.4s + min(var(--orden), 24) * 0.06s) both;
   }
   @keyframes entintar {
     from { transform: scaleX(0); }
+  }
+
+  /* El fallo que enseña (ANIM-8): la silueta de papel del sitio donde iba la carta, con su etiqueta, y el trazo
+     de lápiz de grafito que va de la carta a ella. */
+  .silueta {
+    flex: none;
+    position: relative;
+    z-index: 1;
+    width: var(--carta-crono);
+    aspect-ratio: 554 / 766;
+    margin: 0 4px;
+    display: grid;
+    place-items: center;
+    padding: 6%;
+    border: 2px dashed rgb(235 233 217 / 0.8);
+    border-radius: calc(var(--carta-crono) * 0.04);
+    /* opaca, como las cartas: tapa la línea del tiempo, que aquí aún no tiene tramo */
+    background: linear-gradient(rgb(235 233 217 / 0.08), rgb(235 233 217 / 0.08)), var(--tapete-2);
+    overflow: hidden;
+  }
+  .iba {
+    color: var(--papel);
+    font-size: clamp(0.85rem, calc(var(--carta-crono) * 0.085), 1.2rem);
+    line-height: 1.2;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .iba i { display: block; }
+  .iba .cifras { font-weight: 700; }
+  .lapiz {
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    top: 0;
+    overflow: visible;
+    pointer-events: none;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .lapiz path {
+    stroke-dasharray: 1;
+    animation: trazar 0.5s var(--curva-deslizar) both;
+  }
+  .lapiz .punta { animation-delay: 0.45s; animation-duration: 0.15s; }
+  /* grafito sobre una sombra fina, para que se lea igual sobre una carta clara que sobre el tapete */
+  .lapiz .halo {
+    stroke: rgb(0 0 0 / 0.45);
+    stroke-width: 5;
+  }
+  .lapiz .trazo {
+    stroke: #d9d7c8;
+    stroke-width: 2.2;
+  }
+  @keyframes trazar {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
   }
 
   /* La tira de años y el botón de la lista */
@@ -1431,9 +1600,11 @@
     cursor: pointer;
   }
 
+  /* Ladeada un pelo, ±0,8°, como puesta a mano en la mesa (ANIM-11). */
   .crono .naipe {
     --ancho: var(--carta-crono);
     margin: 0 4px;
+    rotate: var(--ladeo, 0deg);
   }
 
   /* El hueco: la silueta discontinua de una carta, en color papel. Late dos veces al aparecer y se queda quieto. */
@@ -1490,13 +1661,22 @@
       transform 0.25s var(--curva-posar),
       filter 0.25s;
   }
-  /* Acierto: la carta se asienta en la mesa con un golpe seco. Fallo: se levanta un poco y se ladea, sin
-     halo ni sacudida; lo que ha pasado lo dice el texto. */
+  /* La revelación: la carta se alza para darse la vuelta, con la sombra más larga. Acierto: se asienta en la mesa
+     con un golpe seco, que acelera y para en seco. Fallo: se queda alzada y se ladea, sin halo ni sacudida; lo
+     que ha pasado lo dicen el texto, la silueta y el lápiz. */
+  .cuerpo.alza {
+    transform: translateY(-5%) scale(1.03);
+    filter: drop-shadow(0 14px 10px rgb(0 0 0 / 0.45));
+    transition-duration: 0.16s;
+  }
   .cuerpo.ok {
-    animation: asentar 0.32s var(--curva-posar);
+    animation: asentar 0.16s cubic-bezier(0.55, 0, 1, 0.45);
   }
   @keyframes asentar {
-    from { transform: translateY(-8px) scale(1.03); }
+    from {
+      transform: translateY(-5%) scale(1.03);
+      filter: drop-shadow(0 14px 10px rgb(0 0 0 / 0.45));
+    }
   }
   .cuerpo.fallo {
     transform: translateY(-6px) rotate(-4deg);
@@ -2109,11 +2289,21 @@
     .titulo { visibility: hidden; }
   }
 
+  /* Con prisa (un toque en la mesa), lo que se estaba animando salta a su final. */
+  .deprisa .crono :global(*),
+  .deprisa .crono :global(*::before),
+  .deprisa .crono :global(*::after) {
+    animation-duration: 1ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 1ms !important;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .ganadora,
     .gira,
     .sello,
-    .tira.entintada::before,
+    .pieza.tramo::before,
+    .lapiz path,
     .eligiendo .hueco,
     .cuerpo.ok {
       animation: none;

@@ -26,8 +26,14 @@
     imagen?: 'mini' | 'grande' | 'auto'
     /** Aquí la carta no se da la vuelta: no se descarga la ilustración del reverso. */
     soloAnverso?: boolean
+    /** Al darse la vuelta, la revelación de la mesa (ANIM-7): se voltea como una cartulina, con el canto
+        oscurecido; la banda se estampa con el color de su era desde el gris y caen las cifras del año. */
+    revelar?: boolean
   }
-  let { carta, fecha = null, volteada = false, imagen = 'auto', soloAnverso = false }: Props = $props()
+  let { carta, fecha = null, volteada = false, imagen = 'auto', soloAnverso = false, revelar = false }: Props = $props()
+  const anio = $derived(anioTexto(fecha))
+  /** Las letras del año, una a una, para que caigan como tipos móviles: cada una es la de verdad. */
+  const tipos = $derived([...anio])
 
   const oscura = $derived(carta.ambito === 'social' || carta.ambito === 'mujer' || carta.ambito === 'coria')
   const era = $derived(fecha ? eraDe(fecha.anio) : null)
@@ -51,7 +57,7 @@
   const llega = (e: Event) => (e.currentTarget as HTMLElement).classList.add('llegada')
 </script>
 
-<div class="carta {carta.ambito}" class:oscura class:volteada bind:clientWidth={ancho}>
+<div class="carta {carta.ambito}" class:oscura class:volteada class:revela={revelar} bind:clientWidth={ancho}>
   <div class="giro">
     <!-- El lector de pantalla solo lee la cara que se ve (A11Y-6). -->
     <div class="cara anverso" aria-hidden={volteada ? 'true' : undefined}>
@@ -68,8 +74,8 @@
         {#if srcReverso && (!soloAnverso || volteada)}<img src={srcReverso} alt="" loading="lazy" draggable="false" onload={llega} onerror={llega} />{/if}
         <div class="pestana {carta.logoReverso}"><img src="/img/cepa.svg" alt="" draggable="false" /></div>
       </div>
-      <div class="banda {era ?? ''}" class:larga={anioTexto(fecha).length > 14}>
-        {anioTexto(fecha)}
+      <div class="banda {era ?? ''}" class:larga={anio.length > 14}>
+        {#if revelar}<span class="tipos">{#each tipos as t, k (k)}<span class="tipo" style:--k={k}>{t}</span>{/each}</span>{:else}{anio}{/if}
       </div>
       <hr />
       <div class="texto"><p>{@html carta.texto}</p></div>
@@ -310,8 +316,64 @@
     }
   }
 
+  /* La revelación (ANIM-7), en 1 s: la cartulina gira sin pasarse de los 180° y su cara se oscurece al ponerse
+     de canto; la banda pasa del gris al color de su era con un golpe de tampón y las cifras caen una a una,
+     cada una la suya, como tipos móviles. Nada rebota. */
+  .revela.volteada .giro {
+    transition: none;
+    animation: voltear-cartulina 0.48s var(--curva-voltear) 0.08s both;
+  }
+  @keyframes voltear-cartulina {
+    from { transform: rotateY(0deg); }
+    to { transform: rotateY(180deg); }
+  }
+  .revela .cara::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .revela.volteada .cara::after {
+    animation: canto 0.48s linear 0.08s both;
+  }
+  @keyframes canto {
+    50% { opacity: 0.5; }
+    to { opacity: 0; }
+  }
+  .revela.volteada .banda {
+    animation: estampar-banda 0.24s var(--curva-posar) 0.5s both;
+  }
+  @keyframes estampar-banda {
+    from {
+      background-color: var(--gris);
+      transform: scale(1.04);
+    }
+  }
+  .tipo {
+    display: inline-block;
+    white-space: pre;
+  }
+  .revela.volteada .tipo {
+    animation: caer 0.2s var(--curva-posar) calc(0.52s + var(--k) * 0.035s) both;
+  }
+  @keyframes caer {
+    from {
+      transform: translateY(-75%);
+      opacity: 0;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .giro { transition-duration: 0.01s; }
     .ilustracion > img { transition: none; }
+    .revela.volteada .giro,
+    .revela.volteada .cara::after,
+    .revela.volteada .banda,
+    .revela.volteada .tipo {
+      animation: none;
+    }
   }
 </style>
