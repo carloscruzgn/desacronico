@@ -125,7 +125,7 @@
         <span><b>Cómo se juega</b></span>
       </button>
       <button class="entrada" onclick={onreglas}>
-        <Icono nombre="reglas" lado={28} />
+        <Icono nombre="reglas" lado={30} />
         <span><b>Reglamento</b></span>
       </button>
     </div>

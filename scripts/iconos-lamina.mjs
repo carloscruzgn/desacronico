@@ -67,6 +67,12 @@ const A_MANO = {
     `<path d="M23.6 13.6 32.4 11V43.2L23.6 46z" fill="${S}" ${CONTORNO}/>` +
     `<path d="M18.6 25.9A6.4 6.4 0 1 1 22.6 25.9V31H26V34H22.6V35.6H25.2V38.6H22.6V41.4L20.6 43.6 18.6 41.4z" fill="${P}" ${CONTORNO}/>` +
     `<circle cx="20.6" cy="19.8" r="2.3" fill="currentColor" ${CONTORNO}/>`,
+  // un libro abierto de esquinas redondeadas (P), con tres renglones y el marcapáginas (A)
+  reglas:
+    `<path d="M24 14.5C18.5 10.6 13 9.6 8.6 10.1 7.4 10.2 6.5 11.2 6.5 12.4V37.6c0 1.3 1.1 2.3 2.4 2.2C14 39.4 19 40.4 24 43.5z" fill="${P}" ${CONTORNO}/>` +
+    `<path d="M24 14.5C29.5 10.6 35 9.6 39.4 10.1 40.6 10.2 41.5 11.2 41.5 12.4V37.6c0 1.3-1.1 2.3-2.4 2.2C34 39.4 29 40.4 24 43.5z" fill="${P}" ${CONTORNO}/>` +
+    `<path d="M30.5 11.6V25.5l2.6-2.4 2.6 2.4V10.3" fill="${A}" ${CONTORNO}/>` +
+    `<path d="M10.5 17.5c3.5-.4 7 .3 9.8 2.1M10.5 23c3.5-.4 7 .3 9.8 2.1M10.5 28.5c3.5-.4 7 .3 9.8 2.1" fill="none" ${CONTORNO}/>`,
 }
 
 const ICONOS = {
@@ -86,10 +92,8 @@ const ICONOS = {
   juega: icono(cuadrante(v1, 2), {
     'rgb(197,116,120)': P, 'rgb(186,151,43)': S, 'rgb(78,142,154)': P, 'rgb(251,249,249)': S,
   }, { 4: A }),
-  // un cuadernillo abierto (P, las dos páginas) con el marcapáginas (A); no lleva secundario
-  reglas: icono(cuadrante(v1, 3), {
-    'rgb(186,151,43)': P, 'rgb(197,116,120)': P, 'rgb(78,142,154)': A,
-  }, { 4: A }),
+  // a mano: el cuadernillo de Recraft era de esquinas vivas y desentonaba con los demás
+  reglas: A_MANO.reglas,
   // un montón (P) del que sale un abanico de cartas (S)
   repartir: icono(cuadrante(v4, 0), {
     'rgb(185,76,65)': P, 'rgb(135,158,145)': S, 'rgb(133,146,140)': S,
