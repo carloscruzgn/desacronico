@@ -64,7 +64,8 @@
 
   /* Identidad de la web: el tapete y el papel, más tres colores que casan con ellos.
      Principal (terracota), secundario (salvia) y acento (mostaza), en esa proporción de uso:
-     iconos propios, franja de la portada y detalles. No son los de las edades, que son de las cartas. */
+     iconos propios y detalles. Los de las edades son de las cartas (y de la franja del pie de la portada,
+     que liga con el icono de la app). */
   --principal: #b8613f;
   --secundario: #8aa58f;
   --acento: #d0a046;

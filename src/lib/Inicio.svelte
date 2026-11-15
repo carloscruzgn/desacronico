@@ -131,8 +131,8 @@
   </nav>
 
   <footer>
-    <!-- La franja de la identidad: principal, secundario y acento. -->
-    <span class="franja" aria-hidden="true"><i></i><i></i><i></i></span>
+    <!-- La franja del icono de la app: las cuatro edades, de la Antigua a la Contemporánea. Solo sale aquí. -->
+    <span class="franja" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
     <!-- «dac», como el icono de la app, junto al logo del CEPA. -->
     <span class="sellos">
       <span class="dac" aria-hidden="true"><span class="d">d</span><span class="a">a</span>c</span>
@@ -301,7 +301,7 @@
     line-height: 1.4;
   }
 
-  /* La franja de la identidad, de lado a lado de la pantalla. */
+  /* La franja de las edades, de lado a lado de la pantalla. */
   .franja {
     display: flex;
     width: 100vw;
@@ -309,9 +309,10 @@
     margin-bottom: 12px;
   }
   .franja i { flex: 1; }
-  .franja i:nth-child(1) { background: var(--principal); }
-  .franja i:nth-child(2) { background: var(--secundario); }
-  .franja i:nth-child(3) { background: var(--acento); }
+  .franja i:nth-child(1) { background: var(--antigua); }
+  .franja i:nth-child(2) { background: var(--media); }
+  .franja i:nth-child(3) { background: var(--moderna); }
+  .franja i:nth-child(4) { background: var(--contemporanea); }
   .sellos {
     display: flex;
     align-items: center;
