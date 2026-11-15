@@ -94,6 +94,20 @@
   --curva-voltear: cubic-bezier(0.45, 0, 0.25, 1);
   --curva-deslizar: cubic-bezier(0.3, 0.1, 0.2, 1);
 
+  /* Superficies (UI-16). Dos radios: el de las fichas (botones, etiquetas, avisos, la ficha de una carta) y el
+     de las hojas (ventanas y paneles de papel). Un canto común de cartulina para lo que se apoya en la mesa,
+     la sombra larga de las hojas y un solo borde para los botones fantasma, en el color de su letra: sirve
+     igual sobre el tapete que sobre el papel. */
+  --radio-ficha: 8px;
+  --radio-hoja: 14px;
+  --canto:
+    0 2px 0 #b9b6a0,
+    0 6px 14px rgb(0 0 0 / 0.35);
+  --sombra-hoja:
+    0 2px 0 #b9b6a0,
+    0 20px 60px rgb(0 0 0 / 0.6);
+  --borde-fantasma: inset 0 0 0 1px color-mix(in srgb, currentColor 45%, transparent);
+
   /* Dos voces: IM Fell da el tono (marca, cartas, títulos, avisos); Alegreya Sans lleva la interfaz. */
   --fell: 'Fell', 'Times New Roman', serif;
   --fell-sc: 'Fell SC', 'Fell', serif;
@@ -144,7 +158,7 @@ button {
   min-height: 48px;
   padding: 0.5em 1.4em;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radio-ficha);
   background: var(--grano-papel), var(--papel);
   color: var(--tinta);
   font-family: var(--ui);
@@ -152,9 +166,7 @@ button {
   font-size: 1.15rem;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow:
-    0 2px 0 #b9b6a0,
-    0 6px 14px rgb(0 0 0 / 0.35);
+  box-shadow: var(--canto);
   transition:
     transform 0.12s,
     box-shadow 0.12s,
@@ -176,7 +188,7 @@ button {
 .boton.secundario {
   background: transparent;
   color: var(--papel);
-  box-shadow: inset 0 0 0 1px rgb(235 233 217 / 0.45);
+  box-shadow: var(--borde-fantasma);
 }
 .boton.pequeno {
   min-height: 40px;

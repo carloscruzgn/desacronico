@@ -10,8 +10,12 @@
     gesto?: 'normal' | 'pensando' | 'gana' | 'pierde'
     /** Cartas en la mano; sin ello no se pinta la pestaña. */
     n?: number
+    /** Ya no juega esta partida: la pestaña dice «fuera» en vez del número de cartas. */
+    fuera?: boolean
+    /** Abre la ronda: una etiqueta de papel en el canto de arriba. */
+    abre?: boolean
   }
-  let { avatar = '', nombre = '', gesto = 'normal', n }: Props = $props()
+  let { avatar = '', nombre = '', gesto = 'normal', n, fuera = false, abre = false }: Props = $props()
 </script>
 
 <span class="moneda {gesto}">
@@ -22,9 +26,12 @@
   {:else}
     <span class="inicial" aria-hidden="true">{nombre.trim().charAt(0).toUpperCase() || '?'}</span>
   {/if}
-  {#if n !== undefined}
+  {#if fuera}
+    <span class="cuenta fuera">fuera<span class="sr-only"> de la partida</span></span>
+  {:else if n !== undefined}
     <span class="cuenta">{n}<span class="sr-only">{n === 1 ? ' carta' : ' cartas'}</span></span>
   {/if}
+  {#if abre}<span class="abre">abre<span class="sr-only"> la ronda</span></span>{/if}
 </span>
 
 <style>
@@ -81,6 +88,31 @@
     font-size: calc(var(--lado, 46px) * 0.4);
     line-height: 1.35;
     text-align: center;
+  }
+  .cuenta.fuera {
+    right: -18%;
+    padding: 0 6%;
+    font-family: var(--ui);
+    font-style: italic;
+    font-size: calc(var(--lado, 46px) * 0.27);
+    line-height: 1.45;
+  }
+  /* Quien abre la ronda: una etiqueta de papel pegada arriba, del mismo papel que la de las cartas. */
+  .abre {
+    position: absolute;
+    left: -16%;
+    top: -12%;
+    padding: 0 5%;
+    border-radius: 3px;
+    background: var(--papel-2);
+    color: var(--tinta);
+    box-shadow:
+      0 0 0 1px rgb(29 29 27 / 0.55),
+      0 2px 4px rgb(0 0 0 / 0.5);
+    font-style: italic;
+    font-size: calc(var(--lado, 46px) * 0.27);
+    line-height: 1.45;
+    rotate: -8deg;
   }
   /* Las imágenes de la moneda perdedora ya vienen apagadas; se remata con un punto menos de color. */
   .pierde img { filter: saturate(0.7); }

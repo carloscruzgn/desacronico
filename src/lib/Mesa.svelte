@@ -2,20 +2,24 @@
   import { onMount, tick } from 'svelte'
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
-  import { crossfade, fade, scale } from 'svelte/transition'
-  import { mismoAnio, vecinas, type Anios, type VistaClasico } from '../../compartido/clasico'
+  import { crossfade, fade, fly, scale } from 'svelte/transition'
+  import { enRonda, mismoAnio, vecinas, type Anios, type VistaClasico } from '../../compartido/clasico'
   import { AMBITOS, eraDe, type Fecha } from '../../compartido/tipos'
+  import Ampliada from './Ampliada.svelte'
   import Carta from './Carta.svelte'
   import type { Controlador, Suceso } from './control'
   import { anioHablado, anioTexto, cuentaPorAmbito, enLista, enMillones, porId, textoPlano } from './datos'
   import BotonIcono from './BotonIcono.svelte'
   import Confirmar from './Confirmar.svelte'
   import { dialogo } from './dialogo'
+  import ListaCrono from './ListaCrono.svelte'
   import { desplazamiento, dura } from './movimiento'
   import Marca from './Marca.svelte'
   import Mazo from './Mazo.svelte'
   import Moneda from './Moneda.svelte'
+  import { crearPrisa, tiempoDeLectura } from './prisa'
   import Reglas from './Reglas.svelte'
+  import TiraAnios from './TiraAnios.svelte'
 
   interface Props {
     control: Controlador
@@ -47,15 +51,30 @@
   let visible = $state(manoDe(inicial.vista))
   let cuentas = $state(inicial.vista.jugadores.map((j) => j.mano.length))
   let nMazo = $state(inicial.vista.nMazo)
-  let nDescartes = $state(inicial.vista.descartes.length)
-  let descarte = $state<string[]>(inicial.vista.descartes.slice(-1))
+  /** Todas las cartas descartadas, de la primera a la última: la pila enseña la última y la lista, todas. */
+  let descartes = $state<string[]>([...inicial.vista.descartes])
   let fechas = $state<Record<string, Fecha>>({})
   let seleccionada = $state<string | null>(null)
   let ocupado = $state(true)
-  let aviso = $state<string | null>(null)
+  /**
+   * Un aviso en la franja de la leyenda, sin tapar la cronología (UI-6, ANIM-9, INFO-8). El de turno es una cinta de
+   * papel con la moneda del jugador («Turno de» y el nombre); los excepcionales llevan un título corto y una línea
+   * de detalle («¡Desempate!» / «Ana y Benito roban una carta»).
+   */
+  interface Aviso {
+    titulo: string
+    /** Delante del título, en cursiva: «Turno de», «Empieza». */
+    antes?: string
+    detalle?: string
+    /** Jugador cuya moneda lleva la cinta. */
+    jugador?: number
+  }
+  let aviso = $state<Aviso | null>(null)
   let ampliada = $state<{ id: string; reverso: boolean } | null>(null)
   let fin = $state<number[] | null>(null)
   let verFin = $state(false)
+  let verLista = $state(false)
+  let pestanaLista = $state<'cronologia' | 'descartes'>('cronologia')
   interface Veredicto {
     tipo: 'ok' | 'fallo' | 'recoloca'
     titulo: string
@@ -95,12 +114,13 @@
   $effect(() => {
     const c = chips[vista.turno]
     const lista = c?.parentElement
-    if (c && lista) lista.scrollTo({ left: c.offsetLeft - lista.offsetLeft - lista.clientWidth / 2 + c.offsetWidth / 2, behavior: desplazamiento() })
+    if (!c || !lista || lista.scrollWidth <= lista.clientWidth) return
+    lista.scrollTo({ left: c.offsetLeft - lista.offsetLeft - lista.clientWidth / 2 + c.offsetWidth / 2, behavior: desplazamiento() })
   })
 
   /** Con teclado, las flechas llevan de la carta elegida a los huecos y de un hueco a otro. */
   function flechas(e: KeyboardEvent) {
-    if (!puedeColocar || ampliada || reglas || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
+    if (!puedeColocar || ampliada || reglas || verLista || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
     const huecos = [...cronoEl.querySelectorAll<HTMLElement>('.hueco')]
     const i = huecos.indexOf(document.activeElement as HTMLElement)
     const paso = e.key === 'ArrowLeft' ? -1 : 1
@@ -112,12 +132,20 @@
   // jugada y la mano ha cambiado, no sirve para colocar.
   const puedeColocar = $derived(!!seleccionada && mano.includes(seleccionada) && !ocupado && miTurno)
   const nombreTurno = $derived(vista.jugadores[vista.turno]?.nombre ?? '')
+
+  /** Las pausas de cada jugada se acortan si se toca la mesa (MENU-15). */
+  const prisa = crearPrisa()
   /** Pausa entre los pasos de una animación: con movimiento reducido no hay animación y no se espera. */
-  const espera = (ms: number) => new Promise((r) => setTimeout(r, dura(ms)))
-  /** Tiempo para leer un aviso: no depende del movimiento. */
-  const leer = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  const espera = prisa.espera
+  /** Un toque en la mesa mientras se anima una jugada o se lee un aviso: lo que queda va deprisa. */
+  function apresurar() {
+    if (ocupado || aviso) prisa.apresurar()
+  }
+
   const anioDe = (id: string) => anioTexto(fechas[id])
   const anioDicho = (id: string | null, conCirca = true) => (id ? anioHablado(fechas[id], conCirca) : '')
+  /** El año para la tira y el intervalo: sin la «c.» y con los millones en corto. */
+  const anioCorto = (id: string) => (fechas[id] ? anioTexto({ anio: fechas[id].anio, circa: false }).replace(' millones', ' M') : '')
   /** Las dos primeras jugadas de cada jugador llevan la pista de cómo se juega. */
   const novato = (i: number) => (vista.jugadores[i] ? vista.jugadores[i].aciertos + vista.jugadores[i].fallos < 2 : false)
 
@@ -136,6 +164,32 @@
     return lista
   })
 
+  /** La ronda en curso: quién la abre, quién falta y quién ya no tiene cartas (INFO-1). */
+  const ronda = $derived(enRonda(vista))
+  /**
+   * La franja de la ronda, siempre a la vista entre los jugadores y la cronología. Se calcula desde la vista, así
+   * que también sale bien al retomar una partida o al reconectar.
+   */
+  const franja = $derived.by(() => {
+    if (solo) return null
+    const v = vista
+    const nombre = (i: number) => v.jugadores[i].nombre
+    if (fin) return { ronda: `Ronda ${v.ronda}`, estado: 'Fin de la partida' }
+    let estado = ''
+    const empatados = (v.desempate ?? []).filter((i) => !v.jugadores[i].eliminado)
+    if (empatados.length > 1) {
+      const fueraJ = v.jugadores.flatMap((j, i) => (j.eliminado ? [i] : []))
+      estado = `Desempate entre ${enLista(empatados.map(nombre))}`
+      if (fueraJ.length) estado += ` · ${enLista(fueraJ.map(nombre))} ${fueraJ.length > 1 ? 'quedan' : 'queda'} fuera`
+    }
+    if (ronda.sinCartas.length) {
+      const n = ronda.sinCartas.length
+      estado = `Última ronda: ${enLista(ronda.sinCartas.map(nombre))} ya no ${n > 1 ? 'tienen' : 'tiene'} cartas`
+      if (ronda.faltan.length) estado += ` · ${ronda.faltan.length > 1 ? 'faltan' : 'falta'} ${enLista(ronda.faltan.map(nombre))}`
+    }
+    return { ronda: `Ronda ${v.ronda}`, estado }
+  })
+
   // Encabezados ocultos para el lector de pantalla: qué hay en la mesa y de quién es la mano.
   const tituloCrono = $derived.by(() => {
     const vistas = crono.filter((p) => p.volteada && fechas[p.id])
@@ -147,7 +201,10 @@
   const tituloMano = $derived(solo || !local ? 'Tus cartas' : `Cartas de ${vista.jugadores[visible]?.nombre ?? ''}`)
 
   let menu = $state(false)
-  let confirma = $state<'' | 'abandonar' | 'sala'>('')
+  let confirma = $state<'' | 'abandonar' | 'sala' | 'quitar'>('')
+  /** En local, quitar a alguien que se va de la mesa: solo si quedan al menos dos jugando. */
+  const enJuego = $derived(vista.jugadores.flatMap((j, i) => (j.eliminado ? [] : [i])))
+  const puedeQuitar = $derived(local && !solo && !fin && enJuego.length > 1)
 
   /** Gesto de la moneda de cada jugador según cómo le va. */
   function gestoDe(i: number): 'normal' | 'pensando' | 'gana' | 'pierde' {
@@ -156,18 +213,37 @@
     return i === vista.turno ? 'pensando' : 'normal'
   }
 
-  // Tira de años: qué parte de la cronología se está viendo.
+  // Tira de años: qué parte de la cronología se está viendo y entre qué años.
   let ventana = $state({ izq: 0, ancho: 100 })
+  let rango = $state('')
   function medirVentana() {
     if (!cronoEl) return
     const total = cronoEl.scrollWidth || 1
     ventana = { izq: (cronoEl.scrollLeft / total) * 100, ancho: Math.min(100, (cronoEl.clientWidth / total) * 100) }
+    const caja = cronoEl.getBoundingClientRect()
+    // Solo las cartas que siguen en la cronología: la que se va a los descartes aún está saliendo.
+    const ids = new Set(crono.filter((p) => p.marca !== 'fallo').map((p) => p.id))
+    const vistas = [...cronoEl.querySelectorAll<HTMLElement>('.naipe')].filter((el) => {
+      if (!ids.has(el.dataset.id ?? '')) return false
+      const r = el.getBoundingClientRect()
+      const centro = r.left + r.width / 2
+      return centro >= caja.left && centro <= caja.right
+    })
+    const a = vistas[0]?.dataset.id
+    const b = vistas[vistas.length - 1]?.dataset.id
+    rango = a && b && fechas[a] && fechas[b] ? (a === b ? anioCorto(a) : `${anioCorto(a)} – ${anioCorto(b)}`) : ''
   }
   $effect(() => {
-    void [crono.length, puedeColocar]
-    const reloj = setTimeout(medirVentana, 350)
+    void [crono.length, puedeColocar, fin]
+    const reloj = setTimeout(medirVentana, 650)
     return () => clearTimeout(reloj)
   })
+  const piezasTira = $derived(
+    crono.map((p) => {
+      const f = p.volteada ? fechas[p.id] : null
+      return { id: p.id, anio: f ? anioCorto(p.id) : '', era: f ? eraDe(f.anio) : null }
+    }),
+  )
 
   /** La carta de la cronología que está más cerca del centro de la vista. */
   function cartaCentral(): string | null {
@@ -256,6 +332,20 @@
     return dejar
   })
 
+  /** Un aviso a la vista. No habla: lo que oye el lector de pantalla va junto en `narra`, una vez por jugada.
+      Dura 1 s por cada 3 palabras más 1 s (A11Y-12), o hasta que alguien toque la mesa; la cinta de turno, algo menos. */
+  async function avisar(a: Aviso) {
+    aviso = a
+    await prisa.leer(a.detalle === undefined && a.jugador !== undefined ? 1300 : tiempoDeLectura(a.antes ?? '', a.titulo, a.detalle ?? ''))
+    aviso = null
+  }
+  /** La cinta del turno: con la moneda de quien juega. */
+  function cintaDe(jugador: number, empieza = false): Aviso {
+    const nombre = vista.jugadores[jugador]?.nombre ?? ''
+    if (!local && jugador === asiento) return { titulo: empieza ? 'Empiezas tú' : 'Tu turno', jugador }
+    return { antes: empieza ? 'Empieza' : 'Turno de', titulo: nombre, jugador }
+  }
+
   async function repartir() {
     const v = vista
     const sinEmpezar = v.cronologia.length === 1 && !v.descartes.length && v.jugadores.every((j) => !j.aciertos && !j.fallos)
@@ -277,17 +367,19 @@
       await espera(350)
     }
     if (!fin && !solo && !fuera) {
-      const texto = asiento === v.turno ? (sinEmpezar ? 'Empiezas tú' : 'Tu turno') : `Turno de ${v.jugadores[v.turno].nombre}`
-      narra = texto
-      await anunciar(texto, 1000)
+      // «Empieza Ana»: quién abre la partida lo ha echado a suertes (o rota en «Otra partida»).
+      const cinta = cintaDe(v.turno, sinEmpezar)
+      narra = cinta.antes ? `${cinta.antes} ${cinta.titulo}` : cinta.titulo
+      await avisar(cinta)
     }
+    prisa.calma()
     ocupado = false
   }
 
   /** Pone la mesa como dice la vista, sin animar la jugada (al retomar, reconectar o si alguien se va). */
   function poner(s: Suceso) {
     const v = s.vista
-    // Si el turno cambia sin jugada (el anfitrión quita a alguien), también se cuenta.
+    // Si el turno cambia sin jugada (se quita a alguien), también se cuenta.
     if (v.turno !== vista.turno && !v.ganadores.length)
       narra = asiento === v.turno ? 'Tu turno' : `Turno de ${v.jugadores[v.turno].nombre}`
     vista = v
@@ -309,15 +401,7 @@
   function contar(v: VistaClasico) {
     cuentas = v.jugadores.map((j) => j.mano.length)
     nMazo = v.nMazo
-    nDescartes = v.descartes.length
-    descarte = v.descartes.slice(-1)
-  }
-
-  /** Un aviso a la vista. No habla: lo que oye el lector de pantalla va junto en `narra`, una vez por jugada. */
-  async function anunciar(texto: string, ms: number) {
-    aviso = texto
-    await leer(ms)
-    aviso = null
+    descartes = [...v.descartes]
   }
 
   function elegir(id: string) {
@@ -365,6 +449,13 @@
     return f.circa ? ['c. = fecha aproximada'] : []
   }
 
+  /** Se acabó el mazo: los descartes, barajados, pasan a ser el mazo. */
+  async function rebarajar() {
+    nMazo += descartes.length
+    descartes = []
+    await avisar({ titulo: 'Se acabó el mazo', detalle: 'Se barajan los descartes' })
+  }
+
   async function animar(s: Suceso) {
     const r = s.jugada!
     const id = r.carta
@@ -372,10 +463,12 @@
     const suya = visible === jugador
     /** La partida antes de la jugada: con ella se dice dónde iba la carta. */
     const antes = vista
+    prisa.calma()
     ocupado = true
     // Quien lee una de sus cartas mientras juega otro no pierde la selección.
     if (seleccionada === id || visible === jugador) seleccionada = null
     conectados = s.conectados ?? null
+    let barajado = false
 
     // 1. La carta vuela a su hueco: desde la mano, o desde el nombre de quien la juega
     origen = chips[jugador] ?? null
@@ -409,7 +502,8 @@
       pieza.marca = 'ok'
       veredicto = { tipo: 'ok', titulo: solo ? '¡Correcto!' : tu ? '¡Aciertas!' : `¡${quien} acierta!`, detalle, notas }
       partes.push(`Correcto.${igual ? ' Tiene el mismo año que la carta de al lado.' : ''}`)
-      await espera(800)
+      // El veredicto se ve al menos 600 ms aunque se toque la mesa.
+      await espera(800, 600)
       pieza.marca = ''
     } else {
       // Dónde iba: entre qué años de la cronología que había antes de jugar.
@@ -428,15 +522,16 @@
       detalle = [destino, roba].filter(Boolean).join(' · ')
       pieza.marca = 'fallo'
       veredicto = { tipo: r.recolocada === null ? 'fallo' : 'recoloca', titulo: 'No encaja', sub: `es de ${anio}, ${donde}`, detalle, notas }
-      partes.push(`No encaja: ${dondeDicho}. ${destino}.${roba ? ` ${roba} carta.` : ''}`)
+      // Si para robar hay que barajar los descartes, se cuenta antes del robo.
+      const sinMazo = !!r.robada && !!r.barajado && nMazo === 0
+      partes.push(`No encaja: ${dondeDicho}. ${destino}.${sinMazo ? ' Se acabó el mazo: se barajan los descartes.' : ''}${roba ? ` ${roba} carta.` : ''}`)
       detalle = `${donde} · ${detalle}`
       if (suya) navigator.vibrate?.(120)
-      await espera(1700)
+      await espera(1700, 600)
       if (r.recolocada === null) {
         // 3a. Fallo: a los descartes
         crono = crono.filter((p) => p.id !== id)
-        descarte = [id]
-        nDescartes++
+        descartes = [...descartes, id]
         await espera(520)
       } else {
         // 3b. Fallo con recolocación: la carta se desliza hasta su sitio
@@ -449,6 +544,11 @@
         await espera(1100)
       }
       if (r.robada) {
+        // Con el mazo vacío, se barajan los descartes antes de robar (A11Y-12).
+        if (sinMazo) {
+          barajado = true
+          await rebarajar()
+        }
         origen = mazoEl ?? null
         if (suya) mano.push(r.robada)
         cuentas[jugador]++
@@ -461,6 +561,11 @@
 
     // 4. Se pone al día con el resultado y pasa el turno
     const v = s.vista
+    if (r.barajado && !barajado) {
+      // Se barajó para robar las cartas del desempate.
+      partes.push('Se acabó el mazo: se barajan los descartes.')
+      await rebarajar()
+    }
     vista = v
     contar(v)
     const quedan = v.jugadores[jugador]?.mano.length ?? 0
@@ -472,18 +577,20 @@
       await espera(300)
       fin = v.ganadores
       verFin = true
+      prisa.calma()
       return
     }
 
     // Avisos de lo que no pasa en todas las jugadas, y de quién juega ahora.
-    const avisos: [string, number][] = []
+    const avisos: Aviso[] = []
     // Quien coloca su última carta no gana todavía: los demás acaban la ronda.
     if (r.acierto && !r.finRonda && quedan === 0)
-      avisos.push([`${tu && !local ? 'Te quedas' : quien + ' se queda'} sin cartas: los demás terminan la ronda`, 2400])
+      avisos.push({ titulo: '¡Última ronda!', detalle: `${tu && !local ? 'Te quedas' : quien + ' se queda'} sin cartas: los demás terminan la ronda` })
     if (r.desempate.length) {
-      const empatados = enLista(r.desempate.map((d) => v.jugadores[d.jugador].nombre))
-      const fuera = r.eliminados.length ? `. ${enLista(r.eliminados.map((i) => v.jugadores[i].nombre))} ${r.eliminados.length > 1 ? 'quedan' : 'queda'} fuera` : ''
-      avisos.push([`${empatados} acaban a la vez: desempate${fuera}`, 2200])
+      const roban = r.desempate.filter((d) => d.carta)
+      const empatados = enLista(roban.map((d) => v.jugadores[d.jugador].nombre))
+      const fueraJ = r.eliminados.length ? ` · ${enLista(r.eliminados.map((i) => v.jugadores[i].nombre))} ${r.eliminados.length > 1 ? 'quedan' : 'queda'} fuera` : ''
+      avisos.push({ titulo: '¡Desempate!', detalle: `${empatados} ${roban.length > 1 ? 'roban' : 'roba'} una carta${fueraJ}` })
     }
     const cambiaMano = manoDe(v) !== visible
     let turno = ''
@@ -492,9 +599,9 @@
       else if (asiento === v.turno) turno = jugador !== asiento ? 'Tu turno' : ''
       else turno = `Turno de ${v.jugadores[v.turno].nombre}`
     }
-    narra = [...partes, ...avisos.map(([t]) => t + '.'), turno && turno + '.'].filter(Boolean).join(' ')
+    narra = [...partes, ...avisos.map((a) => `${a.titulo} ${(a.detalle ?? '').replace(/ · /g, '. ')}.`), turno && turno + '.'].filter(Boolean).join(' ')
 
-    for (const [t, ms] of avisos) await anunciar(t, ms)
+    for (const a of avisos) await avisar(a)
     if (cambiaMano) {
       origen = null
       // La carta elegida era de la mano que se va.
@@ -503,15 +610,16 @@
       await espera(230)
       visible = manoDe(v)
       mano = [...v.jugadores[visible].mano]
-      await anunciar(`Turno de ${v.jugadores[visible].nombre}`, 1100)
+      await avisar(cintaDe(v.turno))
     } else {
       origen = mazoEl ?? null
       const debe = v.jugadores[visible]?.mano ?? []
       mano = mano.filter((x) => debe.includes(x))
       for (const x of debe) if (!mano.includes(x)) mano.push(x)
-      if (!local && asiento === v.turno && jugador !== asiento) await anunciar('Tu turno', 900)
+      if (!local && asiento === v.turno && jugador !== asiento) await avisar(cintaDe(v.turno))
     }
     if (seleccionada && !mano.includes(seleccionada)) seleccionada = null
+    prisa.calma()
     ocupado = false
     recuperarFoco(id)
   }
@@ -523,31 +631,80 @@
     manoEl?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
   }
 
+  function abrirLista(pestana: 'cronologia' | 'descartes') {
+    pestanaLista = pestana
+    verLista = true
+  }
+  /** Jugar desde la lista: se cierra y la jugada se anima en la mesa. */
+  function colocarDesdeLista(posicion: number) {
+    verLista = false
+    jugarEn(posicion)
+  }
+
   /** «Ana», «Ana y Benito»… */
   function nombres(g: number[]) {
     return enLista(g.map((i) => vista.jugadores[i].nombre))
   }
   /** «Gana Ana», «Ganan Ana y Benito». */
   const ganan = (g: number[]) => `${g.length > 1 ? 'Ganan' : 'Gana'} ${nombres(g)}`
+  const cartas = (n: number) => `${n} ${n === 1 ? 'carta' : 'cartas'}`
+
+  /** Por qué ha acabado la partida, debajo del título (INFO-6). */
+  const causa = $derived.by(() => {
+    if (!fin) return ''
+    const v = vista
+    if (solo) {
+      const j = v.jugadores[0]
+      return `Has colocado todas tus cartas: ${j.aciertos} ${j.aciertos === 1 ? 'acierto' : 'aciertos'} y ${j.fallos} ${j.fallos === 1 ? 'fallo' : 'fallos'}.`
+    }
+    if (fin.length > 1) return `${nombres(fin)} colocaron su última carta en la ronda ${v.ronda} y ya no quedaban cartas para desempatar.`
+    const otros = v.jugadores.flatMap((j, i) => {
+      if (fin!.includes(i)) return []
+      // Quien queda fuera por un desempate conserva sus cartas; quien deja la partida, no.
+      if (j.eliminado) return [j.mano.length ? `${j.nombre} quedó fuera en el desempate` : `${j.nombre} dejó la partida`]
+      return [`${j.nombre} acabó con ${cartas(j.mano.length)}`]
+    })
+    return `${nombres(fin)} colocó su última carta en la ronda ${v.ronda}${otros.length ? '; ' + enLista(otros) : ''}.`
+  })
+  /** Marcador: por las cartas que quedan, sin puestos ni números de orden. Primero quien gana; los de fuera, al final. */
+  const marcador = $derived(
+    vista.jugadores
+      .map((j, i) => ({ j, i }))
+      .sort((a, b) => {
+        const peso = (x: { j: (typeof vista.jugadores)[number]; i: number }) => (fin?.includes(x.i) ? 0 : x.j.eliminado ? 2 : 1)
+        return peso(a) - peso(b) || a.j.mano.length - b.j.mano.length || a.i - b.i
+      }),
+  )
+  /** Repaso de las cartas que no encajaron, de cada jugador en el orden en que las jugó. */
+  const falladas = $derived(vista.jugadores.flatMap((j, i) => (j.falladas ?? []).map((id) => ({ id, quien: i }))))
 </script>
 
 <svelte:window
+  onresize={medirVentana}
   onkeydown={(e) => {
-    if (menu || confirma) {
-      if (e.key === 'Escape' && menu) menu = false
+    if (confirma || quitando !== null) return
+    if (menu) {
+      if (e.key === 'Escape') menu = false
       return
     }
+    if (e.key === 'Escape') {
+      if (ampliada) return void (ampliada = null)
+      if (verLista) return void (verLista = false)
+      if (fin && verFin) return void cerrarFin()
+      apresurar()
+    }
+    if (verLista || reglas) return
     flechas(e)
-    if (e.key === 'Escape' && !reglas && quitando === null) {
+    if (e.key === 'Escape' && quitando === null) {
       // el hueco con el foco va a desaparecer: el foco vuelve a la carta que estaba elegida
       if (document.activeElement?.classList.contains('hueco')) manoEl?.querySelector<HTMLElement>('.naipe.elegida')?.focus()
-      ampliada = null
       seleccionada = null
     }
   }}
 />
 
-<main class="mesa" class:eligiendo={puedeColocar}>
+<!-- Un toque en cualquier sitio de la mesa acelera lo que queda de la jugada (MENU-15). -->
+<main class="mesa" class:eligiendo={puedeColocar} class:acabada={!!fin} onpointerdown={apresurar}>
   <h1 class="sr-only" tabindex="-1" data-titulo>Partida</h1>
   <header class="barra">
     <BotonIcono icono="atras" etiqueta={fin ? 'Salir al menú' : 'Salir o abandonar la partida'} onclick={() => (fin ? onsalir() : (menu = true))} />
@@ -562,16 +719,16 @@
         <figure>
           <button
             class="pila descartes"
-            disabled={!descarte.length}
-            onclick={() => descarte[0] && (ampliada = { id: descarte[0], reverso: true })}
-            aria-label="Descartes: {nDescartes} {nDescartes === 1 ? 'carta' : 'cartas'}. Ver la última"
+            disabled={!descartes.length}
+            onclick={() => abrirLista('descartes')}
+            aria-label="Descartes: {cartas(descartes.length)}. Ver la lista"
           >
-            {#each descarte as id (id)}
+            {#each descartes.slice(-1) as id (id)}
               <div class="encima" in:recibir={{ key: id }} out:enviar={{ key: id }}>
                 <Carta carta={porId[id]} fecha={fechas[id]} volteada imagen="mini" />
               </div>
             {/each}
-            {#if nDescartes}<span class="cuenta" aria-hidden="true">{nDescartes}</span>{/if}
+            {#if descartes.length}<span class="cuenta" aria-hidden="true">{descartes.length}</span>{/if}
           </button>
           <figcaption>descartes</figcaption>
         </figure>
@@ -580,29 +737,34 @@
   </header>
 
   <ul class="jugadores" class:solo aria-label="Jugadores" style:--j={vista.jugadores.length}>
-      {#each vista.jugadores as j, i (i)}
-        <li
-          bind:this={chips[i]}
-          class:activo={i === vista.turno && !fin}
-          class:eliminado={j.eliminado}
-          class:ganador={fin?.includes(i)}
-          class:ausente={conectados && !conectados[i]}
-          aria-current={i === vista.turno && !fin ? 'true' : undefined}
-        >
-          <span class="nombre">{j.nombre}{i === asiento ? ' (tú)' : ''}</span>
-          {#if conectados && !conectados[i]}<span class="sr-only">, sin conexión</span>{/if}
-          {#if j.eliminado}<span class="sr-only">, fuera de la partida</span>{/if}
-          <span class="sr-only">, </span>
-          <Moneda avatar={j.avatar} nombre={j.nombre} gesto={gestoDe(i)} n={fin ? undefined : cuentas[i]} />
-        </li>
-      {/each}
+    {#each vista.jugadores as j, i (i)}
+      <li
+        bind:this={chips[i]}
+        class:activo={i === vista.turno && !fin}
+        class:eliminado={j.eliminado}
+        class:ganador={fin?.includes(i)}
+        class:ausente={conectados && !conectados[i]}
+        aria-current={i === vista.turno && !fin ? 'true' : undefined}
+      >
+        <span class="nombre">{j.nombre}{i === asiento ? ' (tú)' : ''}</span>
+        {#if conectados && !conectados[i]}<span class="sr-only">, sin conexión</span>{/if}
+        <span class="sr-only">, </span>
+        <Moneda avatar={j.avatar} nombre={j.nombre} gesto={gestoDe(i)} n={fin ? undefined : cuentas[i]} fuera={j.eliminado && !fin} abre={!fin && !solo && i === ronda.abre} />
+      </li>
+    {/each}
   </ul>
+
+  {#if franja}
+    <p class="franja">
+      <span class="ronda">{franja.ronda}</span>{#if franja.estado}<span class="sep" aria-hidden="true">{" · "}</span><span class="sr-only">. </span><span class="estado">{franja.estado}</span>{/if}
+    </p>
+  {/if}
 
   <h2 class="sr-only">{tituloCrono}</h2>
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="crono" bind:this={cronoEl} onscroll={medirVentana} onclick={(e) => e.target === e.currentTarget && (seleccionada = null)}>
     <!-- Cada carta lleva delante su hueco; la última, también el de detrás. Así la lista tiene una entrada por carta. -->
-    <div class="tira" role="list" style:--n={Math.max(1, crono.length)}>
+    <div class="tira" class:entintada={!!fin && !solo} role="list" style:--n={Math.max(1, crono.length)}>
       {#each crono as p, i (p.id)}
         <div class="pieza" role="listitem" animate:flip={{ duration: dura(600), easing: cubicOut }}>
           <button class="hueco" inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
@@ -630,22 +792,35 @@
     </div>
   </div>
 
-  {#if crono.length > 2}
-    <!-- Tira de años: toda la cronología de un vistazo; tocar un año lleva hasta su carta. -->
-    <div class="anios cifras" class:densa={crono.length > 8} aria-hidden="true" transition:fade={{ duration: dura(200) }}>
-      {#each crono as p (p.id)}
-        <button tabindex="-1" class={p.volteada && fechas[p.id] ? eraDe(fechas[p.id].anio) : ''} onclick={() => centrar(p.id)}>
-          <span>{p.volteada && fechas[p.id] ? anioTexto({ anio: fechas[p.id].anio, circa: false }).replace(' millones', ' M') : '?'}</span>
-        </button>
-      {/each}
-      <i style="left: {ventana.izq}%; width: {ventana.ancho}%"></i>
+  {#if crono.length > 2 || fin}
+    <div class="anios" transition:fade={{ duration: dura(200) }}>
+      <!-- Tira de años: toda la cronología de un vistazo; tocar un año lleva hasta su carta. -->
+      <TiraAnios piezas={piezasTira} {ventana} {rango} oncentrar={centrar} />
+      <button class="ver-lista" onclick={() => abrirLista('cronologia')} aria-label="Ver la cronología en lista">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
+        <span>Lista</span>
+      </button>
     </div>
   {/if}
 
   <p class="sr-only" role="status">{narra}</p>
   <div class="leyenda">
-    {#if fin}
+    {#if aviso}
+      <!-- La cinta de turno y los avisos: en la franja de la leyenda, sin tapar la cronología. -->
+      <div class="cinta" class:excepcional={!!aviso.detalle} in:fly={{ y: 12, duration: dura(220), easing: cubicOut }}>
+        {#if aviso.jugador !== undefined}
+          <span class="moneda-cinta">
+            {#key aviso}<span class="gira"><Moneda avatar={vista.jugadores[aviso.jugador]?.avatar} nombre={vista.jugadores[aviso.jugador]?.nombre} /></span>{/key}
+          </span>
+        {/if}
+        <span class="cinta-texto">
+          <span class="cinta-titulo">{#if aviso.antes}<i>{aviso.antes}</i>{" "}{/if}<b>{aviso.titulo}</b></span>
+          {#if aviso.detalle}<span class="cinta-detalle">{aviso.detalle}</span>{/if}
+        </span>
+      </div>
+    {:else if fin}
       <p class="resultado">{solo ? 'Cronología completada' : ganan(fin)}</p>
+      <p class="pista">{causa}</p>
     {:else if veredicto}
       <p class="veredicto {veredicto.tipo}" in:fade={{ duration: dura(180) }}>
         {veredicto.titulo}{#if veredicto.sub}<span class="sr-only">:</span> <span class="sub cifras">{veredicto.sub}</span>{/if}
@@ -692,17 +867,24 @@
   </div>
 
   {#if !fin && mano.length}<h2 class="sr-only" id="mano-titulo">{tituloMano}</h2>{/if}
-  <div class="mano" class:muchas={mano.length > 5} bind:this={manoEl} role={!fin && mano.length ? 'group' : undefined} aria-labelledby={!fin && mano.length ? 'mano-titulo' : undefined}>
+  <div class="mano" style:--n={Math.max(1, mano.length)} bind:this={manoEl} role={!fin && mano.length ? 'group' : undefined} aria-labelledby={!fin && mano.length ? 'mano-titulo' : undefined}>
     {#if fin}
       <div class="final" in:fade>
-        {#if onotra}<button class="boton" onclick={onotra}>Otra partida</button>{/if}
+        <button class="boton" onclick={() => (verFin = true)}>Resultados</button>
+        <button class="boton secundario" onclick={() => abrirLista('cronologia')}>Lista</button>
+        {#if onotra}<button class="boton secundario" onclick={onotra}>Otra partida</button>{/if}
         <button class="boton secundario" onclick={onsalir}>Menú</button>
       </div>
     {:else}
-      {#each mano as id (id)}
+      {#each mano as id, k (id)}
+        {@const d = k - (mano.length - 1) / 2}
+        {@const mitad = Math.max(1, (mano.length - 1) / 2)}
+        <!-- En abanico, ±3° como mucho (ANIM-10): la mano se abre un poco, sin girar las cartas hasta no leerlas. -->
         <button
           class="naipe"
           class:elegida={seleccionada === id}
+          style:--giro="{mano.length > 1 ? (d / mitad) * Math.min(3, (mano.length - 1) * 1) : 0}deg"
+          style:--baja="{(d / mitad) ** 2 * 4}px"
           animate:flip={{ duration: dura(300), easing: cubicOut }}
           in:recibir={{ key: id }}
           out:enviar={{ key: id }}
@@ -717,33 +899,35 @@
       {/each}
     {/if}
   </div>
-
-  {#if aviso}
-    <div class="aviso" transition:scale={{ duration: dura(260), start: 0.85 }}>{aviso}</div>
-  {/if}
 </main>
 
 {#if reglas}
   <Reglas oncerrar={() => (reglas = false)} />
 {/if}
 
+{#if verLista}
+  <ListaCrono
+    cronologia={crono.filter((p) => p.volteada).map((p) => p.id)}
+    {descartes}
+    {fechas}
+    conDescartes={vista.opciones.alFallar === 'descartar'}
+    bind:pestana={pestanaLista}
+    juego={miTurno && !ocupado && !mirando && !fuera ? { mano, elegida: seleccionada } : null}
+    onelegir={(id) => (seleccionada = id)}
+    oncolocar={colocarDesdeLista}
+    onampliar={(id, reverso) => (ampliada = { id, reverso })}
+    oncerrar={() => (verLista = false)}
+  />
+{/if}
+
 {#if ampliada}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div
-    class="ampliada"
-    role="dialog"
-    tabindex="-1"
-    aria-modal="true"
-    aria-label="Carta ampliada. {ampliada.reverso && anioDe(ampliada.id) ? anioDicho(ampliada.id) + '. ' : ''}{textoPlano(porId[ampliada.id])}{ampliada.reverso ? '. Imagen: ' + porId[ampliada.id].credito : ''}"
-    use:dialogo
-    transition:fade={{ duration: dura(160) }}
-    onclick={() => (ampliada = null)}
-  >
-    <div in:scale={{ duration: dura(260), start: 0.7, easing: cubicOut }}>
-      <Carta carta={porId[ampliada.id]} fecha={fechas[ampliada.id]} volteada={ampliada.reverso} imagen="grande" />
-    </div>
-    <button class="cerrar">Toca para cerrar</button>
-  </div>
+  <Ampliada
+    carta={porId[ampliada.id]}
+    fecha={fechas[ampliada.id]}
+    reverso={ampliada.reverso}
+    onvolver={() => ampliada && (ampliada = { ...ampliada, reverso: !ampliada.reverso })}
+    oncerrar={() => (ampliada = null)}
+  />
 {/if}
 
 {#if menu}
@@ -759,6 +943,12 @@
           <b>Salir al menú</b>
           <small>{local ? 'La partida queda guardada para continuarla' : 'La partida sigue: podrás volver con el código de la sala'}</small>
         </button>
+        {#if puedeQuitar}
+          <button class="opcion" onclick={() => ((menu = false), (confirma = 'quitar'))}>
+            <b>Quitar a un jugador</b>
+            <small>Si alguien se va de la mesa: sus cartas van a los descartes y los demás siguen</small>
+          </button>
+        {/if}
         {#if control.aLaSala}
           <button class="opcion" onclick={() => ((menu = false), (confirma = 'sala'))}>
             <b>Volver todos a la sala de espera</b>
@@ -767,8 +957,8 @@
         {/if}
         {#if !mirando && !fuera}
           <button class="opcion" onclick={() => ((menu = false), (confirma = 'abandonar'))}>
-            <b>Abandonar la partida</b>
-            <small>{local ? 'Se termina aquí y no se guarda' : 'Tus cartas van a los descartes y los demás siguen'}</small>
+            <b>{local ? 'Terminar la partida' : 'Abandonar la partida'}</b>
+            <small>{local ? (solo ? 'Se termina aquí y no se guarda' : 'Se acaba para todos y no se guarda') : 'Tus cartas van a los descartes y los demás siguen'}</small>
           </button>
         {/if}
       </div>
@@ -776,11 +966,32 @@
   </div>
 {/if}
 
-{#if confirma === 'abandonar'}
+{#if confirma === 'quitar'}
+  <!-- En local: quién se va de la mesa. -->
+  <div class="velo" transition:fade={{ duration: dura(180) }} onclick={(e) => e.target === e.currentTarget && (confirma = '')} role="presentation">
+    <div class="premio" role="dialog" aria-modal="true" aria-labelledby="quitar-titulo" use:dialogo in:scale={{ duration: dura(220), start: 0.9 }}>
+      <h2 id="quitar-titulo">¿A quién quitas?</h2>
+      <p class="corona">Sus cartas van a los descartes y los demás siguen jugando.</p>
+      <ul class="quien">
+        {#each enJuego as i (i)}
+          <li>
+            <button class="opcion fila-jugador" onclick={() => ((confirma = ''), (quitando = i))}>
+              <Moneda avatar={vista.jugadores[i].avatar} nombre={vista.jugadores[i].nombre} />
+              <b>{vista.jugadores[i].nombre}</b>
+            </button>
+          </li>
+        {/each}
+      </ul>
+      <div class="acciones">
+        <button class="boton secundario" data-foco onclick={() => (confirma = '')}>Cancelar</button>
+      </div>
+    </div>
+  </div>
+{:else if confirma === 'abandonar'}
   <Confirmar
-    titulo="¿Abandonar la partida?"
-    texto={local ? 'La partida se termina y no se podrá continuar.' : 'Ya no podrás jugar esta partida, aunque sí seguir mirándola.'}
-    si="Abandonar"
+    titulo={local ? '¿Terminar la partida?' : '¿Abandonar la partida?'}
+    texto={local ? 'Se acaba para todos y no se podrá continuar.' : 'Ya no podrás jugar esta partida, aunque sí seguir mirándola.'}
+    si={local ? 'Terminar' : 'Abandonar'}
     no="Seguir jugando"
     onsi={() => {
       confirma = ''
@@ -803,7 +1014,7 @@
 {#if quitando !== null}
   <Confirmar
     titulo="¿Quitar a {vista.jugadores[quitando]?.nombre} de la partida?"
-    texto="No podrá volver a esta partida."
+    texto={local ? 'Sus cartas van a los descartes y no podrá volver a esta partida.' : 'No podrá volver a esta partida.'}
     si="Quitar"
     onsi={() => (control.quitar?.(quitando!), (quitando = null))}
     onno={() => (quitando = null)}
@@ -811,34 +1022,46 @@
 {/if}
 
 {#if fin && verFin}
-  <div class="velo" transition:fade={{ duration: dura(250) }}>
-    <div class="premio" role="dialog" aria-modal="true" aria-labelledby="fin-titulo" use:dialogo in:scale={{ duration: dura(450), start: 0.8, easing: cubicOut }}>
+  <div class="velo" transition:fade={{ duration: dura(250) }} onclick={(e) => e.target === e.currentTarget && cerrarFin()} role="presentation">
+    <div class="premio final-partida" role="dialog" aria-modal="true" aria-labelledby="fin-titulo" aria-describedby="fin-causa" use:dialogo in:scale={{ duration: dura(450), start: 0.85, easing: cubicOut }}>
       <p class="corona">{solo ? 'Cronología completada' : 'Fin de la partida'}</p>
+      <!-- Quien gana: su moneda da una vuelta y se le estampa el sello, en tinta, como en la imprenta. -->
       <div class="podio" aria-hidden="true">
         {#each fin as i (i)}
           <div class="ganadora"><Moneda avatar={vista.jugadores[i].avatar} nombre={vista.jugadores[i].nombre} gesto="gana" /></div>
         {/each}
+        <span class="sello">{solo ? 'Hecho' : fin.length > 1 ? 'Ganan' : 'Gana'}</span>
       </div>
       <h2 id="fin-titulo">{solo ? '¡Hecho!' : `¡${ganan(fin)}!`}</h2>
-      {#if !solo}
-        <ul class="vencidos" aria-hidden="true">
-          {#each vista.jugadores as j, i (i)}
-            {#if !fin.includes(i)}
-              <li style="--i: {i}; --giro: {((i * 37) % 17) - 8}deg"><Moneda avatar={j.avatar} nombre={j.nombre} gesto="pierde" /></li>
-            {/if}
-          {/each}
-        </ul>
+      <p class="causa" id="fin-causa">{causa}</p>
+      <h3 class="sr-only">Cartas que le quedan a cada uno</h3>
+      <ul class="marcador">
+        {#each marcador as { j, i } (i)}
+          <li class:ganador={fin.includes(i)}>
+            <span class="moneda-marcador"><Moneda avatar={j.avatar} nombre={j.nombre} gesto={fin.includes(i) ? 'gana' : 'pierde'} /></span>
+            <span class="quien-es">
+              <b>{j.nombre}</b>
+              <small>{j.aciertos} {j.aciertos === 1 ? 'acierto' : 'aciertos'} · {j.fallos} {j.fallos === 1 ? 'fallo' : 'fallos'}</small>
+            </span>
+            <span class="quedan" class:fuera={j.eliminado}>
+              {#if j.eliminado}fuera{:else}<span class="cartita cifras">{j.mano.length}</span><span class="sr-only">{j.mano.length === 1 ? ' carta' : ' cartas'}</span>{/if}
+            </span>
+          </li>
+        {/each}
+      </ul>
+      {#if falladas.length}
+        <details class="repaso">
+          <summary>Cartas que no encajaron <span class="cifras">({falladas.length})</span></summary>
+          <ul>
+            {#each falladas as f (f.id + f.quien)}
+              <li>
+                <span class="anio cifras">{anioDe(f.id) || '?'}</span>
+                <span class="texto-fallada">{@html porId[f.id].texto}{#if !solo}<small> · {vista.jugadores[f.quien].nombre}</small>{/if}</span>
+              </li>
+            {/each}
+          </ul>
+        </details>
       {/if}
-      <table>
-        <thead><tr><th><span class="sr-only">Jugador</span></th><th>aciertos</th><th>fallos</th></tr></thead>
-        <tbody>
-          {#each vista.jugadores as j, i (i)}
-            <tr class:ganador={fin.includes(i)}>
-              <td>{j.nombre}</td><td>{j.aciertos}</td><td>{j.fallos}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
       <div class="acciones">
         {#if onotra}
           <button class="boton" onclick={onotra}>Otra partida</button>
@@ -854,8 +1077,8 @@
 
 <style>
   .mesa {
-    --carta-crono: min(36vw, 200px, 29dvh);
-    --carta-mano: min(22vw, 150px, 18dvh);
+    /* La mano, solapada y algo mayor que antes (UI-5): unos 105 px en un móvil. */
+    --carta-mano: min(27vw, 150px, 16.5dvh);
     position: relative;
     height: 100dvh;
     display: flex;
@@ -865,6 +1088,7 @@
 
   /* Barra superior: salir, marca y las dos pilas */
   .barra {
+    grid-area: barra;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -940,17 +1164,17 @@
     text-align: center;
   }
 
-  /* Jugadores */
-  /* Jugadores: cada uno su moneda, con las cartas que le quedan y el nombre debajo */
-  /* Las fichas se reparten el ancho según cuántos juegan: con seis, todas a la vista en un móvil de 390 px.
+  /* Jugadores: cada uno su moneda, con las cartas que le quedan y el nombre debajo.
+     Las fichas se reparten el ancho según cuántos juegan: con seis, todas a la vista en un móvil de 390 px.
      Si aun así no caben (pantallas más estrechas), la lista se desplaza y el borde derecho se funde. */
   .jugadores {
+    grid-area: jugadores;
     --ficha: clamp(54px, (100vw - 24px) / var(--j, 2) - 4px, 72px);
     --lado: clamp(42px, var(--ficha) - 16px, 46px);
     display: flex;
     gap: 4px;
     margin: 0;
-    padding: 8px 12px 2px;
+    padding: 10px 12px 2px;
     list-style: none;
     overflow-x: auto;
     scrollbar-width: none;
@@ -963,6 +1187,7 @@
     align-items: center;
     gap: 5px;
     width: var(--ficha);
+    padding-top: 4px;
     color: var(--gris-claro);
     transition: opacity 0.3s;
   }
@@ -1001,8 +1226,26 @@
   .jugadores li.eliminado { opacity: 0.6; }
   .jugadores li.eliminado .nombre { text-decoration: line-through; }
 
+  /* La franja de la ronda: siempre a la vista, entre los jugadores y la cronología (INFO-1). */
+  .franja {
+    grid-area: franja;
+    margin: 4px 16px 0;
+    color: var(--gris-claro);
+    font-size: 0.9rem;
+    line-height: 1.25;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .franja .ronda {
+    color: var(--papel);
+    font-family: var(--fell-sc);
+    font-size: 1.02rem;
+  }
+  .franja .estado { font-style: italic; }
+
   /* Cronología */
   .crono {
+    grid-area: crono;
     position: relative;
     flex: 1;
     min-height: 0;
@@ -1032,6 +1275,7 @@
     --alto: calc((100cqh - 34px) / 1.42);
     --reparto: calc((100cqw - 24px) / var(--n) - 8px);
     --carta-crono: clamp(min(var(--alto), max(124px, 40cqw), 260px), var(--reparto), min(260px, var(--alto)));
+    position: relative;
     display: flex;
     align-items: center;
     width: max-content;
@@ -1039,6 +1283,8 @@
     padding: 14px 12px;
   }
   .pieza {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
   }
@@ -1050,59 +1296,53 @@
   .crono .naipe :global(.carta) {
     transition: width 0.28s var(--curva-deslizar);
   }
-
-  /* Tira de años */
-  .anios {
-    position: relative;
-    display: flex;
-    gap: 3px;
-    margin: 2px 12px 0;
-    padding: 3px;
-    border-radius: 6px;
-    background: rgb(0 0 0 / 0.22);
+  /* Al acabar, sin mano, las cartas de la cronología crecen con el sitio que queda (UI-8). */
+  .acabada .tira {
+    --carta-crono: clamp(min(var(--alto), max(124px, 54cqw), 260px), var(--reparto), min(260px, var(--alto)));
   }
-  .anios button {
-    flex: 1 1 0;
-    min-width: 0;
-    height: 30px;
-    padding: 0;
-    border: 0;
-    border-bottom: 3px solid var(--gris);
-    border-radius: 3px;
-    background: rgb(235 233 217 / 0.1);
-    color: var(--papel);
-    font: inherit;
-    font-size: 0.92rem;
-    font-weight: 500;
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    cursor: pointer;
-  }
-  .anios button.antigua { border-color: var(--antigua); }
-  .anios button.media { border-color: var(--media); }
-  .anios button.moderna { border-color: var(--moderna); }
-  .anios button.contemporanea { border-color: var(--contemporanea); }
-  .anios.densa button {
-    height: 52px;
-    font-size: 0.85rem;
-  }
-  .anios.densa span {
-    display: inline-block;
-    writing-mode: vertical-rl;
-    rotate: 180deg;
-  }
-  /* la parte de la cronología que se está viendo */
-  .anios i {
+  /* Al acabar, la línea del tiempo se entinta de punta a punta, como una pasada de rodillo. */
+  .tira.entintada::before {
+    content: '';
     position: absolute;
-    top: 0;
-    bottom: 0;
-    border: 1.5px solid rgb(235 233 217 / 0.85);
-    border-radius: 6px;
-    pointer-events: none;
-    transition:
-      left 0.15s,
-      width 0.15s;
+    left: 6px;
+    right: 6px;
+    top: calc(50% - 1px);
+    height: 2.5px;
+    border-radius: 2px;
+    background: rgb(235 233 217 / 0.7);
+    transform-origin: left;
+    animation: entintar 1.4s var(--curva-deslizar) 0.5s both;
+  }
+  @keyframes entintar {
+    from { transform: scaleX(0); }
+  }
+
+  /* La tira de años y el botón de la lista */
+  .anios {
+    grid-area: anios;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 12px 0;
+  }
+  .ver-lista {
+    flex: none;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 2px 6px;
+    border: 0;
+    border-radius: var(--radio-ficha);
+    background: transparent;
+    box-shadow: var(--borde-fantasma);
+    color: var(--papel);
+    font-size: 0.78rem;
+    line-height: 1;
+    cursor: pointer;
   }
 
   .crono .naipe {
@@ -1117,7 +1357,7 @@
     height: calc(var(--carta-crono) * 1.2);
     padding: 0;
     border: 0 dashed rgb(235 233 217 / 0.75);
-    border-radius: 8px;
+    border-radius: var(--radio-ficha);
     background: rgb(235 233 217 / 0.08);
     color: var(--papel);
     font-size: 1.7rem;
@@ -1177,15 +1417,17 @@
     filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.4));
   }
 
-  /* Texto de la carta elegida y pistas */
+  /* Texto de la carta elegida, pistas y avisos */
   .leyenda {
+    grid-area: leyenda;
     /* los años de la leyenda, con cifras de igual alto: el 1 no se confunde con una I */
     font-variant-numeric: lining-nums;
-    min-height: 140px;
+    min-height: 132px;
     padding: 4px 16px 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     text-align: center;
   }
   .leyenda p { margin: 0; }
@@ -1245,6 +1487,65 @@
   .marca-jugada.ok { color: #a9c7a4; }
   .marca-jugada.fallo { color: #d7aa9c; }
   .pista.nota { font-size: 0.88rem; }
+
+  /* La cinta de turno (UI-6): una tira de papel con la moneda de quien juega, «Turno de» en cursiva y el nombre en
+     Fell SC, enmarcada con un filete de tinta, como un rótulo impreso. El mismo papel para los avisos de dos niveles. */
+  .cinta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(100%, 460px);
+    padding: 8px 22px 8px 10px;
+    border-radius: var(--radio-ficha);
+    background: var(--grano-papel), var(--papel);
+    color: var(--tinta);
+    box-shadow:
+      inset 0 0 0 2px var(--tinta),
+      inset 0 0 0 5px var(--papel),
+      inset 0 0 0 6px rgb(29 29 27 / 0.4),
+      0 10px 28px rgb(0 0 0 / 0.5);
+    text-align: left;
+  }
+  .cinta.excepcional {
+    padding: 12px 22px;
+    text-align: center;
+  }
+  .moneda-cinta {
+    --lado: 46px;
+    flex: none;
+    perspective: 400px;
+  }
+  /* La moneda de quien entra da una sola vuelta y se posa, sin rebote (ANIM-9). */
+  .gira {
+    display: block;
+    animation: girar-moneda 0.6s var(--curva-voltear) both;
+  }
+  .cinta-texto {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .cinta-titulo {
+    font-size: 1.6rem;
+    line-height: 1.1;
+  }
+  .cinta-titulo i {
+    font-family: var(--fell);
+    font-size: 1.15rem;
+  }
+  .cinta-titulo b {
+    font-family: var(--fell-sc);
+    font-weight: normal;
+    overflow-wrap: anywhere;
+  }
+  .cinta-detalle {
+    color: #46453f;
+    font-style: italic;
+    font-size: 1rem;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
   /* Menú de la partida: las condiciones en una línea */
   .condiciones {
     display: flex;
@@ -1269,9 +1570,10 @@
     margin-left: 8px;
     min-height: 44px;
     padding: 0 12px 0 9px;
-    border: 1px solid rgb(235 233 217 / 0.5);
+    border: 0;
     border-radius: 999px;
     background: rgb(235 233 217 / 0.1);
+    box-shadow: var(--borde-fantasma);
     color: var(--papel);
     font-style: normal;
     font-weight: 500;
@@ -1285,6 +1587,10 @@
     stroke: currentColor;
     stroke-width: 2;
     stroke-linecap: round;
+  }
+  .ver-lista svg {
+    width: 20px;
+    height: 20px;
   }
   .lupa {
     position: absolute;
@@ -1313,90 +1619,70 @@
     cursor: pointer;
   }
 
-  /* Mano */
+  /* Mano: las cartas solapadas, en un abanico de ±3° como mucho (UI-5, ANIM-10). Si caben, con 6 px entre ellas;
+     si no, se montan lo justo para caber en una fila. */
   .mano {
+    grid-area: mano;
+    container-type: inline-size;
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    gap: 6px;
-    min-height: calc(var(--carta-mano) * 1.383 + 30px);
-    padding: 18px 10px calc(12px + env(safe-area-inset-bottom));
+    min-height: calc(var(--carta-mano) * 1.383 + 34px);
+    padding: 18px 10px calc(16px + env(safe-area-inset-bottom));
   }
   .mano .naipe {
     --ancho: 100%;
-    flex: 0 1 var(--carta-mano);
-    min-width: 0;
-    transition: opacity 0.2s;
+    position: relative;
+    flex: none;
+    width: var(--carta-mano);
+    margin-left: min(6px, (100cqw - var(--n) * var(--carta-mano)) / max(1, var(--n) - 1));
+    rotate: var(--giro, 0deg);
+    translate: 0 var(--baja, 0px);
+    transform-origin: 50% 120%;
+    transition:
+      opacity 0.2s,
+      rotate 0.25s var(--curva-posar),
+      translate 0.25s var(--curva-posar);
   }
-  /* La elegida se alza de la mano: sube y su sombra se alarga, como una cartulina que se levanta. */
+  .mano .naipe:first-child { margin-left: 0; }
+  /* La elegida se alza de la mano: se endereza, sube y su sombra se alarga, como una cartulina que se levanta. */
+  .mano .elegida {
+    z-index: 2;
+    rotate: 0deg;
+    translate: 0 0;
+  }
   .mano .elegida .cuerpo {
     transform: translateY(-12%);
     filter: drop-shadow(0 14px 10px rgb(0 0 0 / 0.55));
   }
-  .eligiendo .mano .naipe:not(.elegida) { opacity: 0.6; }
-  /* Con muchas cartas, dos filas: en una sola quedarían demasiado pequeñas para leerlas y tocarlas. */
-  .mano.muchas {
-    --carta-mano: min(19vw, 130px, 12dvh);
-    flex-wrap: wrap;
-    align-content: flex-end;
-    row-gap: 10px;
-    min-height: 0;
+  @media (hover: hover) {
+    .mano .naipe:not(.elegida):hover .cuerpo { transform: translateY(-5%); }
   }
-  .mano.muchas .naipe { flex: 0 0 var(--carta-mano); }
+  .eligiendo .mano .naipe:not(.elegida) { opacity: 0.6; }
   .final {
     align-self: center;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 12px;
+    gap: 10px;
   }
-
-  /* Avisos de turno */
-  .aviso {
-    position: absolute;
-    left: 50%;
-    top: 42%;
-    translate: -50% -50%;
-    z-index: 20;
-    max-width: 88vw;
-    padding: 0.5em 1.3em;
-    border-radius: 8px;
-    background: var(--grano-papel), var(--papel);
-    color: var(--tinta);
-    font-family: 'Fell SC', serif;
-    font-size: 1.6rem;
-    text-align: center;
-    box-shadow: 0 12px 40px rgb(0 0 0 / 0.6);
-    pointer-events: none;
+  .final {
+    gap: 8px;
   }
-
-  /* Carta ampliada */
-  .ampliada {
-    --ancho: min(90vw, 60dvh, 480px);
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 14px;
-    border: 0;
-    padding: 0;
-    background: rgb(0 0 0 / 0.94);
-    cursor: zoom-out;
-  }
-
-  .cerrar {
+  .final .boton {
     min-height: 44px;
-    padding: 0 16px;
-    border: 0;
-    background: none;
-    color: var(--papel);
-    font-style: italic;
-    cursor: zoom-out;
+    padding-inline: 0.8em;
+    font-size: 1.02rem;
   }
 
-  /* Final de la partida */
+  /* Con la partida acabada, la cronología crece y ocupa la mesa (UI-8). */
+  .acabada .mano {
+    min-height: 0;
+    padding-top: 8px;
+  }
+  .acabada .leyenda { min-height: 0; padding-block: 6px; }
+
+  /* Final de la partida y ventanas de papel */
   .velo {
     position: fixed;
     inset: 0;
@@ -1409,41 +1695,34 @@
   .premio {
     --foco: var(--tinta);
     width: min(100%, 400px);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 22px 20px;
-    border-radius: 12px;
+    border-radius: var(--radio-hoja);
     background: var(--grano-papel), var(--papel-2);
     color: var(--tinta);
     text-align: center;
-    box-shadow: 0 20px 60px rgb(0 0 0 / 0.6);
+    box-shadow: var(--sombra-hoja);
   }
+  .final-partida { width: min(100%, 420px); }
   .corona {
     margin: 0;
     font-style: italic;
     color: #55544c;
   }
   .premio h2 {
-    margin: 0.1em 0 0.5em;
+    margin: 0.1em 0 0.3em;
     font-size: 2.1rem;
     line-height: 1.1;
   }
-  table {
-    width: 100%;
-    margin-bottom: 18px;
-    border-collapse: collapse;
-    font-size: 1.05rem;
+  .causa {
+    margin: 0 0 14px;
+    color: #46453f;
+    font-size: 1rem;
+    line-height: 1.3;
+    text-wrap: balance;
   }
-  th {
-    font-weight: normal;
-    font-style: italic;
-    color: #55544c;
-    font-size: 0.9rem;
-  }
-  td {
-    padding: 5px 4px;
-    border-top: 1px solid var(--gris-claro);
-  }
-  td:first-child { text-align: left; }
-  tr.ganador td { font-weight: bold; }
   .acciones {
     display: grid;
     gap: 10px;
@@ -1455,9 +1734,9 @@
     min-height: 56px;
     padding: 8px 14px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radio-ficha);
     background: transparent;
-    box-shadow: inset 0 0 0 1px var(--gris);
+    box-shadow: var(--borde-fantasma);
     color: var(--tinta);
     text-align: left;
     cursor: pointer;
@@ -1468,15 +1747,32 @@
     font-size: 0.92rem;
     line-height: 1.2;
   }
+  /* Quitar a un jugador: su moneda y su nombre */
+  .quien {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0 14px;
+    padding: 0;
+    list-style: none;
+  }
+  .fila-jugador {
+    --lado: 38px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
-  /* El final: la moneda de quien gana da una sola vuelta y se posa, con un filete de tinta;
-     las de los demás, debajo */
+  /* El final: la moneda de quien gana da una sola vuelta y se posa, con un filete de tinta, y encima se le
+     estampa un sello de tinta, como un tampón: sin dorado, sin brillo y sin rebote. */
   .podio {
-    --lado: min(30vw, 116px);
+    --lado: min(26vw, 104px, 15dvh);
+    position: relative;
     display: flex;
     justify-content: center;
     gap: 14px;
-    margin: 4px 0 6px;
+    margin: 6px auto 8px;
+    width: max-content;
     perspective: 600px;
   }
   .ganadora {
@@ -1495,25 +1791,133 @@
     }
     20% { opacity: 1; }
   }
-  .vencidos {
-    --lado: 44px;
+  .sello {
+    position: absolute;
+    z-index: 2;
+    right: -66px;
+    bottom: 2px;
+    /* un velo de papel bajo la tinta, para que el sello se lea aunque pise el canto de la moneda */
+    background: rgb(245 244 234 / 0.6);
+    padding: 1px 10px 0;
+    border: 2.5px solid currentColor;
+    border-radius: 5px;
+    outline: 1px solid currentColor;
+    outline-offset: 2px;
+    color: rgb(29 29 27 / 0.86);
+    font-family: var(--fell-sc);
+    font-size: 1.45rem;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    rotate: -12deg;
+    animation: estampar 0.32s var(--curva-posar) 0.95s both;
+  }
+  @keyframes estampar {
+    from {
+      transform: scale(1.7);
+      opacity: 0;
+    }
+    to { opacity: 1; }
+  }
+
+  /* Marcador: monedas y cartitas con las cartas que quedan, en orden de cartas y sin puestos. */
+  .marcador {
+    --lado: 34px;
+    display: grid;
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+  .marcador li {
     display: flex;
-    justify-content: center;
+    align-items: center;
     gap: 10px;
+    padding: 5px 8px;
+    border-top: 1px solid rgb(29 29 27 / 0.15);
+  }
+  .marcador li.ganador {
+    border-top-color: transparent;
+    border-radius: var(--radio-ficha);
+    box-shadow: inset 0 0 0 1.5px var(--tinta);
+  }
+  .moneda-marcador { flex: none; }
+  .quien-es {
+    flex: 1;
+    display: grid;
+    min-width: 0;
+    line-height: 1.2;
+  }
+  .quien-es b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .quien-es small {
+    color: #55544c;
+    font-size: 0.85rem;
+  }
+  /* las cartas que quedan, en una cartita de papel, de pie */
+  .cartita {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 36px;
+    border-radius: 3px;
+    background: var(--papel);
+    box-shadow:
+      0 0 0 1px rgb(29 29 27 / 0.55),
+      0 2px 3px rgb(0 0 0 / 0.25);
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+  .quedan.fuera {
+    color: #55544c;
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+
+  /* Repaso de las cartas que no encajaron, plegado */
+  .repaso {
     margin: 0 0 14px;
+    text-align: left;
+  }
+  .repaso summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    padding: 0 8px;
+    border-radius: var(--radio-ficha);
+    box-shadow: var(--borde-fantasma);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .repaso summary::before {
+    content: '▸';
+    color: #55544c;
+  }
+  .repaso[open] summary::before { content: '▾'; }
+  .repaso ul {
+    margin: 6px 0 0;
     padding: 0;
     list-style: none;
   }
-  .vencidos li {
-    rotate: var(--giro);
-    animation: caer 0.5s var(--curva-posar) both;
-    animation-delay: calc(0.7s + var(--i) * 0.12s);
+  .repaso li {
+    display: grid;
+    grid-template-columns: 5.4em 1fr;
+    gap: 10px;
+    padding: 5px 4px;
+    border-bottom: 1px solid rgb(29 29 27 / 0.12);
+    font-size: 0.95rem;
+    line-height: 1.25;
   }
-  @keyframes caer {
-    from {
-      transform: translateY(-40px);
-      opacity: 0;
-    }
+  .repaso .anio { font-weight: 700; }
+  .texto-fallada { font-family: var(--fell); }
+  .texto-fallada small {
+    font-family: var(--ui);
+    font-style: italic;
+    color: #55544c;
   }
 
   .acciones .boton:not(.secundario) {
@@ -1523,20 +1927,99 @@
       0 2px 0 #000,
       0 6px 14px rgb(0 0 0 / 0.25);
   }
-  .acciones .secundario {
-    color: var(--tinta);
-    box-shadow: inset 0 0 0 1px var(--gris);
+  .acciones .secundario { color: var(--tinta); }
+
+  /* Escritorio (UI-3, INFO-9): dos columnas. A la izquierda, los jugadores en columna y la leyenda debajo;
+     a la derecha, la ronda, la cronología, la tira y la mano. Las cartas de la cronología llegan a unos 250 px. */
+  @media (min-width: 1024px) and (min-height: 620px) {
+    .mesa {
+      --carta-mano: min(150px, 19dvh);
+      display: grid;
+      grid-template-columns: clamp(250px, 23vw, 330px) minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+      grid-template-areas:
+        'barra barra'
+        'jugadores franja'
+        'jugadores crono'
+        'leyenda anios'
+        'leyenda mano';
+    }
+    .jugadores {
+      --lado: 52px;
+      flex-direction: column;
+      gap: 12px;
+      padding: 18px 12px 12px 22px;
+      overflow: hidden auto;
+      mask-image: none;
+    }
+    .jugadores li {
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      gap: 14px;
+      width: auto;
+      padding: 6px 0 2px 6px;
+    }
+    .jugadores .nombre {
+      font-size: 1.08rem;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .leyenda {
+      align-self: stretch;
+      padding: 8px 12px 18px 22px;
+    }
+    .anios { margin: 4px 22px 0 12px; }
+    .franja { margin-top: 10px; }
+  }
+
+  /* Pantallas bajas (UI-5): la cronología manda, con 110 px por carta como mínimo; la leyenda, sin alto fijo,
+     las fichas, compactas, y la mano, más baja. */
+  @media (max-height: 700px) {
+    .mesa { --carta-mano: min(24vw, 140px, 13.5dvh); }
+    .barra { padding-top: calc(6px + env(safe-area-inset-top)); }
+    .jugadores {
+      --lado: clamp(34px, var(--ficha) - 22px, 38px);
+      padding-top: 6px;
+    }
+    .jugadores li { gap: 3px; }
+    .jugadores .nombre { font-size: 0.76rem; }
+    .franja { margin-top: 2px; font-size: 0.84rem; }
+    .franja .ronda { font-size: 0.95rem; }
+    .crono { min-height: calc(110px * 1.42 + 34px); }
+    .eligiendo .tira {
+      --carta-crono: clamp(min(var(--alto), max(96px, 28cqw), 220px), var(--reparto), min(220px, var(--alto)));
+    }
+    .leyenda {
+      min-height: 0;
+      padding-block: 4px;
+    }
+    .texto { font-size: 1.05rem; }
+    .veredicto { font-size: 1.3rem; }
+    .veredicto .sub { font-size: 1rem; }
+    .cinta-titulo { font-size: 1.35rem; }
+    .moneda-cinta { --lado: 38px; }
+    .mano { padding-top: 12px; }
+    /* al acabar, la causa ya está en el panel de resultados: la cronología se queda con el sitio */
+    .acabada .leyenda .pista { display: none; }
+    .acabada .resultado { font-size: 1.25rem; }
+  }
+  /* En los móviles más estrechos, la barra deja la marca para que quepan los botones y las pilas. */
+  @media (max-width: 379.98px) {
+    .titulo { visibility: hidden; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .ganadora,
-    .vencidos li,
+    .gira,
+    .sello,
+    .tira.entintada::before,
     .eligiendo .hueco,
     .cuerpo.ok {
       animation: none;
     }
     .cuerpo,
-    .hueco {
+    .hueco,
+    .mano .naipe {
       transition: none;
     }
   }

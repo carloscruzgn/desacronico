@@ -53,7 +53,8 @@
 
 <div class="carta {carta.ambito}" class:oscura class:volteada bind:clientWidth={ancho}>
   <div class="giro">
-    <div class="cara anverso">
+    <!-- El lector de pantalla solo lee la cara que se ve (A11Y-6). -->
+    <div class="cara anverso" aria-hidden={volteada ? 'true' : undefined}>
       <div class="marca"><span class="sr-only">desacrónico</span><span aria-hidden="true"><span class="des">des</span><span class="a">a</span>crónico</span></div>
       <div class="ilustracion">
         {#if srcAnverso}<img src={srcAnverso} alt="" loading="lazy" draggable="false" onload={llega} onerror={llega} />{/if}
@@ -62,7 +63,7 @@
       <div class="texto"><p>{@html carta.texto}</p></div>
     </div>
 
-    <div class="cara reverso">
+    <div class="cara reverso" aria-hidden={volteada ? undefined : 'true'}>
       <div class="ilustracion" style:--dx={detalle?.[0]} style:--dy={detalle?.[1]} style:--ds={detalle?.[2]}>
         {#if srcReverso && (!soloAnverso || volteada)}<img src={srcReverso} alt="" loading="lazy" draggable="false" onload={llega} onerror={llega} />{/if}
         <div class="pestana {carta.logoReverso}"><img src="/img/cepa.svg" alt="" draggable="false" /></div>
