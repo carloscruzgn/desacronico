@@ -26,22 +26,46 @@ const respetar = (el: Element) =>
 
 /** Vuelve inerte todo lo que no es la ventana ni la contiene: los hermanos de cada antepasado, hasta el body.
     Devuelve lo que ha tocado, para devolverlo luego como estaba (lo que ya era inerte no se toca). */
+/** Cuántas ventanas abiertas han vuelto inerte cada elemento: al pasar de una ventana a otra (del menú a una
+    pregunta), la que se cierra no puede devolverle la vida a lo que la otra sigue tapando. */
+const tapados = new WeakMap<HTMLElement, number>()
 function inertizar(nodo: HTMLElement): HTMLElement[] {
   const tocados: HTMLElement[] = []
   for (let el: HTMLElement | null = nodo; el && el !== document.body; el = el.parentElement) {
     const padre: HTMLElement | null = el.parentElement
     if (!padre) break
     for (const h of Array.from(padre.children) as Element[]) {
-      if (h === el || !(h instanceof HTMLElement) || h.inert || respetar(h)) continue
+      if (h === el || !(h instanceof HTMLElement) || respetar(h)) continue
+      const n = tapados.get(h) ?? 0
+      if (!n && h.inert) continue
+      tapados.set(h, n + 1)
       h.inert = true
       tocados.push(h)
     }
   }
   return tocados
 }
+function devolver(tocados: HTMLElement[]) {
+  for (const h of tocados) {
+    const n = (tapados.get(h) ?? 1) - 1
+    if (n > 0) tapados.set(h, n)
+    else {
+      tapados.delete(h)
+      h.inert = false
+    }
+  }
+}
+
+/** A dónde devolver el foco al cerrar cada ventana, en orden de preferencia. */
+const vueltas = new WeakMap<HTMLElement, HTMLElement[]>()
 
 export function dialogo(nodo: HTMLElement) {
   const antes = document.activeElement as HTMLElement | null
+  // Si se abre desde otra ventana que se está cerrando (del menú a una pregunta), el botón que la abrió va a
+  // desaparecer: entonces el foco vuelve a donde habría vuelto aquella.
+  const madre = antes ? pila.findLast((v) => v.contains(antes)) : undefined
+  const cadena = [...(antes ? [antes] : []), ...((madre && vueltas.get(madre)) ?? [])]
+  vueltas.set(nodo, cadena)
   const enfocables = () => [...nodo.querySelectorAll<HTMLElement>(ENFOCABLES)].filter(alcanzable)
   pila.push(nodo)
   const inertes = inertizar(nodo)
@@ -74,12 +98,17 @@ export function dialogo(nodo: HTMLElement) {
       document.removeEventListener('keydown', tecla)
       const i = pila.lastIndexOf(nodo)
       if (i >= 0) pila.splice(i, 1)
-      for (const h of inertes) h.inert = false
+      devolver(inertes)
       // Se devuelve el foco a donde estaba, salvo que alguien lo haya puesto ya en otro sitio
       // o que aquel elemento ya no se pueda enfocar (un hueco que se ha cerrado).
       const a = document.activeElement
       const sigueAqui = !a || a === document.body || nodo.contains(a)
-      if (sigueAqui && antes?.isConnected && antes.tabIndex >= 0 && alcanzable(antes)) antes.focus({ preventScroll: true })
+      if (!sigueAqui) return
+      // Un título con tabindex=-1 también vale (la mesa lo tiene enfocado al empezar). Si nada sirve, el título de
+      // la pantalla, para que el foco no se pierda en el body.
+      const util = (el: HTMLElement) => el.isConnected && (el.tabIndex >= 0 || el.hasAttribute('tabindex')) && alcanzable(el)
+      const destino = cadena.find(util) ?? document.querySelector<HTMLElement>('[data-titulo]')
+      destino?.focus({ preventScroll: true })
     },
   }
 }

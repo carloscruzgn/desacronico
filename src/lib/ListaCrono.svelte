@@ -23,7 +23,8 @@
     juego: { mano: string[]; elegida: string | null } | null
     onelegir: (id: string) => void
     oncolocar: (posicion: number) => void
-    onampliar: (id: string, reverso: boolean) => void
+    /** `desde`: la miniatura de la fila, de la que sale la carta ampliada y a la que vuelve. */
+    onampliar: (id: string, reverso: boolean, desde?: HTMLElement | null) => void
     oncerrar: () => void
   }
   let { cronologia, descartes, fechas, conDescartes, pestana = $bindable(), juego, onelegir, oncolocar, onampliar, oncerrar }: Props = $props()
@@ -110,7 +111,7 @@
               <li class="entre"><button class="colocar" onclick={() => oncolocar(k)} aria-label="Colocar aquí, {dondeVa(k)}">Colocar aquí</button></li>
             {/if}
             <li>
-              <button class="fila" onclick={() => onampliar(id, true)}>
+              <button class="fila" onclick={(e) => onampliar(id, true, e.currentTarget.querySelector('img'))}>
                 <img src="/cartas/mini/{id}.webp" alt="" loading="lazy" />
                 <span class="anio cifras {fechas[id] ? eraDe(fechas[id].anio) : ''}">{anio(id)}<span class="sr-only">: {anioHablado(fechas[id])}.</span></span>
                 <span class="texto">{@html porId[id].texto}</span>
@@ -126,7 +127,7 @@
         <ol>
           {#each recientes as id (id)}
             <li>
-              <button class="fila" onclick={() => onampliar(id, true)}>
+              <button class="fila" onclick={(e) => onampliar(id, true, e.currentTarget.querySelector('img'))}>
                 <img src="/cartas/mini/{id}.webp" alt="" loading="lazy" />
                 <span class="anio cifras {fechas[id] ? eraDe(fechas[id].anio) : ''}">{anio(id)}<span class="sr-only">: {anioHablado(fechas[id])}.</span></span>
                 <span class="texto">{@html porId[id].texto}</span>

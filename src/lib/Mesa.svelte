@@ -278,6 +278,9 @@
   const enJuego = $derived(vista.jugadores.flatMap((j, i) => (j.eliminado ? [] : [i])))
   const puedeQuitar = $derived(local && !solo && !fin && enJuego.length > 1)
 
+  /** Sin conexión, en línea: nunca uno mismo (si ve la mesa, está aquí) ni quien ya no juega esta partida. */
+  const ausente = (i: number) => !!conectados && !conectados[i] && i !== asiento && !vista.jugadores[i]?.eliminado
+
   /** Gesto de la moneda de cada jugador según cómo le va. */
   function gestoDe(i: number): 'normal' | 'pensando' | 'gana' | 'pierde' {
     if (fin) return fin.includes(i) ? 'gana' : 'pierde'
@@ -308,6 +311,13 @@
   $effect(() => {
     void [crono.length, puedeColocar, fin]
     const reloj = setTimeout(medirVentana, 650)
+    return () => clearTimeout(reloj)
+  })
+  // Al acabar, las cartas de la cronología crecen (UI-8) y el desplazamiento de antes dejaría la primera a medias:
+  // la vista vuelve al principio de la cronología, que es por donde empieza a entintarse.
+  $effect(() => {
+    if (!fin) return
+    const reloj = setTimeout(() => cronoEl?.scrollTo({ left: 0 }), 340)
     return () => clearTimeout(reloj)
   })
   const piezasTira = $derived(
@@ -482,33 +492,35 @@
     cuentas = [...finales]
   }
 
-  /** La primera partida: el mazo baja de la barra al centro de la mesa, se baraja, reparte y vuelve a su sitio. */
+  /** La primera partida: el mazo baja de la barra al centro de la mesa, se baraja, reparte y vuelve a su sitio.
+      Unos 1,6 s; la vuelta a la barra no se espera: mientras, sale la primera carta de la cronología. */
   async function repartoEntero(finales: number[]) {
-    if (!mesaEl || !cronoEl || !mazoEl) return cantos(finales, mazoEl, 900, 380)
+    if (!mesaEl || !cronoEl || !mazoEl) return cantos(finales, mazoEl, 800, 320)
     const m = mesaEl.getBoundingClientRect()
     const c = cronoEl.getBoundingClientRect()
     monton = { x: c.left + c.width / 2 - m.left, y: c.top + c.height / 2 - m.top, baraja: false }
     await tick()
     const el = montonEl
-    if (!el) return cantos(finales, mazoEl, 900, 380)
+    if (!el) return cantos(finales, mazoEl, 800, 320)
     const desde = mazoEl.getBoundingClientRect()
     const aqui = el.getBoundingClientRect()
     const enMazo = `translate(${desde.left + desde.width / 2 - (aqui.left + aqui.width / 2)}px, ${desde.top + desde.height / 2 - (aqui.top + aqui.height / 2)}px) scale(${desde.width / aqui.width})`
     const curva = 'cubic-bezier(0.3, 0.1, 0.2, 1)'
-    el.animate([{ transform: enMazo }, { transform: 'none' }], { duration: 420, easing: curva })
-    await espera(440)
+    el.animate([{ transform: enMazo }, { transform: 'none' }], { duration: 300, easing: curva })
+    await espera(300)
     if (!prisa.activa && monton) {
       monton.baraja = true
       efecto('barajar')
-      await espera(640)
+      await espera(420)
       if (monton) monton.baraja = false
     }
-    await cantos(finales, el, 1500, 380)
-    if (!prisa.activa) {
-      el.animate([{ transform: 'none' }, { transform: enMazo }], { duration: 360, easing: curva, fill: 'forwards' })
-      await espera(360)
-    }
-    monton = null
+    await cantos(finales, el, 600, 300)
+    if (prisa.activa) monton = null
+    else
+      el.animate([{ transform: 'none' }, { transform: enMazo }], { duration: 300, easing: curva, fill: 'forwards' }).finished.then(
+        () => (monton = null),
+        () => (monton = null),
+      )
   }
 
   /** La silueta del fallo se abre en la cronología, empujando a las de al lado, y se cierra igual. */
@@ -588,24 +600,25 @@
       if (!repartidoEnSesion) {
         // La primera partida de la sesión, entera: el mazo va al centro, se baraja y reparte a cada moneda.
         repartidoEnSesion = true
+        // Hasta «Empieza…», unos 3 s: lo que no hay que leer va solapado.
         await repartoEntero(finales)
         crono.push({ id: v.cronologia[0], volteada: false, marca: '' })
         nMazo = vista.nMazo
-        await espera(520)
+        await espera(300)
         anotar(inicial.fechas)
         revelada = v.cronologia[0]
         crono[0].marca = 'alza'
         crono[0].volteada = true
         efecto('voltear')
-        await espera(900)
+        await espera(560)
         crono[0].marca = 'ok'
         revelada = null
         for (const id of v.jugadores[visible]?.mano ?? []) {
           mano.push(id)
           efecto('repartir')
-          await espera(150)
+          await espera(70)
         }
-        await espera(350)
+        await espera(150)
       } else {
         // «Otra partida»: lo mismo, sin el viaje al centro y en 1,5 s como mucho.
         const reparto = cantos(finales, mazoEl, 420, 300)
@@ -1046,10 +1059,17 @@
   }
 
   /** Cierra el panel final. El foco no puede volver al hueco de la última jugada, que ya no está a la vista. */
-  async function cerrarFin() {
+  function cerrarFin() {
     verFin = false
-    await tick()
-    manoEl?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
+    alFinal()
+  }
+  /** Al cerrar una ventana de la mesa acabada (resultados, lámina), si el foco se ha quedado sin sitio va a la
+      franja final. Se espera a que la ventana acabe de irse: hasta entonces la mesa es inerte. */
+  function alFinal() {
+    setTimeout(() => {
+      const a = document.activeElement
+      if (!a || a === document.body || a.hasAttribute('data-titulo')) manoEl?.querySelector<HTMLElement>('.final button')?.focus({ preventScroll: true })
+    }, dura(250) + 60)
   }
 
   function abrirLista(pestana: 'cronologia' | 'descartes') {
@@ -1156,11 +1176,11 @@
         class:activo={i === vista.turno && !fin}
         class:eliminado={j.eliminado}
         class:ganador={fin?.includes(i)}
-        class:ausente={conectados && !conectados[i]}
+        class:ausente={ausente(i)}
         aria-current={i === vista.turno && !fin ? 'true' : undefined}
       >
         <span class="nombre">{j.nombre}{i === asiento ? ' (tú)' : ''}</span>
-        {#if conectados && !conectados[i]}<span class="sr-only">, sin conexión</span>{/if}
+        {#if ausente(i)}<span class="sr-only">, sin conexión</span>{/if}
         <span class="sr-only">, </span>
         <Moneda avatar={j.avatar} nombre={j.nombre} gesto={gestoDe(i)} n={fin ? undefined : cuentas[i]} fuera={j.eliminado && !fin} abre={!fin && !solo && i === ronda.abre} />
       </li>
@@ -1369,7 +1389,7 @@
     juego={miTurno && !ocupado && !mirando && !fuera ? { mano, elegida: seleccionada } : null}
     onelegir={(id) => (seleccionada = id)}
     oncolocar={colocarDesdeLista}
-    onampliar={(id, reverso) => (ampliada = { id, reverso })}
+    onampliar={(id, reverso, desde) => (ampliada = { id, reverso, desde })}
     oncerrar={() => (verLista = false)}
   />
 {/if}
@@ -1379,7 +1399,7 @@
     cronologia={crono.filter((p) => p.volteada).map((p) => p.id)}
     {fechas}
     subtitulo="{solo ? 'Cronología completada' : ganan(fin)} · {cartas(crono.length)}"
-    oncerrar={() => (verLamina = false)}
+    oncerrar={() => ((verLamina = false), alFinal())}
   />
 {/if}
 
@@ -1756,8 +1776,8 @@
   }
   .monton .abajo { top: 50%; bottom: 0; }
   /* Barajar: el montón se corta en dos, las mitades se cruzan y vuelven a juntarse, dos veces, sin rebote. */
-  .monton.baraja .arriba { animation: cortar-arriba 0.32s var(--curva-deslizar) 2 both; }
-  .monton.baraja .abajo { animation: cortar-abajo 0.32s var(--curva-deslizar) 2 both; }
+  .monton.baraja .arriba { animation: cortar-arriba 0.21s var(--curva-deslizar) 2 both; }
+  .monton.baraja .abajo { animation: cortar-abajo 0.21s var(--curva-deslizar) 2 both; }
   @keyframes cortar-arriba {
     0%, 100% { transform: none; z-index: 1; }
     50% { transform: translate(-55%, -3px); z-index: 0; }
@@ -2563,18 +2583,21 @@
   }
   .acciones .secundario { color: var(--tinta); }
 
-  /* Escritorio (UI-3, INFO-9): dos columnas. A la izquierda, los jugadores en columna y la leyenda debajo;
-     a la derecha, la ronda, la cronología, la tira y la mano. Las cartas de la cronología llegan a unos 250 px. */
+  /* Escritorio (UI-3, INFO-9): dos columnas. A la izquierda, lo que cuenta la partida: la ronda, los jugadores en
+     columna y, justo debajo, la leyenda (la cinta de turno, el veredicto, la carta elegida), a la altura de la
+     cronología y no en la esquina de abajo. A la derecha, la mesa: la cronología, la tira y la mano. Las cartas
+     de la cronología llegan a unos 260 px. */
   @media (min-width: 1024px) and (min-height: 620px) {
     .mesa {
       --carta-mano: min(150px, 19dvh);
       display: grid;
       grid-template-columns: clamp(250px, 23vw, 330px) minmax(0, 1fr);
-      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
       grid-template-areas:
         'barra barra'
-        'jugadores franja'
+        'franja crono'
         'jugadores crono'
+        'leyenda crono'
         'leyenda anios'
         'leyenda mano';
     }
@@ -2600,10 +2623,15 @@
     }
     .leyenda {
       align-self: stretch;
-      padding: 8px 12px 18px 22px;
+      justify-content: flex-start;
+      min-height: 0;
+      padding: 14px 12px 18px 22px;
     }
     .anios { margin: 4px 22px 0 12px; }
-    .franja { margin-top: 10px; }
+    .franja {
+      margin: 14px 12px 0 28px;
+      text-align: left;
+    }
   }
 
   /* Pantallas bajas (UI-5): la cronología manda, con 110 px por carta como mínimo; la leyenda, sin alto fijo,
@@ -2636,6 +2664,15 @@
     /* al acabar, la causa ya está en el panel de resultados: la cronología se queda con el sitio */
     .acabada .leyenda .pista { display: none; }
     .acabada .resultado { font-size: 1.25rem; }
+  }
+  /* Escritorio bajo: las fichas, compactas, pero con el nombre legible, que en columna hay sitio. */
+  @media (min-width: 1024px) and (min-height: 620px) and (max-height: 700px) {
+    .jugadores {
+      --lado: 40px;
+      gap: 6px;
+    }
+    .jugadores li { gap: 12px; }
+    .jugadores .nombre { font-size: 0.98rem; }
   }
   /* En un móvil la barra lleva cuatro botones y las dos pilas: la marca, algo menor, y menos aire entre ellos. */
   @media (max-width: 459.98px) {

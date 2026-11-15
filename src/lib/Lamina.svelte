@@ -121,9 +121,16 @@
     display: flex;
     justify-content: flex-end;
     height: 0;
-    padding: 0 8px;
+    /* la X, dentro del filete doble de la lámina (12 px de margen y 6 px de filete), sin pisarlo */
+    padding: 0 24px;
   }
-  header :global(.icono) { margin-top: 8px; }
+  /* con papel propio: al desplazar la hoja, la X pasa por encima de las cartas y tiene que seguir leyéndose */
+  header :global(.icono) {
+    margin-top: 24px;
+    background: var(--papel-2);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+  }
+  header :global(.icono:hover) { background: var(--papel); }
   /* La lámina, con su filete de tinta doble, como una lámina impresa */
   .lamina {
     margin: 12px;
