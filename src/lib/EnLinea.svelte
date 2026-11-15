@@ -412,7 +412,7 @@
       </div>
 
       <div>
-        <Opciones config={sala.config} fija={!anfitrion} jugadores={sala.jugadores.length} oncambio={(config) => conexion!.enviar({ t: 'config', config })} />
+        <Opciones config={sala.config} fija={!anfitrion} oncambio={(config) => conexion!.enviar({ t: 'config', config })} />
       </div>
     </div>
 

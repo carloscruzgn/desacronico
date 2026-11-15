@@ -17,11 +17,9 @@
     config: Config
     /** Solo lectura: lo ven así los que no son el anfitrión. */
     fija?: boolean
-    /** Cuántos juegan, para avisar si la cronología puede completarse antes de que nadie acabe. */
-    jugadores?: number
     oncambio: (c: Config) => void
   }
-  let { config, fija = false, jugadores = 0, oncambio }: Props = $props()
+  let { config, fija = false, oncambio }: Props = $props()
 
   const ambitos = Object.keys(AMBITOS) as Ambito[]
   const elegidos = $derived(ambitos.filter((a) => config.ambitos.includes(a)))
@@ -36,8 +34,6 @@
   const total = $derived(cartas.filter((c) => config.ambitos.includes(c.ambito)).length)
   const n = $derived(config.opciones.cartasIniciales)
   const tope = $derived(topeValido(config.opciones.topeCronologia))
-  /** Si todos acertaran siempre, la cronología acabaría con la inicial y las de todas las manos. */
-  const corta = $derived(jugadores > 1 && 1 + jugadores * n >= tope)
 
   /** Aviso cuando se intenta quitar la última serie: el mazo no puede quedarse vacío. */
   let ultimaSerie = $state(false)
@@ -112,9 +108,6 @@
       <button disabled={fija || tope >= TOPE_MAX} aria-label="Más cartas en la cronología completa" onclick={() => opciones({ topeCronologia: tope + TOPE_PASO })}>+</button>
     </span>
   </div>
-  {#if corta}
-    <p class="aviso-tope" role="status">Con {jugadores} jugadores y {n} cartas cada uno, la cronología puede completarse antes de que alguien acabe.</p>
-  {/if}
   <!-- Botones de opción nativos: las flechas cambian de opción, como en cualquier formulario. -->
   <fieldset class="fallo" disabled={fija}>
     <legend class="sr-only">Tras fallo</legend>
@@ -313,12 +306,6 @@
     font-style: normal;
     font-size: 0.9rem;
     line-height: 1.25;
-  }
-  .aviso-tope {
-    margin: -4px 0 12px;
-    color: var(--acento);
-    font-size: 0.95rem;
-    line-height: 1.3;
   }
   .contador {
     flex: none;
