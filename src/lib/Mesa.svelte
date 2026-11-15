@@ -123,7 +123,8 @@
   /** Lo que dice la mesa mientras se resuelve una jugada. */
   let veredicto = $state<Veredicto | null>(null)
   /** La jugada anterior, para que quien juega después sepa qué ha pasado. */
-  let ultima = $state<{ texto: string; acierto: boolean; detalle: string; notas: string[] } | null>(null)
+  // En la cronología lleva un borde mostaza (si se descartó, no queda ninguna); el texto, para el lector de pantalla.
+  let ultima = $state<{ id: string; texto: string; acierto: boolean } | null>(null)
   /** El guion de los años antes de Cristo se explica la primera vez que sale en la partida. */
   let negativoExplicado = false
   /** Lo que acaba de pasar, contado entero para el lector de pantalla. */
@@ -1009,7 +1010,7 @@
       }
     }
     veredicto = null
-    ultima = { texto: `${tu ? 'Colocaste' : quien + ' colocó'} «${texto}», ${anio}`, acierto: r.acierto, detalle, notas }
+    ultima = { id, texto: `${tu ? 'Colocaste' : quien + ' colocó'} «${texto}», ${anio}`, acierto: r.acierto }
 
     // 4. Se pone al día con el resultado y pasa el turno
     const v = s.vista
@@ -1277,6 +1278,7 @@
           <div class="sitio-naipe">
             <button
               class="naipe"
+              class:ultima-jugada={ultima?.id === p.id && !fin}
               data-id={p.id}
               style:--ladeo="{ladeo(p.id)}deg"
               in:recibir={{ key: p.id }}
@@ -1386,13 +1388,8 @@
         {/if}
       {/if}
       {#if ultima}
-        <!-- La jugada anterior, para quien no la ha visto: el veredicto dura poco. -->
-        <p class="pista antes">
-          Antes: {ultima.texto}
-          <span class="marca-jugada {ultima.acierto ? 'ok' : 'fallo'}" aria-hidden="true">{ultima.acierto ? '✓' : '✗'}</span><span class="sr-only">, {ultima.acierto ? 'acierto' : 'no encajaba'}</span>
-          {#if ultima.detalle}<span class="detalle">{ultima.detalle}</span>{/if}
-        </p>
-        {#each ultima.notas as n (n)}<p class="pista nota">{n}</p>{/each}
+        <!-- La jugada anterior se ve en la cronología, con el borde mostaza; aquí, solo para el lector de pantalla. -->
+        <p class="sr-only">Antes: {ultima.texto}, {ultima.acierto ? 'acierto' : 'no encajaba'}.</p>
       {/if}
     {/if}
     {#if ayuda && pasoAyuda}
@@ -2203,21 +2200,12 @@
     line-height: 1.25;
     text-wrap: balance;
   }
-  /* La jugada anterior, en pequeño bajo lo que toca hacer ahora */
-  .pista.antes {
-    margin-top: 6px;
-    font-size: 0.9rem;
-  }
-  .antes .detalle { display: block; }
-  /* ✓ y ✗ en tintas apagadas, del tono de la cartulina: informan sin destacar */
-  .marca-jugada {
-    margin-left: 0.15em;
-    font-style: normal;
-    font-weight: 700;
-  }
-  .marca-jugada.ok { color: #a9c7a4; }
-  .marca-jugada.fallo { color: #d7aa9c; }
   .pista.nota { font-size: 0.88rem; }
+  /* La última carta jugada, con el realce mostaza: el mismo borde que la elegida de la mano. */
+  .crono .ultima-jugada :global(.cara) {
+    outline: 2.5px solid var(--acento);
+    outline-offset: 2px;
+  }
 
   /* El «?»: un botón redondo como «Ampliar» y «Escuchar»; abierto, en papel. Con 44 px de toque aunque se vea menor. */
   .boton-ayuda {

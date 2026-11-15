@@ -2,6 +2,7 @@
   // El botón de sonido de la barra: un altavoz (tachado si todo está apagado) que abre un menú pequeño con
   // los dos interruptores, efectos y voz. Es el mismo ajuste que hay en Opciones.
   import AjustesSonido from './AjustesSonido.svelte'
+  import Icono from './Icono.svelte'
   import { callar, sonido } from './sonido'
 
   interface Props {
@@ -68,15 +69,9 @@
     aria-controls={id}
     onclick={() => (abierto ? cerrar(false) : abrir())}
   >
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path class="cuerpo" d="M3.5 9.5h3.5l4.5-4v13l-4.5-4H3.5z" />
-      {#if algo}
-        <path d="M15 9.2a4 4 0 0 1 0 5.6" />
-        {#if sonido.efectos && sonido.voz}<path d="M17.8 6.5a7.8 7.8 0 0 1 0 11" />{/if}
-      {:else}
-        <path d="M15.5 9.5l5 5M20.5 9.5l-5 5" />
-      {/if}
-    </svg>
+    <!-- El altavoz propio, en color como el libro del reglamento: dos ondas con efectos y voz, una con uno solo,
+         un aspa con todo apagado. -->
+    <Icono nombre={sonido.efectos && sonido.voz ? 'sonido' : algo ? 'sonidoUno' : 'sonidoApagado'} lado={34} />
   </button>
 
   {#if abierto}
@@ -122,16 +117,6 @@
     box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
   }
   .icono.sobrePapel:hover { filter: brightness(1.25); }
-  .icono.apagado svg { opacity: 0.8; }
-  svg {
-    width: 22px;
-    height: 22px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
 
   .menu {
     --foco: var(--tinta);
