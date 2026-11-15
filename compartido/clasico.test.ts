@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import aniosReales from './anios.json'
-import { abandonar, cabe, crear, jugar, lugarCorrecto, minimoCartas, mismoAnio, OPCIONES, vecinas, vistaDe, type Anios, type EstadoClasico } from './clasico'
+import { abandonar, cabe, crear, enRonda, jugar, lugarCorrecto, minimoCartas, mismoAnio, OPCIONES, siguienteEnEmpezar, vecinas, vistaDe, type Anios, type EstadoClasico } from './clasico'
 
 // Cartas «a1900»… cuyo año va en el propio id.
 const anios: Anios = {}
@@ -177,5 +177,51 @@ describe('modo clásico', () => {
     expect(cabe([sapiens], reales, '220', 0)).toBe(true)
     expect(cabe([sapiens], reales, '219', 1)).toBe(false)
     expect(lugarCorrecto(['219', sapiens], reales, '220')).toBe(1)
+  })
+
+  it('quién empieza: por sorteo, o el que se pide', () => {
+    const nombres = ['Ana', 'Luis', 'Eva']
+    // sinAzar da 0,999999: el sorteo cae en el último.
+    const e = crear(ids, nombres, OPCIONES, sinAzar)
+    expect([e.turno, e.inicial]).toEqual([2, 2])
+    const f = crear(ids, nombres, OPCIONES, () => 0)
+    expect(f.turno).toBe(0)
+    const g = crear(ids, nombres, OPCIONES, sinAzar, 1)
+    expect([g.turno, g.inicial]).toEqual([1, 1])
+    expect(siguienteEnEmpezar(2, 3)).toBe(0)
+    expect(siguienteEnEmpezar(0, 3)).toBe(1)
+  })
+
+  it('recuerda las cartas falladas de cada jugador', () => {
+    let e = estado([['a1015', 'a1001'], ['a1002', 'a1003']], ['a1010'], ['a1030', 'a1031'])
+    ;({ estado: e } = jugar(e, anios, 'a1015', 0)) // falla
+    ;({ estado: e } = jugar(e, anios, 'a1002', 0)) // acierta
+    ;({ estado: e } = jugar(e, anios, 'a1001', 2)) // falla
+    expect(e.jugadores[0].falladas).toEqual(['a1015', 'a1001'])
+    expect(e.jugadores[1].falladas ?? []).toEqual([])
+  })
+
+  it('avisa cuando baraja los descartes', () => {
+    const inicio = estado([['a1015', 'a1001'], ['a1002']], ['a1010'])
+    inicio.descartes = ['a1033']
+    expect(jugar(inicio, anios, 'a1015', 0, sinAzar).resultado.barajado).toBe(true)
+    const conMazo = estado([['a1015', 'a1001'], ['a1002']], ['a1010'], ['a1030'])
+    expect(jugar(conMazo, anios, 'a1015', 0).resultado.barajado).toBeFalsy()
+  })
+
+  it('cuenta la ronda: quién abre, quién falta y quién se desempata', () => {
+    let e = estado([['a1015'], ['a1002'], ['a1003', 'a1004']], ['a1010'], ['a1030', 'a1031', 'a1032'])
+    expect(enRonda(e)).toEqual({ abre: 0, faltan: [0, 1, 2], sinCartas: [] })
+    ;({ estado: e } = jugar(e, anios, 'a1015', 1))
+    expect(enRonda(e)).toEqual({ abre: 0, faltan: [1, 2], sinCartas: [0] })
+    ;({ estado: e } = jugar(e, anios, 'a1002', 0))
+    ;({ estado: e } = jugar(e, anios, 'a1003', 1))
+    expect(e.desempate).toEqual([0, 1])
+    expect(enRonda(e)).toEqual({ abre: 0, faltan: [0, 1], sinCartas: [] })
+    // Si el jugador inicial queda fuera, abre el siguiente que sigue en juego.
+    const f = estado([['a1015'], ['a1002'], ['a1003']], ['a1010'])
+    f.jugadores[0].eliminado = true
+    f.turno = 1
+    expect(enRonda(f).abre).toBe(1)
   })
 })

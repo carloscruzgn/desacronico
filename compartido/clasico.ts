@@ -26,6 +26,8 @@ export interface Jugador {
   eliminado: boolean
   aciertos: number
   fallos: number
+  /** Cartas que colocó mal, en el orden en que las jugó: se repasan al final. Falta en las partidas guardadas antes de tenerla. */
+  falladas?: string[]
 }
 
 export interface EstadoClasico {
@@ -41,6 +43,8 @@ export interface EstadoClasico {
   /** Jugador que abre cada ronda. */
   inicial: number
   ronda: number
+  /** Jugadores que se están desempatando: acabaron a la vez y siguen jugando. Falta o está vacío si no hay desempate. */
+  desempate?: number[]
   /** Vacío mientras se juega. Más de uno solo si no quedan cartas para desempatar. */
   ganadores: number[]
 }
@@ -59,6 +63,8 @@ export interface Cierre {
   desempate: { jugador: number; carta: string | null }[]
   eliminados: number[]
   ganadores: number[]
+  /** Se acabó el mazo y se barajaron los descartes para seguir robando. */
+  barajado?: boolean
 }
 
 export interface Resultado extends Cierre {
@@ -86,11 +92,16 @@ export function minimoCartas(jugadores: number, cartasIniciales = OPCIONES.carta
   return jugadores * cartasIniciales + 2
 }
 
+/**
+ * Reparte una partida nueva. `empieza` es el jugador que abre la primera ronda; sin él, se echa a suertes.
+ * En «Otra partida» se pasa el siguiente al que empezó la anterior (ver `siguienteEnEmpezar`).
+ */
 export function crear(
   ids: string[],
   nombres: string[],
   opciones: Opciones = OPCIONES,
   azar: () => number = Math.random,
+  empieza?: number,
 ): EstadoClasico {
   const n = opciones.cartasIniciales
   if (!Number.isInteger(n) || n < MANO_MIN || n > MANO_MAX) throw new Error('Número de cartas iniciales no válido')
@@ -103,7 +114,10 @@ export function crear(
     eliminado: false,
     aciertos: 0,
     fallos: 0,
+    falladas: [],
   }))
+  const nj = nombres.length
+  const primero = empieza === undefined ? Math.min(nj - 1, Math.floor(azar() * nj)) : ((empieza % nj) + nj) % nj
   return {
     modo: 'clasico',
     opciones: { ...opciones },
@@ -111,11 +125,17 @@ export function crear(
     descartes: [],
     cronologia: [mazo.shift()!],
     jugadores,
-    turno: 0,
-    inicial: 0,
+    turno: primero,
+    inicial: primero,
     ronda: 1,
+    desempate: [],
     ganadores: [],
   }
+}
+
+/** Quién abre la partida siguiente: el jugador que va detrás del que abrió la anterior. */
+export function siguienteEnEmpezar(anterior: number, jugadores: number): number {
+  return (anterior + 1) % jugadores
 }
 
 /** ¿Es correcta la carta en ese hueco? Con el mismo año vale a cualquier lado. */
@@ -145,20 +165,37 @@ export function mismoAnio(cronologia: string[], anios: Anios, carta: string, pos
   return junto.find((c) => anios[c][0] === anio) ?? null
 }
 
-function robar(e: EstadoClasico, azar: () => number): string | null {
+function robar(e: EstadoClasico, azar: () => number, c: Cierre): string | null {
   if (!e.mazo.length && e.descartes.length) {
     e.mazo = barajar(e.descartes, azar)
     e.descartes = []
+    c.barajado = true
   }
   return e.mazo.shift() ?? null
 }
 
+type Mesa = Pick<EstadoClasico, 'jugadores' | 'inicial' | 'turno'>
+
 /** Jugadores en orden de turno desde el que abre la ronda. */
-function ordenDeRonda(e: EstadoClasico): number[] {
+function ordenDeRonda(e: Mesa): number[] {
   const n = e.jugadores.length
   return Array.from({ length: n }, (_, k) => (e.inicial + k) % n)
 }
-const activos = (e: EstadoClasico, orden: number[]) => orden.filter((i) => !e.jugadores[i].eliminado)
+const activos = (e: Mesa, orden: number[]) => orden.filter((i) => !e.jugadores[i].eliminado)
+
+/**
+ * La ronda en curso, para contarla en la mesa: quién la abre (el primero que sigue en juego desde el jugador
+ * inicial), quién falta por jugar en ella (con el que tiene el turno) y quién ya no tiene cartas.
+ */
+export function enRonda(e: Mesa): { abre: number; faltan: number[]; sinCartas: number[] } {
+  const orden = activos(e, ordenDeRonda(e))
+  const k = orden.indexOf(e.turno)
+  return {
+    abre: orden[0] ?? e.inicial,
+    faltan: k < 0 ? [] : orden.slice(k),
+    sinCartas: orden.filter((i) => e.jugadores[i].mano.length === 0),
+  }
+}
 
 /**
  * Pasa el turno tras la jugada (o el abandono) de `e.turno`. `orden` es el de la ronda en curso,
@@ -180,8 +217,9 @@ function pasarTurno(e: EstadoClasico, orden: number[], c: Cierre, azar: () => nu
   if (acabaron.length > 1) {
     c.eliminados = enJuego.filter((i) => !acabaron.includes(i))
     for (const i of c.eliminados) e.jugadores[i].eliminado = true
+    e.desempate = acabaron
     for (const i of acabaron) {
-      const robo = robar(e, azar)
+      const robo = robar(e, azar, c)
       if (robo) e.jugadores[i].mano.push(robo)
       c.desempate.push({ jugador: i, carta: robo })
     }
@@ -237,7 +275,8 @@ export function jugar(
     } else {
       e.descartes.push(carta)
     }
-    r.robada = robar(e, azar)
+    ;(j.falladas ??= []).push(carta)
+    r.robada = robar(e, azar, r)
     if (r.robada) j.mano.push(r.robada)
   }
 

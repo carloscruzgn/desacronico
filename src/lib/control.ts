@@ -1,5 +1,5 @@
 // La mesa no sabe si la partida es local o en línea: habla con un «controlador».
-import { jugar, vistaDe, type Anios, type EstadoClasico, type Resultado, type VistaClasico } from '../../compartido/clasico'
+import { abandonar, jugar, siguienteEnEmpezar, vistaDe, type Anios, type EstadoClasico, type Resultado, type VistaClasico } from '../../compartido/clasico'
 import { guardarPartida } from './datos'
 
 /** Algo que ha pasado en la partida: una jugada (que la mesa anima) o una puesta al día. */
@@ -18,7 +18,7 @@ export interface Controlador {
   asiento: number | 'todos' | null
   anfitrion: boolean
   jugar(carta: string, posicion: number): void
-  /** En línea, el anfitrión puede sacar de la partida a quien no vuelve. */
+  /** Sacar a un jugador de la partida: en línea, el anfitrión a quien no vuelve; en local, a quien se va de la mesa. */
   quitar?(jugador: number): void
   /** Dejar la partida. En línea, los demás siguen sin ti; en local, se da por terminada y no se guarda. */
   abandonar(): void
@@ -27,13 +27,39 @@ export interface Controlador {
   escuchar(f: (s: Suceso) => void): () => void
 }
 
+/** Sin jugadas todavía: la partida está tal como se repartió. */
+const sinEmpezar = (e: EstadoClasico) =>
+  e.ronda === 1 && e.cronologia.length === 1 && !e.descartes.length && e.jugadores.every((j) => !j.aciertos && !j.fallos)
+
+/**
+ * Quién empezó la última partida local de esta sesión, para que en «Otra partida» empiece el siguiente.
+ * La primera partida (o la de otros jugadores) se queda con el sorteo que hizo `crear`. `reparto` identifica
+ * la partida, para no volver a rotar al continuar una partida guardada antes de jugar nada.
+ */
+let anterior: { jugadores: string; inicial: number; reparto: string } | null = null
+
+function quienEmpieza(e: EstadoClasico) {
+  const jugadores = e.jugadores.map((j) => j.nombre).join('\n')
+  const reparto = e.cronologia[0] + ':' + e.jugadores.map((j) => j.mano.join(',')).join('|')
+  if (sinEmpezar(e) && anterior && anterior.reparto !== reparto && anterior.jugadores === jugadores) {
+    e.inicial = e.turno = siguienteEnEmpezar(anterior.inicial, e.jugadores.length)
+    guardarPartida(e)
+  }
+  anterior = { jugadores, inicial: e.inicial, reparto }
+}
+
 export function controlLocal(inicial: EstadoClasico, anios: Anios): Controlador {
   let estado = inicial
+  quienEmpieza(estado)
   const oyentes = new Set<(s: Suceso) => void>()
   const suceso = (jugada?: Resultado): Suceso => {
     const fechas: Anios = {}
-    for (const id of [...estado.cronologia, ...estado.descartes]) fechas[id] = anios[id]
+    const vistas = [...estado.cronologia, ...estado.descartes, ...estado.jugadores.flatMap((j) => j.falladas ?? [])]
+    for (const id of vistas) fechas[id] = anios[id]
     return { vista: vistaDe(estado), fechas, jugada }
+  }
+  const avisar = (s: Suceso) => {
+    for (const f of oyentes) f(s)
   }
   return {
     inicial: suceso(),
@@ -43,7 +69,12 @@ export function controlLocal(inicial: EstadoClasico, anios: Anios): Controlador 
       const r = jugar(estado, anios, carta, posicion)
       estado = r.estado
       guardarPartida(estado.ganadores.length ? null : estado)
-      for (const f of oyentes) f(suceso(r.resultado))
+      avisar(suceso(r.resultado))
+    },
+    quitar(jugador) {
+      estado = abandonar(estado, jugador).estado
+      guardarPartida(estado.ganadores.length ? null : estado)
+      avisar(suceso())
     },
     abandonar() {
       guardarPartida(null)

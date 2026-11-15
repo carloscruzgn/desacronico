@@ -10,6 +10,7 @@ import {
   MANO_MIN,
   MAX_JUGADORES,
   OPCIONES,
+  siguienteEnEmpezar,
   vistaDe,
   type Anios,
   type EstadoClasico,
@@ -36,6 +37,8 @@ interface Guardado {
   asientos: Asiento[]
   config: Config
   estado: EstadoClasico | null
+  /** Asiento que abrió la última partida: en la siguiente empieza el de detrás. Sin él, se echa a suertes. */
+  empezo?: number
 }
 
 interface Etiqueta {
@@ -122,7 +125,10 @@ export class Partida extends DurableObject<Env> {
             ids,
             g.asientos.map((a) => a.nombre),
             { ...g.config.opciones, series: g.config.ambitos },
+            Math.random,
+            this.quienEmpieza(),
           )
+          g.empezo = g.estado.inicial
           g.estado.jugadores.forEach((j, i) => (j.avatar = g.asientos[i].avatar))
           g.fase = 'juego'
           g.partida++
@@ -205,6 +211,12 @@ export class Partida extends DurableObject<Env> {
       const usados = g.asientos.map((a) => a.avatar)
       g.asientos.push({ id, nombre, avatar: avatar && !usados.includes(avatar) ? avatar : avatarLibre(usados) })
     }
+  }
+
+  /** Quién abre la partida que se va a repartir: el siguiente al que abrió la anterior; en la primera, a suertes. */
+  private quienEmpieza(): number | undefined {
+    const g = this.g!
+    return g.empezo === undefined ? undefined : siguienteEnEmpezar(g.empezo, g.asientos.length)
   }
 
   /** Vuelta a la sala de espera: los que miraban pasan a ser jugadores si caben. */
