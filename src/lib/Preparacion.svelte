@@ -67,6 +67,13 @@
         : '',
   )
 
+  // Lo que se va a repartir, debajo de «Repartir»: para comprobarlo antes de empezar.
+  const resumen = $derived.by(() => {
+    const j = nombres.length
+    const c = config.opciones.cartasIniciales
+    return `${j} ${j === 1 ? 'jugador' : 'jugadores'} · ${c} ${c === 1 ? 'carta' : 'cartas'}${j === 1 ? '' : ' cada uno'} · mazo de ${ids.length} ${ids.length === 1 ? 'carta' : 'cartas'}`
+  })
+
   function empezar() {
     guardarConfig(config)
     // Se guardan las elecciones tal cual: quien no eligió avatar vuelve a salir sin él la próxima vez.
@@ -128,7 +135,12 @@
   <div class="pie-fijo">
     <p class="error" role="alert">{error}</p>
     {#if hayGuardada && !error}<p class="nota">Al repartir se pierde la partida que quedó a medias.</p>{/if}
-    <button class="boton" disabled={!!error} onclick={empezar}>Repartir</button>
+    <button class="boton repartir" disabled={!!error} onclick={empezar}>
+      <span class="dos-lineas">
+        <span>Repartir</span>
+        <small>{resumen}</small>
+      </span>
+    </button>
   </div>
 </main>
 
@@ -146,6 +158,30 @@
   /* Con el pie fijo, lo que recibe el foco no puede quedar tapado por él. */
   :global(html:has(.pie-fijo)) {
     scroll-padding-bottom: 8rem;
+  }
+  /* «Repartir» destaca: su propia franja, más alto y con el resumen de la partida debajo. */
+  .pie-fijo {
+    padding-top: 12px;
+    background: var(--tapete-2);
+    border-top: 1px solid rgb(235 233 217 / 0.25);
+  }
+  .repartir {
+    min-height: 64px;
+    padding-inline: 0.6em;
+    font-size: 1.35rem;
+    box-shadow:
+      0 3px 0 #b9b6a0,
+      0 10px 24px rgb(0 0 0 / 0.55);
+  }
+  .dos-lineas {
+    display: grid;
+    line-height: 1.15;
+  }
+  .dos-lineas small {
+    font-weight: 400;
+    font-size: 0.82rem;
+    color: #55544c;
+    text-wrap: balance;
   }
   main {
     --radio-ficha: 8px;
@@ -305,6 +341,7 @@
       justify-items: center;
       /* en escritorio todo cabe: el pie no hace falta que flote ni que tape */
       position: static;
+      border-top: 0;
       background: none;
     }
     .pie-fijo .boton {
