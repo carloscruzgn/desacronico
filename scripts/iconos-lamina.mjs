@@ -1,23 +1,26 @@
 // Saca los iconos de la portada de las láminas SVG de Recraft V4.1 Pro Vector (ElevenLabs, flow
 // tr1qYYIjkIr7FuRIol7P): cada lámina trae cuatro iconos en una rejilla de 2x2 sobre un fondo claro.
 // Separa los trazos por cuadrante, quita el fondo, lleva cada icono a un cuadro de 48x48 y cambia
-// los colores por los del juego: el contorno pasa a currentColor (tinta sobre papel, papel sobre el
-// tapete) y el resto, a los tres colores de la identidad (ver ICONOS).
+// los colores por los del juego: el contorno pasa a tinta y el resto, a los tres colores de la identidad
+// (ver ICONOS). Desde el 2026-11-15 los iconos son iguales sobre el tapete y sobre el papel: nada cambia con el
+// fondo. Lo que antes era contorno claro sobre el tapete y decía algo (el grueso de la baraja, el arco de la
+// carta que vuela, el trazo del reparto) pasa a mostaza, para que no se pierda en el tapete.
 //
-// Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> <v3.svg> <v4.svg> <v6.svg> > src/lib/iconos.ts
-// v1 y v2: portada (En local y En línea; Cómo se juega y Reglamento ya van a mano). v3 y v4: Repartir y Lámina. Crear sala, a mano. v6: Unirse (puerta con flecha que entra).
+// Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> <v3.svg> <v4.svg> > src/lib/iconos.ts
+// v2: En local y En línea. v3 y v4: Lámina y Repartir. Cómo se juega, Reglamento, Crear sala y Unirse, a mano.
+// (v1 ya no aporta ningún icono, pero se sigue pasando para no cambiar la llamada.)
 // Las láminas no están en el repositorio (van en _local/iconos/).
 import { readFileSync } from 'node:fs'
 
-const [v1, v2, v3, v4, v6] = process.argv.slice(2).map((f) => readFileSync(f, 'utf8'))
+const [, v2, v3, v4] = process.argv.slice(2).map((f) => readFileSync(f, 'utf8'))
 const LADO = 48
 
 // Solo tres colores, más el contorno: principal (P), secundario (S) y acento (A). Sin tonos intermedios ni
 // rellenos de papel. Cada icono dice qué color de la lámina pasa a cuál; el acento va a lo que se mueve
 // o se señala (la carta que vuela, la que cae en el hueco, el marcapáginas). El tercer argumento de
 // icono() cambia el color de un trazo concreto, por su número dentro del icono.
-const P = 'var(--principal)', S = 'var(--secundario)', A = 'var(--acento)'
-const TINTA = { 'rgb(21,18,20)': 'currentColor', 'rgb(25,21,23)': 'currentColor', 'rgb(24,21,23)': 'currentColor', 'rgb(0,0,0)': 'currentColor', 'rgb(20,17,23)': 'currentColor' }
+const P = 'var(--principal)', S = 'var(--secundario)', A = 'var(--acento)', T = 'var(--tinta)'
+const TINTA = { 'rgb(21,18,20)': T, 'rgb(25,21,23)': T, 'rgb(24,21,23)': T, 'rgb(0,0,0)': T, 'rgb(20,17,23)': T }
 // En v3 y v4 el contorno es una forma negra por debajo de los colores: los blancos no pueden quedar
 // transparentes (se vería el negro), así que van a uno de los tres colores.
 
@@ -57,24 +60,27 @@ function icono(ts, colores, trazo = {}) {
     .join('')
 }
 
-// Iconos dibujados a mano en el mismo cuadro de 48x48, con contorno de 1,3 en currentColor. Desde el
+// Iconos dibujados a mano en el mismo cuadro de 48x48, con contorno de 1,3 en tinta. Desde el
 // 2026-11-15 los iconos nuevos se hacen así, no con Recraft.
-const CONTORNO = 'stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"'
-const CONTORNO_TINTA = CONTORNO.replace('currentColor', 'var(--tinta)') // el mismo trazo, siempre en tinta
+const CONTORNO = 'stroke="var(--tinta)" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"'
 const A_MANO = {
-  // una tira de película (S) con sus perforaciones y el fotograma con el play (P); perforaciones y
-  // fotograma van siempre en tinta, también su borde: solo el contorno de la tira cambia entre tapete y papel
+  // una tira de película (S) con sus perforaciones y el fotograma con el play (P), en tinta
   juega:
     `<path d="M7 7h34a3 3 0 0 1 3 3v28a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3z" fill="${S}" ${CONTORNO}/>` +
-    [8, 16, 24, 32, 40].flatMap((x) => [9.6, 35.2].map((y) => `<rect x="${x - 1.8}" y="${y}" width="3.6" height="3.2" fill="var(--tinta)" ${CONTORNO_TINTA}/>`)).join('') +
-    `<rect x="10" y="15.4" width="28" height="17.2" rx="1.8" fill="var(--tinta)" ${CONTORNO_TINTA}/>` +
-    `<path d="M20.4 18.6v10.8l9.4-5.4z" fill="${P}" ${CONTORNO_TINTA}/>`,
-  sala:
+    [8, 16, 24, 32, 40].flatMap((x) => [9.6, 35.2].map((y) => `<rect x="${x - 1.8}" y="${y}" width="3.6" height="3.2" fill="var(--tinta)" ${CONTORNO}/>`)).join('') +
+    `<rect x="10" y="15.4" width="28" height="17.2" rx="1.8" fill="var(--tinta)" ${CONTORNO}/>` +
+    `<path d="M20.4 18.6v10.8l9.4-5.4z" fill="${P}" ${CONTORNO}/>`,
+  // las dos puertas (crear sala y unirse) son la misma: marco redondeado (A), hueco oscuro y hoja
+  // abierta (S); solo cambia lo que va delante, la llave o la flecha (P)
+  puerta:
     `<path d="M11 44V14.5a9 9 0 0 1 9-9h8a9 9 0 0 1 9 9V44h-4.6V15a4.6 4.6 0 0 0-4.6-4.6h-7.6A4.6 4.6 0 0 0 15.6 15v29z" fill="${A}" ${CONTORNO}/>` +
-    `<path d="M15.6 44V15a4.6 4.6 0 0 1 4.6-4.6h7.6a4.6 4.6 0 0 1 4.6 4.6v29z" fill="currentColor"/>` +
-    `<path d="M23.6 13.6 32.4 11V43.2L23.6 46z" fill="${S}" ${CONTORNO}/>` +
+    `<path d="M15.6 44V15a4.6 4.6 0 0 1 4.6-4.6h7.6a4.6 4.6 0 0 1 4.6 4.6v29z" fill="var(--tinta)"/>` +
+    `<path d="M23.6 13.6 32.4 11V43.2L23.6 46z" fill="${S}" ${CONTORNO}/>`,
+  llave:
     `<path d="M18.6 25.9A6.4 6.4 0 1 1 22.6 25.9V31H26V34H22.6V35.6H25.2V38.6H22.6V41.4L20.6 43.6 18.6 41.4z" fill="${P}" ${CONTORNO}/>` +
-    `<circle cx="20.6" cy="19.8" r="2.3" fill="currentColor" ${CONTORNO}/>`,
+    `<circle cx="20.6" cy="19.8" r="2.3" fill="var(--tinta)" ${CONTORNO}/>`,
+  // una flecha que entra por la puerta, de la misma altura que la llave
+  flecha: `<path d="M4 26.4H15.8V21.8L24.6 28.6 15.8 35.4V30.8H4z" fill="${P}" ${CONTORNO}/>`,
   // un libro abierto de esquinas redondeadas (P), con tres renglones y el marcapáginas (A)
   reglas:
     `<path d="M24 14.5C18.5 10.6 13 9.6 8.6 10.1 7.4 10.2 6.5 11.2 6.5 12.4V37.6c0 1.3 1.1 2.3 2.4 2.2C14 39.4 19 40.4 24 43.5z" fill="${P}" ${CONTORNO}/>` +
@@ -84,33 +90,31 @@ const A_MANO = {
 }
 
 const ICONOS = {
-  // un móvil (P) con un abanico de cartas (S) y la de encima en acento
+  // un móvil (P) con un abanico de cartas (S) y la de encima en acento; debajo del móvil, una carta en
+  // acento (el trazo 8) hace de grueso de la baraja
   local: icono(cuadrante(v2, 0), {
     'rgb(174,93,114)': P,
     'rgb(157,139,105)': S, 'rgb(142,127,102)': S, 'rgb(72,160,176)': S, 'rgb(83,139,160)': S,
     'rgb(54,51,114)': A,
-  }),
-  // dos móviles (S y P) y la carta que pasa de uno a otro (A)
+  }, { 8: A }),
+  // dos móviles (S y P) y la carta que pasa de uno a otro (A), con su arco de puntos (trazos 17 a 23) en A
   linea: icono(cuadrante(v2, 1), {
     'rgb(157,139,105)': S, 'rgb(142,127,102)': S,
     'rgb(72,160,176)': P, 'rgb(83,139,160)': P,
     'rgb(54,51,114)': A,
-  }),
+  }, { 17: A, 18: A, 19: A, 20: A, 21: A, 22: A, 23: A }),
   // a mano: una tira de película con el play, que recuerda al icono de vídeo de antes
   juega: A_MANO.juega,
   // a mano: el cuadernillo de Recraft era de esquinas vivas y desentonaba con los demás
   reglas: A_MANO.reglas,
-  // un montón (P) del que sale un abanico de cartas (S)
+  // un montón (P) del que sale un abanico de cartas (S), con el trazo del movimiento (10 y 11) en A
   repartir: icono(cuadrante(v4, 0), {
     'rgb(185,76,65)': P, 'rgb(135,158,145)': S, 'rgb(133,146,140)': S,
-  }),
-  // Dibujado a mano (la llave de Recraft no convenció): la misma puerta que «unirse», con marco
-  // redondeado (A), hueco oscuro y hoja abierta (S), y una llave (P) en lugar de la flecha.
-  sala: A_MANO.sala,
-  // una puerta abierta (marco A, hoja S) con una flecha que entra (P)
-  unirse: icono(cuadrante(v6, 0), {
-    'rgb(236,154,21)': A, 'rgb(143,160,160)': S, 'rgb(207,101,68)': P, 'rgb(251,251,250)': 'none', 'rgb(237,229,224)': 'none',
-  }),
+  }, { 10: A, 11: A }),
+  // a mano: la puerta con una llave
+  sala: A_MANO.puerta + A_MANO.llave,
+  // a mano: la misma puerta con una flecha que entra (la de Recraft tenía otro marco)
+  unirse: A_MANO.puerta + A_MANO.flecha,
   // un cartel (S) con la línea del tiempo: cartas en P y A
   lamina: icono(cuadrante(v3, 3), {
     'rgb(148,163,158)': S, 'rgb(249,247,245)': S, 'rgb(220,147,73)': A, 'rgb(187,82,59)': P,
@@ -118,7 +122,7 @@ const ICONOS = {
 }
 
 console.log(`// Generado por scripts/iconos-lamina.mjs: no se edita a mano.
-// Iconos de la portada, en un cuadro de ${LADO}x${LADO}. El contorno va en currentColor.
+// Iconos de la portada, en un cuadro de ${LADO}x${LADO}. El contorno va en tinta, sobre cualquier fondo.
 export const ICONOS = ${JSON.stringify(ICONOS, null, 2)} as const
 export type NombreIcono = keyof typeof ICONOS
 `)

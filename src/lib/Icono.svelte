@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Un icono propio del juego (los de la portada, de src/lib/iconos.ts). El contorno toma el color de la letra:
-  // tinta sobre papel y papel sobre el tapete. Es decorativo: el texto del botón ya dice qué hace.
+  // Un icono propio del juego (los de la portada, de src/lib/iconos.ts). El contorno va siempre en tinta:
+  // el icono es el mismo sobre el papel y sobre el tapete. Es decorativo: el texto del botón ya dice qué hace.
   import { ICONOS, type NombreIcono } from './iconos'
 
   interface Props {
