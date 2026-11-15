@@ -2025,13 +2025,14 @@
     rotate: var(--ladeo, 0deg);
   }
 
-  /* El hueco: la silueta discontinua de una carta, en color papel. Late dos veces al aparecer y se queda quieto. */
+  /* El hueco: la silueta discontinua de una carta, con el borde en la mostaza del realce (el mismo de la carta
+     elegida, que es la que va ahí). Late dos veces al aparecer y se queda quieto. */
   .hueco {
     flex: none;
     width: 0;
     height: calc(var(--carta-crono) * 1.2);
     padding: 0;
-    border: 0 dashed rgb(235 233 217 / 0.75);
+    border: 0 dashed var(--acento);
     border-radius: var(--radio-ficha);
     background: rgb(235 233 217 / 0.08);
     color: var(--papel);
