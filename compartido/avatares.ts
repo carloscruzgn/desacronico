@@ -35,6 +35,12 @@ export const IDS_AVATARES = Object.keys(AVATARES)
 
 export const esAvatar = (s: unknown): s is string => typeof s === 'string' && Object.hasOwn(AVATARES, s)
 
+/** Avatares que tienen fotograma de parpadeo, <id>-pensando-b.webp: el «pensando» con los ojos cerrados,
+ *  idéntico a él fuera de los ojos (sale de scripts/avatares-parpadeo.mjs). Hoy lo tienen todos; un
+ *  avatar nuevo entra aquí solo cuando tenga su fotograma. */
+export const CON_PARPADEO: ReadonlySet<string> = new Set(IDS_AVATARES)
+export const tieneParpadeo = (id: unknown): id is string => typeof id === 'string' && CON_PARPADEO.has(id)
+
 /** Un avatar que no esté ya cogido (o cualquiera, si no queda ninguno libre). */
 export function avatarLibre(usados: (string | undefined)[], azar: () => number = Math.random): string {
   const libres = IDS_AVATARES.filter((a) => !usados.includes(a))
