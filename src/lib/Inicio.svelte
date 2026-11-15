@@ -3,7 +3,6 @@
   import detallesJson from '../../compartido/detalles.json'
   import { barajar } from '../../compartido/clasico'
   import type { Fecha } from '../../compartido/tipos'
-  import { esteAparato } from './aparato'
   import Carta from './Carta.svelte'
   import { cargarAnios, cartas } from './datos'
   import Marca from './Marca.svelte'
@@ -21,9 +20,6 @@
     ontutorial: () => void
   }
   let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas, ontutorial }: Props = $props()
-
-  // «En este móvil» solo en un móvil de verdad; en la pizarra del aula, «en esta pantalla».
-  const aqui = esteAparato()
 
   // Abanico decorativo: cinco cartas al azar, una de cada ámbito
   const abanico = ['comunicacion', 'social', 'cientifico', 'mujer', 'coria'].map(
@@ -94,13 +90,13 @@
   <nav aria-label="Menú">
     {#if hayGuardada}
       <button class="entrada" class:principal={true} onclick={oncontinuar}>
-        <span><b>Continuar partida</b><small>La que quedó a medias en {aqui}</small></span>
+        <span><b>Continuar partida</b></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     {/if}
     {#if sala}
       <button class="entrada" onclick={onsala}>
-        <span><b>Volver a la sala <span class="codigo">{sala}</span></b><small>La partida en línea que dejaste abierta</small></span>
+        <span><b>Volver a la sala <span class="codigo">{sala}</span></b></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     {/if}
@@ -238,11 +234,6 @@
     font-size: 1.2rem;
     line-height: 1.2;
   }
-  .entrada small {
-    font-size: 0.95rem;
-    line-height: 1.2;
-    color: var(--gris-claro);
-  }
   .entrada .codigo {
     display: inline;
     font-family: var(--fell-sc);
@@ -274,7 +265,6 @@
       0 2px 0 #b9b6a0,
       0 8px 18px rgb(0 0 0 / 0.35);
   }
-  .entrada.principal small { color: #55544c; }
 
   .pareja {
     display: grid;
