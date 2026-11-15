@@ -71,9 +71,9 @@ const ICONOS = {
   juega: icono(cuadrante(v1, 2), {
     'rgb(197,116,120)': P, 'rgb(186,151,43)': S, 'rgb(78,142,154)': P, 'rgb(251,249,249)': S,
   }, { 4: A }),
-  // un cuadernillo abierto (S y P) con el marcapáginas (A)
+  // un cuadernillo abierto (P, las dos páginas) con el marcapáginas (A); no lleva secundario
   reglas: icono(cuadrante(v1, 3), {
-    'rgb(186,151,43)': S, 'rgb(197,116,120)': P, 'rgb(78,142,154)': A,
+    'rgb(186,151,43)': P, 'rgb(197,116,120)': P, 'rgb(78,142,154)': A,
   }, { 4: A }),
 }
 
