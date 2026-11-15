@@ -101,6 +101,19 @@
   /** La carta ampliada y la carta de la mesa de la que sale y a la que vuelve (ANIM-15). */
   /** La carta de la cronología más cerca del centro de la vista: lleva los redondeles de ampliar y escuchar. */
   let central = $state<string | null>(null)
+  /** La ficha de un jugador (cartas en mano, aciertos y fallos), abierta al tocar su moneda, y dónde va. */
+  let ficha = $state<number | null>(null)
+  let fichaEn = $state({ x: 0, y: 0 })
+  const ANCHO_FICHA = 220
+  function abrirFicha(i: number, boton: HTMLElement) {
+    if (ficha === i) return void (ficha = null)
+    const r = boton.getBoundingClientRect()
+    // Debajo de la moneda, centrada en ella y sin salirse de la pantalla; en escritorio, con los jugadores en
+    // columna, a su derecha, para no tapar a los de debajo.
+    if (matchMedia('(min-width: 1024px) and (min-height: 620px)').matches) fichaEn = { x: r.right + 10, y: Math.max(12, r.top + r.height / 2 - 70) }
+    else fichaEn = { x: Math.max(12, Math.min(r.left + r.width / 2 - ANCHO_FICHA / 2, innerWidth - 12 - ANCHO_FICHA)), y: r.bottom + 6 }
+    ficha = i
+  }
   /** La carta que se está leyendo en voz alta desde su redondel. */
   let leyendo = $state<string | null>(null)
   let ampliada = $state.raw<{ id: string; reverso: boolean; desde?: HTMLElement | null } | null>(null)
@@ -1145,13 +1158,23 @@
 </script>
 
 <svelte:window
-  onresize={medirVentana}
+  onresize={() => {
+    medirVentana()
+    ficha = null
+  }}
   onpointerdown={(e) => {
     // El bocadillo de ayuda se cierra al tocar fuera; el toque sigue su camino (un hueco, el menú). Elegir
     // una carta de la mano no lo cierra: es lo que cuenta, y pasa a contar el paso siguiente.
     if (ayuda && !(e.target as Element).closest?.('.bocadillo, .boton-ayuda, .mano .naipe')) ayuda = false
+    // La ficha de un jugador, igual; tocar otra moneda la cambia (lo hace su botón).
+    if (ficha !== null && !(e.target as Element).closest?.('.ficha-datos, .jugadores .ficha')) ficha = null
   }}
   onkeydown={(e) => {
+    if (e.key === 'Escape' && ficha !== null) {
+      chips[ficha]?.querySelector<HTMLElement>('.ficha')?.focus()
+      ficha = null
+      return
+    }
     if (e.key === 'Escape' && ayuda) {
       ayuda = false
       return
@@ -1234,7 +1257,7 @@
     </div>
   </header>
 
-  <ul class="jugadores" class:solo aria-label="Jugadores" style:--j={vista.jugadores.length}>
+  <ul class="jugadores" class:solo aria-label="Jugadores" style:--j={vista.jugadores.length} onscroll={() => (ficha = null)}>
     {#each enOrden as i (i)}
       {@const j = vista.jugadores[i]}
       <li
@@ -1245,13 +1268,30 @@
         class:ausente={ausente(i)}
         aria-current={i === vista.turno && !fin ? 'true' : undefined}
       >
-        <span class="nombre">{j.nombre}{i === asiento ? ' (tú)' : ''}</span>
-        {#if ausente(i)}<span class="sr-only">, sin conexión</span>{/if}
-        <span class="sr-only">, </span>
-        <Moneda avatar={j.avatar} nombre={j.nombre} gesto={gestoDe(i)} n={fin ? undefined : cuentas[i]} fuera={j.eliminado && !fin} abre={!fin && !solo && i === ronda.abre} />
+        <!-- Tocar la moneda abre su ficha: cartas en mano, aciertos y fallos. -->
+        <button class="ficha" aria-expanded={ficha === i} aria-controls="ficha-jugador" onclick={(e) => abrirFicha(i, e.currentTarget)}>
+          <span class="nombre">{j.nombre}{i === asiento ? ' (tú)' : ''}</span>
+          {#if ausente(i)}<span class="sr-only">, sin conexión</span>{/if}
+          <span class="sr-only">, </span>
+          <Moneda avatar={j.avatar} nombre={j.nombre} gesto={gestoDe(i)} n={fin ? undefined : cuentas[i]} fuera={j.eliminado && !fin} abre={!fin && !solo && i === ronda.abre} />
+        </button>
       </li>
     {/each}
   </ul>
+
+  {#if ficha !== null && vista.jugadores[ficha]}
+    {@const j = vista.jugadores[ficha]}
+    <!-- Fuera de la lista, que se desplaza de lado y la cortaría: fija bajo la moneda que se tocó. -->
+    <div class="ficha-datos" id="ficha-jugador" role="group" aria-label={j.nombre} style:left="{fichaEn.x}px" style:top="{fichaEn.y}px" transition:fly={{ y: -6, duration: dura(150), easing: cubicOut }}>
+      <p class="ficha-nombre">{j.nombre}{ficha === asiento ? ' (tú)' : ''}</p>
+      {#if j.eliminado}<p class="ficha-fuera">Fuera de la partida</p>{/if}
+      <dl>
+        <div><dt>Cartas en mano</dt><dd class="cifras">{cuentas[ficha] ?? j.mano.length}</dd></div>
+        <div><dt>Aciertos</dt><dd class="cifras">{j.aciertos}</dd></div>
+        <div><dt>Fallos</dt><dd class="cifras">{j.fallos}</dd></div>
+      </dl>
+    </div>
+  {/if}
 
   {#if franja}
     <p class="franja">
@@ -1767,14 +1807,26 @@
   .jugadores li {
     flex: none;
     display: flex;
+    min-width: var(--ficha);
+    max-width: max(var(--ficha), 5.4em);
+    color: var(--gris-claro);
+    transition: opacity 0.3s;
+  }
+  /* La moneda y el nombre son un botón: abre la ficha del jugador. */
+  .jugadores .ficha {
+    display: flex;
+    flex: 1;
     flex-direction: column-reverse;
     align-items: center;
     gap: 5px;
-    min-width: var(--ficha);
-    max-width: max(var(--ficha), 5.4em);
-    padding-top: 4px;
-    color: var(--gris-claro);
-    transition: opacity 0.3s;
+    min-width: 0;
+    padding: 4px 0 0;
+    border: 0;
+    border-radius: var(--radio-ficha);
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
   }
   .jugadores .nombre {
     max-width: 100%;
@@ -2201,6 +2253,43 @@
     text-wrap: balance;
   }
   .pista.nota { font-size: 0.88rem; }
+
+  /* La ficha de un jugador: el papel del menú de sonido, fija bajo su moneda. */
+  .ficha-datos {
+    position: fixed;
+    z-index: 40;
+    width: 220px;
+    padding: 12px 16px 10px;
+    border-radius: var(--radio-hoja, 14px);
+    background: var(--grano-papel), var(--papel-2, var(--papel));
+    color: var(--tinta);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+  }
+  .ficha-nombre {
+    margin: 0 0 6px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    overflow-wrap: anywhere;
+  }
+  .ficha-fuera {
+    margin: -2px 0 6px;
+    color: #55544c;
+    font-style: italic;
+  }
+  .ficha-datos dl { margin: 0; }
+  .ficha-datos dl div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 4px 0;
+  }
+  .ficha-datos dl div + div { border-top: 1px solid rgb(29 29 27 / 0.15); }
+  .ficha-datos dd {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.15rem;
+  }
   /* La última carta jugada, con el realce mostaza: el mismo borde que la elegida de la mano. */
   .crono .ultima-jugada :global(.cara) {
     outline: 2.5px solid var(--acento);
@@ -2780,11 +2869,13 @@
       mask-image: none;
     }
     .jugadores li {
+      width: auto;
+      max-width: none;
+    }
+    .jugadores .ficha {
       flex-direction: row-reverse;
       justify-content: flex-end;
       gap: 14px;
-      width: auto;
-      max-width: none;
       padding: 6px 0 2px 6px;
     }
     .jugadores .nombre {
@@ -2820,7 +2911,7 @@
       --lado: clamp(34px, var(--ficha) - 22px, 38px);
       padding-top: 6px;
     }
-    .jugadores li { gap: 3px; }
+    .jugadores .ficha { gap: 3px; }
     .jugadores .nombre { font-size: 0.76rem; }
     .franja { margin-top: 2px; font-size: 0.84rem; }
     .franja .ronda { font-size: 0.95rem; }
@@ -2848,7 +2939,7 @@
       --lado: 40px;
       gap: 6px;
     }
-    .jugadores li { gap: 12px; }
+    .jugadores .ficha { gap: 12px; }
     .jugadores .nombre { font-size: 0.98rem; }
   }
   /* En un móvil la barra lleva cuatro botones y las dos pilas: la marca, algo menor, y menos aire entre ellos. */
