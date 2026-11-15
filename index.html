@@ -2,6 +2,12 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <!-- Una sola dirección: desde www se pasa a desacronico.com antes de cargar nada, para que la partida guardada,
+         los ajustes y los enlaces de sala sean siempre los mismos (el navegador los guarda por dirección). -->
+    <script>
+      if (location.hostname === 'www.desacronico.com') location.replace('https://desacronico.com' + location.pathname + location.search + location.hash)
+    </script>
+    <link rel="canonical" href="https://desacronico.com/" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
