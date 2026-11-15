@@ -5,7 +5,7 @@
 // tapete) y el resto, a los tres colores de la identidad (ver ICONOS).
 //
 // Uso: node scripts/iconos-lamina.mjs <v1.svg> <v2.svg> <v3.svg> <v4.svg> <v6.svg> > src/lib/iconos.ts
-// v1 y v2: portada (En local, En línea, Cómo se juega, Reglamento). v3 y v4: Repartir y Lámina. Crear sala, a mano. v6: Unirse (puerta con flecha que entra).
+// v1 y v2: portada (En local y En línea; Cómo se juega y Reglamento ya van a mano). v3 y v4: Repartir y Lámina. Crear sala, a mano. v6: Unirse (puerta con flecha que entra).
 // Las láminas no están en el repositorio (van en _local/iconos/).
 import { readFileSync } from 'node:fs'
 
@@ -61,6 +61,13 @@ function icono(ts, colores, trazo = {}) {
 // 2026-11-15 los iconos nuevos se hacen así, no con Recraft.
 const CONTORNO = 'stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"'
 const A_MANO = {
+  // una tira de película (S) con sus perforaciones y el fotograma con el play (P); perforaciones y
+  // fotograma van siempre en tinta, sobre el tapete y sobre el papel: solo el contorno cambia
+  juega:
+    `<path d="M7 7h34a3 3 0 0 1 3 3v28a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3z" fill="${S}" ${CONTORNO}/>` +
+    [8, 16, 24, 32, 40].flatMap((x) => [9.6, 35.2].map((y) => `<rect x="${x - 1.8}" y="${y}" width="3.6" height="3.2" fill="var(--tinta)" ${CONTORNO}/>`)).join('') +
+    `<rect x="10" y="15.4" width="28" height="17.2" rx="1.8" fill="var(--tinta)" ${CONTORNO}/>` +
+    `<path d="M20.4 18.6v10.8l9.4-5.4z" fill="${P}" ${CONTORNO}/>`,
   sala:
     `<path d="M11 44V14.5a9 9 0 0 1 9-9h8a9 9 0 0 1 9 9V44h-4.6V15a4.6 4.6 0 0 0-4.6-4.6h-7.6A4.6 4.6 0 0 0 15.6 15v29z" fill="${A}" ${CONTORNO}/>` +
     `<path d="M15.6 44V15a4.6 4.6 0 0 1 4.6-4.6h7.6a4.6 4.6 0 0 1 4.6 4.6v29z" fill="currentColor"/>` +
@@ -88,10 +95,8 @@ const ICONOS = {
     'rgb(72,160,176)': P, 'rgb(83,139,160)': P,
     'rgb(54,51,114)': A,
   }),
-  // tres cartas en fila (P, S, P) y la que cae en el hueco (A, el trazo 4)
-  juega: icono(cuadrante(v1, 2), {
-    'rgb(197,116,120)': P, 'rgb(186,151,43)': S, 'rgb(78,142,154)': P, 'rgb(251,249,249)': S,
-  }, { 4: A }),
+  // a mano: una tira de película con el play, que recuerda al icono de vídeo de antes
+  juega: A_MANO.juega,
   // a mano: el cuadernillo de Recraft era de esquinas vivas y desentonaba con los demás
   reglas: A_MANO.reglas,
   // un montón (P) del que sale un abanico de cartas (S)

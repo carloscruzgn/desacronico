@@ -120,8 +120,7 @@
     </button>
     <div class="pareja">
       <button class="entrada" onclick={ontutorial}>
-        <!-- Es un dibujo ancho y bajo: con algo más de lado pesa como los otros tres. -->
-        <Icono nombre="juega" lado={40} />
+        <Icono nombre="juega" lado={36} />
         <span><b>Cómo se juega</b></span>
       </button>
       <button class="entrada" onclick={onreglas}>
