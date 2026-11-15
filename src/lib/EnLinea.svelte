@@ -301,7 +301,7 @@
 
       {#if invitacion}
         <!-- Con invitación, el código ya se sabe: un solo botón ancho para entrar. -->
-        <button class="boton ancho" disabled={cargando}><Icono nombre="unirse" lado={40} />Entrar en la sala <span class="codigo-boton">{invitacion}</span></button>
+        <button class="boton ancho" disabled={cargando}><Icono nombre="unirse" lado={34} />Entrar en la sala <span class="codigo-boton">{invitacion}</span></button>
         <p class="error campo-error" role="alert">{errorCodigo}</p>
       {:else}
         <div class="opcion">
@@ -332,7 +332,7 @@
           </div>
           <p class="error campo-error" id="codigo-error" role="alert">{errorCodigo}</p>
           <p class="ayuda menor" id="unirse-ayuda">Las cuatro letras que te dé quien creó la sala.</p>
-          <button class="boton ancho" disabled={cargando}><Icono nombre="unirse" lado={40} />Unirse a la sala</button>
+          <button class="boton ancho" disabled={cargando}><Icono nombre="unirse" lado={34} />Unirse a la sala</button>
         </div>
       {/if}
       <p class="error" role="alert">{error}</p>
@@ -343,7 +343,7 @@
     {:else}
       <div class="opcion">
         <h2>O crear una nueva</h2>
-        <button class="boton secundario" disabled={cargando} onclick={() => entrar(true)}><Icono nombre="sala" lado={30} />Crear sala</button>
+        <button class="boton secundario" disabled={cargando} onclick={() => entrar(true)}><Icono nombre="sala" lado={34} />Crear sala</button>
       </div>
     {/if}
   </main>
