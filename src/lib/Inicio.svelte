@@ -96,7 +96,7 @@
     {/if}
     {#if sala}
       <button class="entrada" onclick={onsala}>
-        <span><b>Volver a la sala <span class="codigo">{sala}</span></b></span>
+        <span><b>Volver a la sala</b><small>Sala actual: <span class="codigo">{sala}</span></small></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     {/if}
@@ -233,6 +233,11 @@
   .entrada b {
     font-size: 1.2rem;
     line-height: 1.2;
+  }
+  .entrada small {
+    font-size: 0.95rem;
+    line-height: 1.2;
+    color: var(--gris-claro);
   }
   .entrada .codigo {
     display: inline;
