@@ -1,7 +1,8 @@
 <script lang="ts">
-  // El mazo: un montón de cartas que se baraja al empezar y suelta la de arriba cada vez que alguien roba.
+  // El mazo: un montón de cartulina crema visto de canto, que adelgaza a medida que se roba. No tiene dorso
+  // (la carta impresa no lo tiene): solo cantos de papel y el número de cartas que quedan.
   import { untrack } from 'svelte'
-  import { fly } from 'svelte/transition'
+  import { fade } from 'svelte/transition'
   import { dura } from './movimiento'
 
   let { n, el = $bindable() }: { n: number; el?: HTMLElement } = $props()
@@ -16,19 +17,23 @@
     previo = n
     vez++
   })
+
+  /** Grosor del montón: medio píxel por cada tres cartas, entre un canto de 2 px y 26 px. */
+  const grosor = $derived(n ? Math.min(26, 2 + n / 6) : 0)
 </script>
 
-<div class="mazo" class:vacio={n === 0} bind:this={el} role="img" aria-label="Mazo: {n} cartas">
-  {#key vez}
-    <div class="capas {gesto}" aria-hidden="true">
-      <span class="capa c3"></span>
-      <span class="capa c2"></span>
-      <span class="capa c1"></span>
-    </div>
-  {/key}
+<div class="mazo" class:vacio={n === 0} bind:this={el} role="img" aria-label="Mazo: {n} {n === 1 ? 'carta' : 'cartas'}">
   {#key n}
-    <span class="n" in:fly={{ y: -10, duration: dura(240) }}>{n}</span>
+    <span class="n" aria-hidden="true" in:fade={{ duration: dura(200) }}>{n}</span>
   {/key}
+  <div class="monton" style:--grosor="{grosor}px" aria-hidden="true">
+    {#key vez}
+      <div class="canto {gesto}">
+        <span class="mitad arriba"></span>
+        <span class="mitad abajo"></span>
+      </div>
+    {/key}
+  </div>
 </div>
 
 <style>
@@ -36,70 +41,88 @@
     position: relative;
     width: 40px;
     aspect-ratio: 554 / 766;
-    display: grid;
-    place-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 3px;
   }
-  .capas,
-  .capa {
+  .n {
+    color: var(--papel);
+    font-family: var(--fell-sc);
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+  .monton {
+    position: relative;
+    width: 100%;
+    height: var(--grosor);
+    transition: height 0.4s var(--curva-deslizar, ease);
+  }
+  /* El canto: las cartas apiladas se ven como rayas finas de cartulina, con la de arriba un poco más clara. */
+  .canto,
+  .mitad {
     position: absolute;
     inset: 0;
   }
-  /* Dorso: papel con la banda de las cuatro eras */
-  .capa {
-    border-radius: 3px;
+  .mitad {
+    border-radius: 1.5px;
     background:
-      linear-gradient(90deg, var(--antigua) 25%, var(--media) 25% 50%, var(--moderna) 50% 75%, var(--contemporanea) 75%) 0 72% / 100% 16% no-repeat,
+      linear-gradient(var(--papel-2), var(--papel-2)) top / 100% 1.5px no-repeat,
+      repeating-linear-gradient(var(--papel) 0 1.2px, #b9b6a0 1.2px 1.6px),
       var(--papel);
     box-shadow:
-      0 0 0 0.5px rgb(0 0 0 / 0.35),
-      0 1px 2px rgb(0 0 0 / 0.35);
+      0 0 0 0.5px rgb(0 0 0 / 0.3),
+      0 2px 4px rgb(0 0 0 / 0.45);
   }
-  .c2 { transform: translate(2px, 2px); }
-  .c3 {
-    transform: translate(4px, 4px);
-    box-shadow:
-      0 0 0 0.5px rgb(0 0 0 / 0.35),
-      3px 5px 9px rgb(0 0 0 / 0.45);
+  .arriba { bottom: 50%; }
+  .abajo {
+    top: 50%;
+    background: repeating-linear-gradient(var(--papel) 0 1.2px, #b9b6a0 1.2px 1.6px), var(--papel);
   }
-  .vacio .capas { opacity: 0.25; }
+  .vacio .monton {
+    height: 2px;
+    border-top: 1px dashed rgb(235 233 217 / 0.4);
+  }
+  .vacio .n { color: var(--gris-claro); }
 
-  .n {
-    position: relative;
-    margin-bottom: 30%;
-    color: var(--tinta);
-    font-family: var(--fell-sc);
-    font-size: 1.1rem;
-    line-height: 1;
+  /* Barajar: el montón se parte en dos, las mitades se cruzan y vuelven a juntarse, una vez. */
+  .baraja .arriba { animation: cortar-arriba 0.8s var(--curva-deslizar, ease) both; }
+  .baraja .abajo { animation: cortar-abajo 0.8s var(--curva-deslizar, ease) both; }
+  @keyframes cortar-arriba {
+    0%, 100% { transform: none; }
+    45% { transform: translate(-45%, -2px); }
   }
-
-  /* Barajar: las dos cartas de arriba se abren a los lados y vuelven, dos veces */
-  .baraja .c1 { animation: abre-izq 0.95s cubic-bezier(0.4, 0, 0.3, 1); }
-  .baraja .c2 { animation: abre-der 0.95s cubic-bezier(0.4, 0, 0.3, 1); }
-  @keyframes abre-izq {
-    0%, 50%, 100% { transform: none; }
-    25%, 75% { transform: translate(-62%, -5%) rotate(-11deg); }
-  }
-  @keyframes abre-der {
-    0%, 50%, 100% { transform: translate(2px, 2px); }
-    25%, 75% { transform: translate(26%, 6%) rotate(8deg); }
+  @keyframes cortar-abajo {
+    0%, 100% { transform: none; }
+    45% { transform: translate(45%, 2px); }
   }
 
-  /* Robar: la carta de arriba sale hacia la mesa y asoma la siguiente */
-  .roba .c1 { animation: sale 0.5s ease-in; }
-  .roba .c2 { animation: sube 0.5s ease-out; }
+  /* Robar: una lámina sale de lo alto del montón hacia la mesa. */
+  .roba::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--papel-2);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    animation: sale 0.45s var(--curva-deslizar, ease) both;
+  }
   @keyframes sale {
-    0% { transform: none; opacity: 1; }
-    55% { transform: translate(-45%, 55%) rotate(-16deg); opacity: 0; }
-    56% { transform: translate(2px, 2px); opacity: 0; }
-    100% { transform: none; opacity: 1; }
-  }
-  @keyframes sube {
-    0%, 40% { transform: translate(2px, 2px); }
-    70% { transform: translate(0, -3px); }
-    100% { transform: translate(2px, 2px); }
+    to {
+      transform: translate(-70%, 14px) rotate(-14deg);
+      opacity: 0;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .capa { animation: none !important; }
+    .mitad,
+    .roba::after {
+      animation: none !important;
+    }
+    .roba::after { display: none; }
   }
 </style>

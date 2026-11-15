@@ -59,7 +59,7 @@
       {#each elegidos as a, i (a)}
         <div class="hoja" animate:flip={{ duration: dura(350), easing: cubicOut }} in:recibir={{ key: a }} out:enviar={{ key: a }}>
           <div class="giro" style="--i: {i - (elegidos.length - 1) / 2}">
-            <Carta carta={muestra[a]} />
+            <Carta carta={muestra[a]} imagen="mini" soloAnverso />
           </div>
         </div>
       {/each}
@@ -158,7 +158,7 @@
   .giro {
     transform-origin: 50% 170%;
     transform: rotate(calc(var(--i) * 7deg));
-    transition: transform 0.35s cubic-bezier(0.3, 1.2, 0.5, 1);
+    transition: transform 0.35s var(--curva-deslizar);
   }
   .total {
     position: absolute;

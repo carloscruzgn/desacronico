@@ -20,7 +20,7 @@
       <img src="/avatares/{avatar}-{gesto}.webp" alt="" draggable="false" />
     {/key}
   {:else}
-    <span class="inicial">{nombre.trim().charAt(0).toUpperCase() || '?'}</span>
+    <span class="inicial" aria-hidden="true">{nombre.trim().charAt(0).toUpperCase() || '?'}</span>
   {/if}
   {#if n !== undefined}
     <span class="cuenta">{n}<span class="sr-only">{n === 1 ? ' carta' : ' cartas'}</span></span>

@@ -30,7 +30,7 @@
   <div class="abanico" aria-hidden="true">
     {#each abanico as carta, i (carta.id)}
       <div class="hoja" style="--i: {i - 2}">
-        <Carta {carta} />
+        <Carta {carta} imagen="mini" soloAnverso />
       </div>
     {/each}
   </div>
@@ -103,7 +103,7 @@
     margin-left: calc(var(--ancho) / -2);
     transform-origin: 50% 160%;
     transform: rotate(calc(var(--i) * 13deg));
-    animation: abrir 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+    animation: abrir 0.9s var(--curva-posar) both;
     animation-delay: calc((var(--i) + 2) * 70ms + 100ms);
   }
   @keyframes abrir {
@@ -174,7 +174,7 @@
   }
   .entrada.principal {
     border-color: var(--papel);
-    background: var(--papel);
+    background: var(--grano-papel), var(--papel);
     color: var(--tinta);
     box-shadow:
       0 2px 0 #b9b6a0,

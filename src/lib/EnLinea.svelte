@@ -431,7 +431,7 @@
     margin-top: 16px;
     padding: 12px;
     border-radius: 10px;
-    background: var(--papel);
+    background: var(--grano-papel), var(--papel);
     color: var(--tinta);
   }
   .invitacion .ayuda {
@@ -464,7 +464,7 @@
   .tarjeta {
     padding: 16px 16px 12px;
     border-radius: 12px;
-    background: var(--papel);
+    background: var(--grano-papel), var(--papel);
     color: var(--tinta);
     text-align: center;
   }

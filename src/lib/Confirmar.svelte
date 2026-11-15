@@ -49,7 +49,7 @@
     width: min(100%, 380px);
     padding: 20px;
     border-radius: 12px;
-    background: var(--papel-2);
+    background: var(--grano-papel), var(--papel-2);
     color: var(--tinta);
     text-align: center;
     box-shadow: 0 20px 60px rgb(0 0 0 / 0.6);

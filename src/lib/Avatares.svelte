@@ -60,7 +60,7 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    background: var(--papel-2);
+    background: var(--grano-papel), var(--papel-2);
     color: var(--tinta);
     border-radius: 14px 14px 0 0;
     box-shadow: 0 -10px 40px rgb(0 0 0 / 0.5);

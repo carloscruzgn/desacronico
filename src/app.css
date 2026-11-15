@@ -56,8 +56,10 @@
   --coria: #0e265c;
 
   --antigua: #b46d7a;
-  --media: #9e9a67;
-  --moderna: #67b2ae;
+  /* La Edad Media y la Moderna, un punto más oscuras que en el impreso (#9e9a67 y #67b2ae):
+     en pantalla, el año en blanco sobre la banda llega así a 3:1. */
+  --media: #9b9765;
+  --moderna: #5da09d;
   --contemporanea: #4e56a1;
 
   --acierto: #3d7a4a;
@@ -67,8 +69,30 @@
   --tapete: #23302b;
   --tapete-2: #18211e;
 
-  /* Anillo de foco: dorado sobre el tapete; las superficies de papel lo cambian a tinta. */
+  /* Anillo de foco: dorado sobre el tapete; las superficies de papel lo cambian a tinta.
+     Es accesibilidad, no adorno: el único dorado que queda en la web. */
   --foco: #e8c66a;
+
+  /* Materiales de la mesa. El tapete es fieltro: un ruido fino al 6 % y una viñeta que oscurece los bordes.
+     Se usa como fondo de cualquier capa que haga de mesa: background: var(--fondo-mesa). */
+  --fieltro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23f)' opacity='.06'/%3E%3C/svg%3E");
+  --fondo-mesa:
+    var(--fieltro),
+    radial-gradient(130% 95% at 50% 40%, transparent 55%, rgb(0 0 0 / 0.32) 100%),
+    radial-gradient(120% 80% at 50% 0%, var(--tapete) 0%, var(--tapete-2) 70%),
+    var(--tapete-2);
+  /* El papel lleva grano, más fino y más suave que el fieltro (3-4 %). Es una capa que va encima del color:
+     background: var(--grano-papel), var(--papel-2). */
+  --grano-papel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='.035'/%3E%3C/svg%3E");
+
+  /* Movimiento de cartulina: nada rebota. Regla para lo que se añada: ningún cubic-bezier con
+     el eje y fuera de [0, 1].
+     - posar: la carta llega rápido y se asienta de golpe, sin pasarse.
+     - voltear: arranca y frena suave, como una cartulina que se da la vuelta.
+     - deslizar: un desplazamiento llano por la mesa. */
+  --curva-posar: cubic-bezier(0.2, 0.7, 0.25, 1);
+  --curva-voltear: cubic-bezier(0.45, 0, 0.25, 1);
+  --curva-deslizar: cubic-bezier(0.3, 0.1, 0.2, 1);
 
   /* Dos voces: IM Fell da el tono (marca, cartas, títulos, avisos); Alegreya Sans lleva la interfaz. */
   --fell: 'Fell', 'Times New Roman', serif;
@@ -91,12 +115,19 @@ body {
   min-height: 100dvh;
 }
 
+/* Sin fondo propio: lo pondría encima del tapete de body::before. El color base ya lo da :root. */
 body {
-  background:
-    radial-gradient(120% 80% at 50% 0%, var(--tapete) 0%, var(--tapete-2) 70%) fixed,
-    var(--tapete-2);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+}
+/* El tapete va en una capa fija propia, no en un fondo con `fixed`, que obliga a repintar al desplazarse. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--fondo-mesa);
+  pointer-events: none;
 }
 
 button {
@@ -114,7 +145,7 @@ button {
   padding: 0.5em 1.4em;
   border: 0;
   border-radius: 6px;
-  background: var(--papel);
+  background: var(--grano-papel), var(--papel);
   color: var(--tinta);
   font-family: var(--ui);
   font-weight: 700;
@@ -186,6 +217,12 @@ h2:focus {
   margin: 1em -6px 0;
   padding: 18px 6px calc(14px + env(safe-area-inset-bottom));
   background: linear-gradient(transparent, var(--tapete-2) 22px);
+}
+
+/* Años en la interfaz (no en la carta): cifras de igual alto y ancho, para que el 1 no parezca una I. */
+.cifras {
+  font-family: var(--ui);
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 h1,

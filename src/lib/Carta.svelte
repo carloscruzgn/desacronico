@@ -1,3 +1,16 @@
+<script lang="ts" module>
+  import detallesJson from '../../compartido/detalles.json'
+
+  /** Detalle del reverso de cada carta: [x, y, escala]. (x, y) es un punto fijo en fracciones de la imagen:
+      el píxel (x·ancho, y·alto) se ve en (x·W, y·H) del marco. La escala es respecto al «cover» de siempre. */
+  const detalles = detallesJson as unknown as Record<string, [number, number, number] | null>
+
+  /** Por debajo de este ancho la carta usa la miniatura (260 px) y deja fuera la letra pequeña. */
+  const PEQUENA = 170
+  /** Con más ampliación que esta, el detalle del reverso sale de la imagen original: la miniatura se vería blanda. */
+  const AMPLIACION_MINI = 1.5
+</script>
+
 <script lang="ts">
   import { eraDe, type Carta, type Fecha } from '../../compartido/tipos'
   import { anioTexto } from './datos'
@@ -8,28 +21,50 @@
     fecha?: Fecha | null
     /** Muestra el reverso (la cara con el año). */
     volteada?: boolean
+    /** Qué ilustración se descarga: «mini» donde la carta siempre es pequeña (mano, abanicos), «grande» en la
+        carta ampliada y «auto» para elegirla según el ancho con que se pinta. */
+    imagen?: 'mini' | 'grande' | 'auto'
+    /** Aquí la carta no se da la vuelta: no se descarga la ilustración del reverso. */
+    soloAnverso?: boolean
   }
-  let { carta, fecha = null, volteada = false }: Props = $props()
+  let { carta, fecha = null, volteada = false, imagen = 'auto', soloAnverso = false }: Props = $props()
 
   const oscura = $derived(carta.ambito === 'social' || carta.ambito === 'mujer' || carta.ambito === 'coria')
   const era = $derived(fecha ? eraDe(fecha.anio) : null)
-  const imagen = $derived(`/cartas/${carta.id}.webp`)
+  const detalle = $derived(detalles[carta.id] ?? null)
+
+  let ancho = $state(0)
+  /** Una carta que ya se ha visto grande se queda con la ilustración original, aunque luego encoja. */
+  let crecida = $state(false)
+  $effect(() => {
+    if (ancho >= PEQUENA) crecida = true
+  })
+  const mini = $derived(imagen === 'mini' || (imagen === 'auto' && !crecida))
+  // En «auto» se espera a conocer el ancho, para no descargar dos veces la misma ilustración.
+  const lista = $derived(imagen !== 'auto' || ancho > 0)
+  const original = $derived(`/cartas/${carta.id}.webp`)
+  const miniatura = $derived(`/cartas/mini/${carta.id}.webp`)
+  const srcAnverso = $derived(lista ? (mini ? miniatura : original) : undefined)
+  const srcReverso = $derived(lista ? (mini && (detalle?.[2] ?? 1) <= AMPLIACION_MINI ? miniatura : original) : undefined)
+
+  /** La ilustración entra con un fundido corto en cuanto llega. */
+  const llega = (e: Event) => (e.currentTarget as HTMLElement).classList.add('llegada')
 </script>
 
-<div class="carta {carta.ambito}" class:oscura class:volteada>
+<div class="carta {carta.ambito}" class:oscura class:volteada bind:clientWidth={ancho}>
   <div class="giro">
     <div class="cara anverso">
       <div class="marca"><span class="sr-only">desacrónico</span><span aria-hidden="true"><span class="des">des</span><span class="a">a</span>crónico</span></div>
       <div class="ilustracion">
-        <img src={imagen} alt="" loading="lazy" draggable="false" />
+        {#if srcAnverso}<img src={srcAnverso} alt="" loading="lazy" draggable="false" onload={llega} onerror={llega} />{/if}
         <div class="pestana {carta.logoAnverso}"><img src="/img/cepa.svg" alt="CEPA Coria" draggable="false" /></div>
       </div>
       <div class="texto"><p>{@html carta.texto}</p></div>
     </div>
 
     <div class="cara reverso">
-      <div class="ilustracion">
-        <img src={imagen} alt="" loading="lazy" draggable="false" />
+      <div class="ilustracion" style:--dx={detalle?.[0]} style:--dy={detalle?.[1]} style:--ds={detalle?.[2]}>
+        {#if srcReverso && (!soloAnverso || volteada)}<img src={srcReverso} alt="" loading="lazy" draggable="false" onload={llega} onerror={llega} />{/if}
         <div class="pestana {carta.logoReverso}"><img src="/img/cepa.svg" alt="" draggable="false" /></div>
       </div>
       <div class="banda {era ?? ''}" class:larga={anioTexto(fecha).length > 14}>
@@ -73,7 +108,7 @@
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
-    transition: transform 0.7s cubic-bezier(0.3, 1.3, 0.5, 1);
+    transition: transform 0.6s var(--curva-voltear, ease-in-out);
   }
   .volteada .giro {
     transform: rotateY(180deg);
@@ -120,6 +155,11 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .ilustracion > img:global(.llegada) {
+    opacity: 1;
   }
   .anverso .ilustracion {
     height: 90.6cqw;
@@ -129,8 +169,11 @@
     height: 73.3cqw;
     border-radius: 4cqw 4cqw 0 0;
   }
+  /* El reverso enseña un detalle de la ilustración, ampliado, como la carta impresa. Sin datos, la parte de arriba. */
   .reverso .ilustracion > img {
-    object-position: center top;
+    object-position: calc(var(--dx, 0.5) * 100%) calc(var(--dy, 0) * 100%);
+    transform: scale(var(--ds, 1));
+    transform-origin: calc(var(--dx, 0.5) * 100%) calc(var(--dy, 0) * 100%);
   }
 
   /* La pestaña del logo muerde una esquina de la ilustración, como en la carta impresa */
@@ -229,7 +272,45 @@
     text-overflow: ellipsis;
   }
 
+  /* La carta pequeña se queda limpia: fuera la letra que no se puede leer y el texto, más grande y en tres renglones
+     como mucho. El recorte va en el párrafo, para no romper el centrado de .texto. La carta grande no cambia. */
+  @container (max-width: 169.98px) {
+    .reverso .pie { display: none; }
+    .reverso .texto {
+      height: 32cqw;
+      font-size: 7.6cqw;
+      line-height: 1.15;
+    }
+    .reverso .texto p {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden;
+    }
+    /* El año, con un contorno fino: a este tamaño la sombra suave no basta para leer el blanco. */
+    .banda {
+      text-shadow:
+        0 0 1px rgb(0 0 0 / 0.9),
+        0 0 2px rgb(0 0 0 / 0.55);
+    }
+  }
+  @container (max-width: 119.98px) {
+    .anverso .texto {
+      font-size: 8.6cqw;
+      line-height: 1.12;
+    }
+    .anverso .texto p {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .giro { transition-duration: 0.01s; }
+    .ilustracion > img { transition: none; }
   }
 </style>
