@@ -215,6 +215,9 @@
 
   /** La ronda en curso: quién la abre, quién falta y quién ya no tiene cartas (INFO-1). */
   const ronda = $derived(enRonda(vista))
+  /** Los jugadores en la barra, en orden de turno: a la izquierda quien abre la partida y, detrás, los que le
+      siguen, para que la ronda se lea de izquierda a derecha. */
+  const enOrden = $derived(vista.jugadores.map((_, k) => (vista.inicial + k) % vista.jugadores.length))
   /**
    * La franja de la ronda, siempre a la vista entre los jugadores y la cronología. Se calcula desde la vista, así
    * que también sale bien al retomar una partida o al reconectar.
@@ -1198,7 +1201,8 @@
   </header>
 
   <ul class="jugadores" class:solo aria-label="Jugadores" style:--j={vista.jugadores.length}>
-    {#each vista.jugadores as j, i (i)}
+    {#each enOrden as i (i)}
+      {@const j = vista.jugadores[i]}
       <li
         bind:this={chips[i]}
         class:activo={i === vista.turno && !fin}
