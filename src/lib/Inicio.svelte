@@ -10,6 +10,7 @@
   import type { Fecha } from '../../compartido/tipos'
   import Carta from './Carta.svelte'
   import { cargarAnios, cartas } from './datos'
+  import Icono from './Icono.svelte'
   import Marca from './Marca.svelte'
   import { reducido } from './movimiento'
 
@@ -108,20 +109,22 @@
       </button>
     {/if}
     <button class="entrada" class:principal={!hayGuardada} onclick={onjugar}>
+      <Icono nombre="local" lado={36} />
       <span><b>Juega en local</b></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <button class="entrada" onclick={onenlinea}>
+      <Icono nombre="linea" lado={36} />
       <span><b>Juega en línea</b></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <div class="pareja">
       <button class="entrada" onclick={ontutorial}>
-        <svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M10.2 8.6v6.8l5.3-3.4z" /></svg>
+        <Icono nombre="juega" lado={34} />
         <span><b>Cómo se juega</b></span>
       </button>
       <button class="entrada" onclick={onreglas}>
-        <svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C9.5 5 6.5 5 4 6v12.5c2.5-1 5.5-1 8 .5 2.5-1.5 5.5-1.5 8-.5V6c-2.5-1-5.5-1-8 .5zm0 0V19" /></svg>
+        <Icono nombre="reglas" lado={34} />
         <span><b>Reglamento</b></span>
       </button>
     </div>
@@ -269,12 +272,6 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     opacity: 0.6;
-  }
-  .entrada svg.icono {
-    width: 24px;
-    height: 24px;
-    stroke-width: 1.6;
-    opacity: 0.85;
   }
   .entrada.principal {
     border-color: var(--papel);
