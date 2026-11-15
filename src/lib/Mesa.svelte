@@ -19,7 +19,7 @@
   import { callar, efecto, leerCarta, sonido, vibrar } from './sonido'
   import Confirmar from './Confirmar.svelte'
   import { abrirCapa, capa, cerrarCapa, guardiaAtras, type Capa } from './capas'
-  import { Toca, toca } from './aparato'
+  import { Toca } from './aparato'
   import Lamina from './Lamina.svelte'
   import ListaCrono from './ListaCrono.svelte'
   import { desplazamiento, dura, reducido } from './movimiento'
@@ -189,8 +189,6 @@
   const anioDicho = (id: string | null, conCirca = true) => (id ? anioHablado(fechas[id], conCirca) : '')
   /** El año para la tira y el intervalo: sin la «c.» y con los millones en corto. */
   const anioCorto = (id: string) => (fechas[id] ? anioTexto({ anio: fechas[id].anio, circa: false }).replace(' millones', ' M') : '')
-  /** Las dos primeras jugadas de cada jugador llevan la pista de cómo se juega. */
-  const novato = (i: number) => (vista.jugadores[i] ? vista.jugadores[i].aciertos + vista.jugadores[i].fallos < 2 : false)
 
   // Condiciones de la partida, para el menú «La partida».
   const condiciones = $derived.by(() => {
@@ -1314,9 +1312,6 @@
     {:else}
       {#if !ocupado && miTurno}
         <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'}</p>
-        {#if novato(vista.turno)}
-          <p class="pista">{crono.length < 2 ? 'Ordena las cartas por fecha: elige una y colócala antes o después' : `${Toca()} una carta para leerla; ${toca() === 'toca' ? 'tócala' : 'púlsala'} otra vez para ampliarla`}</p>
-        {/if}
       {:else if !ocupado}
         <p class="pista grande">Juega {nombreTurno}…</p>
         {#if conectados && !conectados[vista.turno]}
