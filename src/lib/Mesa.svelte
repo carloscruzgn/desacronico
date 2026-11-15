@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** El reparto coreografiado entero (ANIM-14) se ve solo en la primera partida de la sesión. */
+  let repartidoEnSesion = false
+</script>
+
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte'
   import { flip } from 'svelte/animate'
@@ -16,7 +21,7 @@
   import { abrirCapa, capa, cerrarCapa, guardiaAtras, type Capa } from './capas'
   import { Toca, toca } from './aparato'
   import ListaCrono from './ListaCrono.svelte'
-  import { desplazamiento, dura } from './movimiento'
+  import { desplazamiento, dura, reducido } from './movimiento'
   import Marca from './Marca.svelte'
   import Mazo from './Mazo.svelte'
   import Moneda from './Moneda.svelte'
@@ -409,6 +414,99 @@
       css: (t: number, u: number) => `transform: translateY(${u * 70}%); opacity: ${t}`,
     }
   }
+  /** El montón del mazo en el centro de la mesa durante el reparto de la primera partida (ANIM-14). */
+  let monton = $state<{ x: number; y: number; baraja: boolean } | null>(null)
+  let montonEl = $state<HTMLElement>()
+  let mesaEl = $state<HTMLElement>()
+
+  /** Un canto de cartulina crema que vuela de `desde` a la moneda `hasta` y se funde al llegar. */
+  function volarCanto(desde: Element | undefined, hasta: Element | null | undefined, ms: number): Promise<void> {
+    const a = desde?.getBoundingClientRect()
+    const b = hasta?.getBoundingClientRect()
+    if (!a || !b || !b.width) return Promise.resolve()
+    const el = document.createElement('div')
+    el.setAttribute('aria-hidden', 'true')
+    Object.assign(el.style, {
+      position: 'fixed',
+      zIndex: '30',
+      left: `${a.left + a.width / 2 - 15}px`,
+      top: `${a.top + a.height / 2 - 2}px`,
+      width: '30px',
+      height: '4px',
+      borderRadius: '1px',
+      background: '#f5f4ea',
+      boxShadow: '0 0 0 0.5px rgb(0 0 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.45)',
+      pointerEvents: 'none',
+    })
+    document.body.append(el)
+    const dx = b.left + b.width / 2 - (a.left + a.width / 2)
+    const dy = b.top + b.height / 2 - (a.top + a.height / 2)
+    const giro = (dx > 0 ? 1 : -1) * 14
+    const llega = `translate(${dx}px, ${dy}px) rotate(${giro}deg)`
+    const vuelo = el.animate(
+      [{ transform: 'none' }, { transform: `${llega} scale(0.75)`, opacity: 1, offset: 0.85 }, { transform: `${llega} scale(0.6)`, opacity: 0 }],
+      { duration: ms, easing: 'cubic-bezier(0.3, 0.1, 0.2, 1)' },
+    )
+    return vuelo.finished.then(
+      () => el.remove(),
+      () => el.remove(),
+    )
+  }
+
+  /** Reparte cantos a cada moneda, por vueltas, como en la mesa: los contadores suben al llegar cada uno. */
+  async function cantos(finales: number[], desde: Element | undefined, total: number, vuelo: number) {
+    const n = finales.reduce((a, b) => a + b, 0)
+    const paso = Math.min(110, total / Math.max(1, n))
+    const vueltas = Math.max(0, ...finales)
+    for (let k = 0; k < vueltas; k++) {
+      for (let i = 0; i < finales.length; i++) {
+        if (k >= finales[i]) continue
+        // Con prisa, el reparto se da por hecho.
+        if (prisa.activa) {
+          cuentas = [...finales]
+          return
+        }
+        volarCanto(desde, chips[i]?.querySelector('.moneda'), vuelo).then(() => {
+          if (cuentas[i] < finales[i]) cuentas[i]++
+        })
+        nMazo = Math.max(0, nMazo - 1)
+        if ((k * finales.length + i) % 2 === 0) efecto('repartir')
+        await espera(paso)
+      }
+    }
+    await espera(vuelo)
+    cuentas = [...finales]
+  }
+
+  /** La primera partida: el mazo baja de la barra al centro de la mesa, se baraja, reparte y vuelve a su sitio. */
+  async function repartoEntero(finales: number[]) {
+    if (!mesaEl || !cronoEl || !mazoEl) return cantos(finales, mazoEl, 900, 380)
+    const m = mesaEl.getBoundingClientRect()
+    const c = cronoEl.getBoundingClientRect()
+    monton = { x: c.left + c.width / 2 - m.left, y: c.top + c.height / 2 - m.top, baraja: false }
+    await tick()
+    const el = montonEl
+    if (!el) return cantos(finales, mazoEl, 900, 380)
+    const desde = mazoEl.getBoundingClientRect()
+    const aqui = el.getBoundingClientRect()
+    const enMazo = `translate(${desde.left + desde.width / 2 - (aqui.left + aqui.width / 2)}px, ${desde.top + desde.height / 2 - (aqui.top + aqui.height / 2)}px) scale(${desde.width / aqui.width})`
+    const curva = 'cubic-bezier(0.3, 0.1, 0.2, 1)'
+    el.animate([{ transform: enMazo }, { transform: 'none' }], { duration: 420, easing: curva })
+    await espera(440)
+    if (!prisa.activa && monton) {
+      monton.baraja = true
+      efecto('barajar')
+      await espera(640)
+      if (monton) monton.baraja = false
+    }
+    await cantos(finales, el, 1500, 380)
+    if (!prisa.activa) {
+      el.animate([{ transform: 'none' }, { transform: enMazo }], { duration: 360, easing: curva, fill: 'forwards' })
+      await espera(360)
+    }
+    monton = null
+  }
+
   /** La silueta del fallo se abre en la cronología, empujando a las de al lado, y se cierra igual. */
   function abrir(node: HTMLElement) {
     const w = node.offsetWidth
@@ -470,25 +568,63 @@
     if (!sinEmpezar) {
       poner(inicial)
       await espera(300)
+    } else if (reducido()) {
+      // Sin movimiento: la mesa aparece ya repartida.
+      anotar(inicial.fechas)
+      crono.push({ id: v.cronologia[0], volteada: true, marca: '' })
+      mano.push(...(v.jugadores[visible]?.mano ?? []))
     } else {
+      // El reparto (ANIM-14): las monedas empiezan sin cartas y sus contadores suben con cada canto que les llega.
+      const finales = [...cuentas]
+      const total = finales.reduce((a, b) => a + b, 0)
+      cuentas = cuentas.map(() => 0)
+      nMazo += total + 1
       origen = mazoEl ?? null
       efecto('barajar')
-      await espera(300)
-      crono.push({ id: v.cronologia[0], volteada: false, marca: '' })
-      await espera(520)
-      anotar(inicial.fechas)
-      revelada = v.cronologia[0]
-      crono[0].volteada = true
-      efecto('voltear')
-      await espera(900)
-      revelada = null
-      for (const id of v.jugadores[visible]?.mano ?? []) {
-        mano.push(id)
-        efecto('repartir')
+      if (!repartidoEnSesion) {
+        // La primera partida de la sesión, entera: el mazo va al centro, se baraja y reparte a cada moneda.
+        repartidoEnSesion = true
+        await repartoEntero(finales)
+        crono.push({ id: v.cronologia[0], volteada: false, marca: '' })
+        nMazo = vista.nMazo
+        await espera(520)
+        anotar(inicial.fechas)
+        revelada = v.cronologia[0]
+        crono[0].marca = 'alza'
+        crono[0].volteada = true
+        efecto('voltear')
+        await espera(900)
+        crono[0].marca = 'ok'
+        revelada = null
+        for (const id of v.jugadores[visible]?.mano ?? []) {
+          mano.push(id)
+          efecto('repartir')
+          await espera(150)
+        }
+        await espera(350)
+      } else {
+        // «Otra partida»: lo mismo, sin el viaje al centro y en 1,5 s como mucho.
+        const reparto = cantos(finales, mazoEl, 420, 300)
+        crono.push({ id: v.cronologia[0], volteada: false, marca: '' })
+        await espera(300)
+        anotar(inicial.fechas)
+        revelada = v.cronologia[0]
+        crono[0].marca = 'alza'
+        crono[0].volteada = true
+        efecto('voltear')
+        await espera(560)
+        crono[0].marca = 'ok'
+        for (const id of v.jugadores[visible]?.mano ?? []) {
+          mano.push(id)
+          await espera(70)
+        }
+        await reparto
+        nMazo = vista.nMazo
         await espera(150)
+        revelada = null
       }
-      await espera(350)
     }
+    if (crono[0]?.marca === 'ok') crono[0].marca = ''
     if (!fin && !solo && !fuera) {
       // «Empieza Ana»: quién abre la partida lo ha echado a suertes (o rota en «Otra partida»).
       const cinta = cintaDe(v.turno, sinEmpezar)
@@ -849,7 +985,7 @@
 />
 
 <!-- Un toque en cualquier sitio de la mesa acelera lo que queda de la jugada (MENU-15). -->
-<main class="mesa" class:eligiendo={puedeColocar} class:acabada={!!fin} class:deprisa onpointerdown={apresurar}>
+<main class="mesa" bind:this={mesaEl} class:eligiendo={puedeColocar} class:acabada={!!fin} class:deprisa onpointerdown={apresurar}>
   <h1 class="sr-only" tabindex="-1" data-titulo>Partida</h1>
   <header class="barra">
     <BotonIcono icono="atras" etiqueta={fin ? 'Salir al menú' : 'Salir o abandonar la partida'} onclick={() => (fin ? onsalir() : (menu = true))} />
@@ -857,7 +993,7 @@
     <BotonIcono icono="reglas" etiqueta="Reglamento" onclick={abrirReglas} />
     <BotonSonido />
     <div class="pilas">
-      <figure>
+      <figure class:en-el-centro={!!monton}>
         <Mazo n={nMazo} bind:el={mazoEl} />
         <figcaption>mazo</figcaption>
       </figure>
@@ -964,6 +1100,16 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
         <span>Lista</span>
       </button>
+    </div>
+  {/if}
+
+  {#if monton}
+    <!-- El mazo en el centro de la mesa mientras reparte (ANIM-14): el mismo montón de cantos crema, más grande. -->
+    <div class="monton-centro" style:left="{monton.x}px" style:top="{monton.y}px" aria-hidden="true">
+      <div class="monton" bind:this={montonEl} class:baraja={monton.baraja}>
+        <span class="n">{nMazo}</span>
+        <div class="canto"><span class="mitad arriba"></span><span class="mitad abajo"></span></div>
+      </div>
     </div>
   {/if}
 
@@ -1411,6 +1557,62 @@
   }
   .jugadores li.eliminado { opacity: 0.6; }
   .jugadores li.eliminado .nombre { text-decoration: line-through; }
+
+  /* El reparto: el mazo se va de la barra al centro de la mesa y vuelve al acabar. */
+  .en-el-centro { visibility: hidden; }
+  .monton-centro {
+    position: absolute;
+    z-index: 20;
+    translate: -50% -50%;
+    pointer-events: none;
+  }
+  .monton {
+    width: 96px;
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+  }
+  .monton .n {
+    color: var(--papel);
+    font-family: var(--fell-sc);
+    font-size: 1.7rem;
+    line-height: 1;
+  }
+  .monton .canto {
+    position: relative;
+    width: 100%;
+    height: 28px;
+  }
+  .monton .mitad {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-radius: 2px;
+    background: repeating-linear-gradient(var(--papel) 0 1.6px, #b9b6a0 1.6px 2.1px), var(--papel);
+    box-shadow:
+      0 0 0 0.5px rgb(0 0 0 / 0.3),
+      0 4px 10px rgb(0 0 0 / 0.45);
+  }
+  .monton .arriba {
+    top: 0;
+    bottom: 50%;
+    background:
+      linear-gradient(var(--papel-2), var(--papel-2)) top / 100% 2px no-repeat,
+      repeating-linear-gradient(var(--papel) 0 1.6px, #b9b6a0 1.6px 2.1px),
+      var(--papel);
+  }
+  .monton .abajo { top: 50%; bottom: 0; }
+  /* Barajar: el montón se corta en dos, las mitades se cruzan y vuelven a juntarse, dos veces, sin rebote. */
+  .monton.baraja .arriba { animation: cortar-arriba 0.32s var(--curva-deslizar) 2 both; }
+  .monton.baraja .abajo { animation: cortar-abajo 0.32s var(--curva-deslizar) 2 both; }
+  @keyframes cortar-arriba {
+    0%, 100% { transform: none; z-index: 1; }
+    50% { transform: translate(-55%, -3px); z-index: 0; }
+  }
+  @keyframes cortar-abajo {
+    0%, 100% { transform: none; }
+    50% { transform: translate(55%, 3px); }
+  }
 
   /* La franja de la ronda: siempre a la vista, entre los jugadores y la cronología (INFO-1). */
   .franja {
