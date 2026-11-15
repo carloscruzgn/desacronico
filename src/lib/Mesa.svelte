@@ -2494,10 +2494,11 @@
     left: calc(-1 * var(--h));
     right: 0;
     display: grid;
-    grid-template-columns: var(--h) 1fr auto 1fr;
+    grid-template-columns: var(--h) 1fr minmax(0, max-content) 1fr;
     align-items: center;
     color: var(--papel);
-    font-size: 1.15rem;
+    /* con cartas estrechas, el año encoge con ellas para no montarse en el de al lado */
+    font-size: clamp(0.85rem, var(--carta-crono) * 0.19, 1.15rem);
     font-weight: 700;
     line-height: 1.1;
     white-space: nowrap;
@@ -2510,9 +2511,14 @@
   }
   .anio-bajo.ultima {
     right: calc(-1 * var(--h));
-    grid-template-columns: var(--h) 1fr auto 1fr var(--h);
+    grid-template-columns: var(--h) 1fr minmax(0, max-content) 1fr var(--h);
   }
-  .anio-bajo > span { grid-column: 3; padding: 0 8px; }
+  /* Si aun así no cabe, se sale lo mismo por los dos lados: sigue centrado bajo su carta. */
+  .anio-bajo > span {
+    grid-column: 3;
+    justify-self: center;
+    padding: 0 clamp(3px, (var(--carta-crono) - 64px) / 4, 8px);
+  }
   .anio-bajo::before,
   .anio-bajo::after {
     content: "";
