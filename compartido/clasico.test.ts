@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { abandonar, cabe, crear, jugar, lugarCorrecto, minimoCartas, OPCIONES, vistaDe, type Anios, type EstadoClasico } from './clasico'
+import aniosReales from './anios.json'
+import { abandonar, cabe, crear, jugar, lugarCorrecto, minimoCartas, mismoAnio, OPCIONES, vecinas, vistaDe, type Anios, type EstadoClasico } from './clasico'
 
 // Cartas «a1900»… cuyo año va en el propio id.
 const anios: Anios = {}
@@ -146,5 +147,35 @@ describe('modo clásico', () => {
   it('un solo jugador gana al vaciar la mano', () => {
     const { estado: e } = jugar(estado([['a1015']], ['a1010']), anios, 'a1015', 1)
     expect(e.ganadores).toEqual([0])
+  })
+
+  it('dice entre qué cartas iba una carta fallada', () => {
+    const c = ['a1005', 'a1010', 'a1020']
+    expect(vecinas(c, anios, 'a1015')).toEqual(['a1010', 'a1020'])
+    expect(vecinas(c, anios, 'a1001')).toEqual([null, 'a1005'])
+    expect(vecinas(c, anios, 'a1030')).toEqual(['a1020', null])
+  })
+
+  it('reconoce el acierto por la regla del mismo año', () => {
+    const c = ['a1005', 'a1010']
+    const iguales: Anios = { ...anios, otra: [1010, 0] }
+    expect(mismoAnio(c, iguales, 'otra', 1)).toBe('a1010')
+    expect(mismoAnio(c, iguales, 'otra', 2)).toBe('a1010')
+    expect(mismoAnio(c, anios, 'a1007', 1)).toBeNull()
+  })
+
+  it('la partida recuerda con qué series se hizo el mazo', () => {
+    const e = crear(ids, ['Ana', 'Luis'], { ...OPCIONES, series: ['social', 'coria'] }, sinAzar)
+    expect(vistaDe(e).opciones.series).toEqual(['social', 'coria'])
+  })
+
+  it('el Big Bang y el Sistema Solar van antes que el Homo sapiens', () => {
+    const reales = aniosReales as unknown as Anios
+    const sapiens = Object.keys(reales).find((id) => reales[id][0] === -300000)!
+    expect(sapiens).toBeDefined()
+    expect(cabe([sapiens], reales, '219', 0)).toBe(true)
+    expect(cabe([sapiens], reales, '220', 0)).toBe(true)
+    expect(cabe([sapiens], reales, '219', 1)).toBe(false)
+    expect(lugarCorrecto(['219', sapiens], reales, '220')).toBe(1)
   })
 })
