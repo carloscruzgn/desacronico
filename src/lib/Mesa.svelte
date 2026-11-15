@@ -579,6 +579,21 @@
     return { antes: empieza ? 'Empieza' : 'Turno de', titulo: nombre, jugador }
   }
 
+  /** Retraso de entrada de cada carta mientras se reparte la mano. */
+  const retraso = new Map<string, number>()
+  /** La mano llega entera de una vez, con las entradas escalonadas cada 70 ms: así cada carta vuela ya a su
+      sitio final. Si entraban de una en una, la mano se recentraba con cada carta y el `flip` de las que
+      seguían en el aire les pisaba el vuelo: se quedaban a medias y acababan dando un tirón hasta su sitio. */
+  async function repartirMano(ids: string[], sonar: boolean) {
+    ids.forEach((id, k) => {
+      retraso.set(id, k * 70)
+      if (sonar) setTimeout(() => efecto('repartir'), dura(k * 70))
+    })
+    mano.push(...ids)
+    await espera(ids.length * 70)
+    retraso.clear()
+  }
+
   async function repartir() {
     const v = vista
     const sinEmpezar = v.cronologia.length === 1 && !v.descartes.length && v.jugadores.every((j) => !j.aciertos && !j.fallos)
@@ -614,11 +629,7 @@
         await espera(560)
         crono[0].marca = 'ok'
         revelada = null
-        for (const id of v.jugadores[visible]?.mano ?? []) {
-          mano.push(id)
-          efecto('repartir')
-          await espera(70)
-        }
+        await repartirMano(v.jugadores[visible]?.mano ?? [], true)
         await espera(150)
       } else {
         // «Otra partida»: lo mismo, sin el viaje al centro y en 1,5 s como mucho.
@@ -632,10 +643,7 @@
         efecto('voltear')
         await espera(560)
         crono[0].marca = 'ok'
-        for (const id of v.jugadores[visible]?.mano ?? []) {
-          mano.push(id)
-          await espera(70)
-        }
+        await repartirMano(v.jugadores[visible]?.mano ?? [], false)
         await reparto
         nMazo = vista.nMazo
         await espera(150)
@@ -1356,7 +1364,7 @@
           style:--giro="{mano.length > 1 ? (d / mitad) * Math.min(3, (mano.length - 1) * 1) : 0}deg"
           style:--baja="{(d / mitad) ** 2 * 4}px"
           animate:flip={{ duration: dura(300), easing: cubicOut }}
-          in:recibir={{ key: id }}
+          in:recibir={{ key: id, delay: retraso.get(id) ?? 0 }}
           out:enviar={{ key: id }}
           data-mano={id}
           onclick={() => elegir(id)}
