@@ -24,7 +24,12 @@
   function nuevos() {
     return { nombres: ['', ''], avatares: ['', ''] }
   }
-  const deAntes = jugadoresGuardados() ?? nuevos()
+  // De la última partida se recupera el avatar solo de quien tenía nombre: un «Jugador 2» sin nombre no es nadie
+  // a quien recordar, así que empieza vacío, con el «+».
+  const guardados = jugadoresGuardados()
+  const deAntes = guardados
+    ? { nombres: guardados.nombres, avatares: guardados.avatares.map((a, i) => (guardados.nombres[i].trim() ? a : '')) }
+    : nuevos()
   let nombres = $state<string[]>(deAntes.nombres)
   let avatares = $state<string[]>(deAntes.avatares)
   let eligiendo = $state<number | null>(null)
