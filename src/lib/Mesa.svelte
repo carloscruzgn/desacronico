@@ -19,7 +19,7 @@
   import { callar, efecto, leerCarta, sonido, vibrar } from './sonido'
   import Confirmar from './Confirmar.svelte'
   import { abrirCapa, capa, cerrarCapa, guardiaAtras, type Capa } from './capas'
-  import { Toca } from './aparato'
+  import { Toca, conDedo, toca } from './aparato'
   import Lamina from './Lamina.svelte'
   import ListaCrono from './ListaCrono.svelte'
   import { desplazamiento, dura, reducido } from './movimiento'
@@ -168,6 +168,14 @@
   })
   const puedeColocar = $derived(!!seleccionada && mano.includes(seleccionada) && !ocupado && miTurno)
   const nombreTurno = $derived(vista.jugadores[vista.turno]?.nombre ?? '')
+
+  /** Qué hacer ahora no va en un subtítulo fijo: lo cuenta el «?», en un bocadillo que se abre a petición.
+      Abierto, sigue a la jugada (de elegir carta a elegir hueco); se cierra al pasar el turno. */
+  let ayuda = $state(false)
+  const pasoAyuda = $derived(puedeColocar ? 'colocar' : !ocupado && miTurno && !seleccionada && !fin ? 'elegir' : null)
+  $effect(() => {
+    if (!pasoAyuda) ayuda = false
+  })
 
   /** Las pausas de cada jugada se acortan si se toca la mesa (MENU-15). */
   const prisa = crearPrisa()
@@ -1129,7 +1137,16 @@
 
 <svelte:window
   onresize={medirVentana}
+  onpointerdown={(e) => {
+    // El bocadillo de ayuda se cierra al tocar fuera; el toque sigue su camino (un hueco, el menú). Elegir
+    // una carta de la mano no lo cierra: es lo que cuenta, y pasa a contar el paso siguiente.
+    if (ayuda && !(e.target as Element).closest?.('.bocadillo, .boton-ayuda, .mano .naipe')) ayuda = false
+  }}
   onkeydown={(e) => {
+    if (e.key === 'Escape' && ayuda) {
+      ayuda = false
+      return
+    }
     // Con una ventana abierta, Escape es suyo (capas.ts lo atiende) y las flechas no mueven la mesa.
     if (confirma || quitando !== null || menu || ampliada || verLista || verLamina || reglas || (fin && verFin)) return
     if (e.key === 'Escape') apresurar()
@@ -1141,6 +1158,10 @@
     }
   }}
 />
+
+{#snippet botonAyuda()}
+  <button class="boton-ayuda" class:abierta={ayuda} aria-label="Qué hacer ahora" aria-expanded={ayuda} aria-controls="ayuda-jugada" onclick={() => (ayuda = !ayuda)}>?</button>
+{/snippet}
 
 <!-- Un toque en cualquier sitio de la mesa acelera lo que queda de la jugada (MENU-15). -->
 <main class="mesa" bind:this={mesaEl} class:eligiendo={puedeColocar} class:acabada={!!fin} class:deprisa onpointerdown={apresurar}>
@@ -1300,18 +1321,19 @@
         <p class="texto" in:fade={{ duration: dura(180) }}>{@html porId[seleccionada].texto}</p>
       {/key}
       <p class="pista">
-        {#if puedeColocar}{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? {Toca()} el hueco <b>+</b> donde creas que va<span class="sr-only">. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
+        {#if puedeColocar}<span class="sr-only">{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? Elige el hueco donde creas que va. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
         <span class="botones-carta">
           <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false, desde: manoEl?.querySelector<HTMLElement>('.naipe.elegida') })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
           <!-- Las cartas de la mano van boca abajo: se lee el texto, sin el año. Suena aunque la voz esté apagada. -->
           <button class="ampliar" onclick={() => (sonido.hablando ? callar() : leerCarta(seleccionada!))}>
             {#if sonido.hablando}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg> Parar{:else}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg> Escuchar{/if}
           </button>
+          {#if puedeColocar}{@render botonAyuda()}{/if}
         </span>
       </p>
     {:else}
       {#if !ocupado && miTurno}
-        <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'}</p>
+        <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'} {@render botonAyuda()}</p>
       {:else if !ocupado}
         <p class="pista grande">Juega {nombreTurno}…</p>
         {#if conectados && !conectados[vista.turno]}
@@ -1334,6 +1356,19 @@
         </p>
         {#each ultima.notas as n (n)}<p class="pista nota">{n}</p>{/each}
       {/if}
+    {/if}
+    {#if ayuda && pasoAyuda}
+      <!-- El bocadillo del «?»: lo que toca hacer en este paso de la jugada. -->
+      <div class="bocadillo" id="ayuda-jugada" transition:fly={{ y: 8, duration: dura(180), easing: cubicOut }}>
+        {#if pasoAyuda === 'elegir'}
+          <p>Tus cartas no enseñan el año. {Toca()} una para leerla; {toca() === 'toca' ? 'tócala' : 'púlsala'} otra vez para verla en grande.</p>
+          <p>Después la colocas en la cronología: a la izquierda de una carta si crees que ocurrió antes; a la derecha, si después.</p>
+        {:else}
+          <p>¿Antes o después? {Toca()} el hueco <b>+</b> donde creas que va: a la izquierda de una carta si ocurrió antes; a la derecha, si después.</p>
+          <p>También puedes arrastrar la carta hasta el hueco.</p>
+          {#if !conDedo()}<p>Con el teclado, las flechas izquierda y derecha llevan a los huecos.</p>{/if}
+        {/if}
+      </div>
     {/if}
   </div>
 
@@ -2099,10 +2134,6 @@
   }
   /* con el botón «Ampliar», el texto va entero en su renglón y el botón debajo */
   .pista:has(.ampliar) { text-wrap: wrap; }
-  .pista b {
-    color: var(--papel);
-    font-style: normal;
-  }
   .pista.grande {
     color: var(--papel);
     font-style: normal;
@@ -2141,6 +2172,77 @@
   .marca-jugada.ok { color: #a9c7a4; }
   .marca-jugada.fallo { color: #d7aa9c; }
   .pista.nota { font-size: 0.88rem; }
+
+  /* El «?»: un botón redondo como «Ampliar» y «Escuchar»; abierto, en papel. Con 44 px de toque aunque se vea menor. */
+  .boton-ayuda {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin: -6px 0 -6px 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgb(235 233 217 / 0.1);
+    box-shadow: var(--borde-fantasma);
+    color: var(--papel);
+    font: inherit;
+    font-style: normal;
+    font-weight: 700;
+    font-size: 1.15rem;
+    line-height: 1;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+  .boton-ayuda::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+  }
+  .botones-carta .boton-ayuda {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    font-size: 1.25rem;
+  }
+  .boton-ayuda.abierta {
+    background: var(--papel);
+    color: var(--tinta);
+  }
+  /* El bocadillo: el mismo papel con filete de tinta que la cinta de turno, sobre la cronología. */
+  .leyenda { position: relative; }
+  .bocadillo {
+    position: absolute;
+    z-index: 6;
+    bottom: calc(100% - 6px);
+    left: 50%;
+    translate: -50% 0;
+    width: min(calc(100% - 24px), 380px);
+    padding: 14px 18px;
+    border-radius: var(--radio-ficha);
+    background: var(--grano-papel), var(--papel);
+    color: var(--tinta);
+    box-shadow:
+      inset 0 0 0 2px var(--tinta),
+      inset 0 0 0 5px var(--papel),
+      inset 0 0 0 6px rgb(29 29 27 / 0.4),
+      0 10px 28px rgb(0 0 0 / 0.5);
+    font-size: 1rem;
+    line-height: 1.3;
+    text-align: left;
+  }
+  .leyenda .bocadillo p + p { margin-top: 6px; }
+  .bocadillo b {
+    display: inline-grid;
+    place-items: center;
+    width: 1.25em;
+    height: 1.25em;
+    border: 1.5px dashed currentColor;
+    border-radius: 3px;
+    font-size: 0.9em;
+    line-height: 1;
+  }
 
   /* La cinta de turno (UI-6): una tira de papel con la moneda de quien juega, «Turno de» en cursiva y el nombre en
      negrita, enmarcada con un filete de tinta, como un rótulo impreso. El mismo papel para los avisos de dos niveles. */
@@ -2648,6 +2750,13 @@
       padding: 14px 12px 18px 22px;
     }
     .anios { margin: 4px 22px 0 12px; }
+    /* en la columna de la izquierda hay sitio: el bocadillo va debajo, sin tapar nada */
+    .bocadillo {
+      position: static;
+      translate: none;
+      width: auto;
+      margin-top: 14px;
+    }
     .franja {
       margin: 14px 12px 0 28px;
       text-align: left;
