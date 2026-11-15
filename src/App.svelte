@@ -1,13 +1,15 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { flushSync, tick } from 'svelte'
   import { crear } from '../compartido/clasico'
   import { esCodigo, type Config } from '../compartido/protocolo'
+  import { abrirCapa, alVolver, apuntar, quedarse, volverAtras, type Capa, type Paso } from './lib/capas'
   import { salaGuardada } from './lib/conexion.svelte'
   import { controlLocal, type Controlador } from './lib/control'
   import { cargarAnios, cartas, guardarPartida, partidaGuardada, seriesDe } from './lib/datos'
   import EnLinea from './lib/EnLinea.svelte'
   import Inicio from './lib/Inicio.svelte'
   import Mesa from './lib/Mesa.svelte'
+  import { reducido } from './lib/movimiento'
   import Preparacion from './lib/Preparacion.svelte'
   import Reglas from './lib/Reglas.svelte'
   import Tutorial from './lib/Tutorial.svelte'
@@ -30,15 +32,36 @@
   let ultima: { nombres: string[]; avatares: string[]; ids: string[]; config: Config } | null = null
   let tutorial = $state(false)
 
-  // El botón «atrás» del móvil vuelve al menú (o cierra el reglamento) en vez de sacar de la web:
-  // al salir del menú se apunta un paso en el historial, y volver es deshacerlo.
+  // El historial: el menú es el paso de abajo; cada pantalla apunta uno encima y cada capa (reglamento,
+  // tutorial, avatares, menú de la partida…) otro más (capas.ts). Así el «atrás» del móvil cierra primero
+  // la capa de arriba, después vuelve al menú, y no saca de la web.
+  // Quien llega con una invitación tiene el menú debajo: «atrás» le lleva a él, no fuera de la web.
+  // svelte-ignore state_referenced_locally
+  if (pantalla === 'enlinea' && !(history.state as Paso | null)?.dentro) {
+    const aqui = location.pathname + location.search
+    history.replaceState({ capas: 0 }, '', '/')
+    history.pushState({ dentro: true, capas: 0 }, '', aqui)
+  }
+
+  /** Cambia de pantalla. Donde se puede, con una transición de vista: la marca, el abanico y el mazo
+      viajan de una pantalla a otra (los nombres de vista están en el estilo de abajo). */
+  function mostrar(a: Pantalla) {
+    if (a === pantalla) return
+    if (!document.startViewTransition || reducido()) return void (pantalla = a)
+    // Si el navegador la salta (la ventana cambió de tamaño a mitad), el cambio de pantalla ya está hecho.
+    document.startViewTransition(() => flushSync(() => (pantalla = a))).ready.catch(() => {})
+  }
+
   function ir(a: Exclude<Pantalla, 'inicio'>) {
-    if (pantalla === 'inicio') history.pushState({ dentro: true }, '')
-    pantalla = a
+    if (pantalla === 'inicio') apuntar({ dentro: true })
+    mostrar(a)
   }
   function volver() {
-    if (history.state?.dentro) history.back()
-    else alInicio()
+    if ((history.state as Paso | null)?.dentro) volverAtras(1)
+    else {
+      volverAtras(0)
+      alInicio()
+    }
   }
   function alInicio() {
     guardada = partidaGuardada()
@@ -47,19 +70,26 @@
     // La invitación del enlace vale una vez: de vuelta en el menú ya no se recuerda.
     invitacion = ''
     if (location.search) history.replaceState(history.state, '', '/')
-    pantalla = 'inicio'
+    mostrar('inicio')
   }
+  // «Atrás» que deja la pantalla sin ninguna capa abierta: antes se pregunta a la pantalla (la mesa puede
+  // abrir su menú; la sala de espera libera el asiento o pide confirmación al anfitrión).
+  alVolver((paso, propio) => {
+    if (paso.dentro || pantalla === 'inicio') return
+    if (!propio && quedarse()) return apuntar({ dentro: true })
+    alInicio()
+  })
+
+  // El reglamento y el tutorial traen su propio diálogo y su Escape; aquí se les da su paso en el historial.
+  let capaReglas: Capa | null = null
   function abrirReglas() {
-    history.pushState({ dentro: true, reglas: true }, '')
     reglas = true
+    capaReglas = abrirCapa(() => (reglas = false))
   }
-  function cerrarReglas() {
-    if (history.state?.reglas) history.back()
-    else reglas = false
-  }
-  function atras() {
-    if (reglas) reglas = false
-    else if (pantalla !== 'inicio') alInicio()
+  let capaTutorial: Capa | null = null
+  function abrirTutorial() {
+    tutorial = true
+    capaTutorial = abrirCapa(() => (tutorial = false))
   }
 
   async function empezar(nombres: string[], avatares: string[], ids: string[], config: Config) {
@@ -103,8 +133,6 @@
   })
 </script>
 
-<svelte:window onpopstate={atras} />
-
 {#if pantalla === 'inicio'}
   <Inicio
     hayGuardada={!!guardada}
@@ -114,7 +142,7 @@
     onsala={() => ((directo = true), ir('enlinea'))}
     oncontinuar={continuar}
     onreglas={abrirReglas}
-    ontutorial={() => (tutorial = true)}
+    ontutorial={abrirTutorial}
   />
 {:else if pantalla === 'preparacion'}
   <Preparacion hayGuardada={!!guardada} onvolver={volver} onempezar={empezar} />
@@ -125,16 +153,38 @@
     <Mesa
       control={partida.control}
       onsalir={volver}
-      onotra={() => (ultima ? empezar(ultima.nombres, ultima.avatares, ultima.ids, ultima.config) : (pantalla = 'preparacion'))}
-      oncambiar={() => (pantalla = 'preparacion')}
+      onotra={() => (ultima ? empezar(ultima.nombres, ultima.avatares, ultima.ids, ultima.config) : mostrar('preparacion'))}
+      oncambiar={() => mostrar('preparacion')}
     />
   {/key}
 {/if}
 
 {#if reglas}
-  <Reglas oncerrar={cerrarReglas} />
+  <Reglas oncerrar={() => capaReglas?.cerrar()} />
 {/if}
 
 {#if tutorial}
-  <Tutorial oncerrar={() => (tutorial = false)} onjugar={() => ((tutorial = false), ir('preparacion'))} />
+  <!-- «¡A jugar!»: se cierra el tutorial y su paso en el historial pasa a ser el de la preparación. -->
+  <Tutorial oncerrar={() => capaTutorial?.cerrar()} onjugar={() => (capaTutorial?.cerrar(), ir('preparacion'))} />
 {/if}
+
+<style>
+  /* Una sola baraja que viaja entre pantallas (ANIM-12): la marca de la portada pasa a la barra de la mesa,
+     el abanico de la portada se cierra en el montón de Opciones y este se pliega en el mazo de la mesa.
+     Los nombres de la mesa se ponen desde aquí para no tocar su marcado. Con movimiento reducido no hay
+     transición (mostrar() no la pide). */
+  :global(.mesa .barra .titulo) {
+    view-transition-name: marca;
+  }
+  :global(.mesa .pilas figure:first-child) {
+    view-transition-name: baraja;
+  }
+  :global(::view-transition-group(*)) {
+    animation-duration: 0.42s;
+    animation-timing-function: var(--curva-deslizar);
+  }
+  :global(::view-transition-old(root)),
+  :global(::view-transition-new(root)) {
+    animation-duration: 0.28s;
+  }
+</style>

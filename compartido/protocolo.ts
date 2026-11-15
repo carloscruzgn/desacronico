@@ -22,8 +22,11 @@ export interface Sala {
   /** En la sala de espera, los apuntados; durante la partida, los jugadores en su orden. */
   jugadores: JugadorSala[]
   config: Config
-  /** Tu sitio entre los jugadores, o null si solo miras. El anfitrión es el 0. */
+  /** Tu sitio entre los jugadores, o null si solo miras. */
   tu: number | null
+  /** Quién hace de anfitrión: el primero de la lista que está conectado (el 0, si está). Puede quitar
+      jugadores, cambiar los ajustes, repartir y volver a la sala. -1 si no hay nadie conectado. */
+  anfitrion: number
   vista: VistaClasico | null
   /** Años de las cartas ya descubiertas. */
   fechas: Anios
@@ -35,12 +38,16 @@ export type DelServidor =
 
 export type DelCliente =
   | { t: 'config'; config: Config }
-  | { t: 'empezar' }
+  /** Repartir. Con `sinAusentes`, antes se quita de la sala a los que no están conectados. */
+  | { t: 'empezar'; sinAusentes?: boolean }
   | { t: 'jugar'; carta: string; posicion: number }
   /** El anfitrión quita a un jugador: de la sala de espera, o de la partida si no vuelve. */
   | { t: 'quitar'; jugador: number }
-  /** El anfitrión devuelve a todos a la sala de espera. */
+  /** El anfitrión devuelve a todos a la sala de espera («Cambiar ajustes»). */
   | { t: 'otra' }
+  /** El anfitrión reparte otra partida con la misma gente y los mismos ajustes, sin pasar por la sala
+      («Otra partida»). Los que miraban entran si caben. Con `sinAusentes`, sin los desconectados. */
+  | { t: 'repetir'; sinAusentes?: boolean }
   /** Un jugador deja la partida en curso: sus cartas van a los descartes y los demás siguen. */
   | { t: 'abandonar' }
   /** Cambiar de personaje en la sala de espera. */

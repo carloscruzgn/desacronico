@@ -54,6 +54,18 @@ export async function existeSala(codigo: string): Promise<boolean> {
   return ((await pedir(`/api/partida/${codigo}`)) as { existe: boolean }).existe
 }
 
+/** Este dispositivo hace de anfitrión en la sala (el primero conectado de la lista). */
+export const esAnfitrion = (s: Sala | null) => !!s && s.tu !== null && s.tu === s.anfitrion
+
+/** «Tu turno» en línea: tres toques cortos, para quien tiene el móvil en la mesa y no mira (A11Y-18). */
+export const vibrarTurno = () => {
+  try {
+    navigator.vibrate?.([60, 60, 60])
+  } catch {
+    // sin vibración
+  }
+}
+
 export class Conexion {
   sala = $state.raw<Sala | null>(null)
   estado = $state<'conectando' | 'abierta' | 'reconectando' | 'cerrada'>('conectando')
@@ -167,14 +179,23 @@ export class Conexion {
       jugada,
       conectados: s.jugadores.map((j) => j.conectado),
     })
+    // El anfitrión efectivo cambia si el que lo era se desconecta: `anfitrion` y `aLaSala` se leen de la
+    // sala de cada momento (son reactivos donde se lean en el marcado).
+    const conexion = this
+    const vuelta = () => this.enviar({ t: 'otra' })
     return {
       inicial: suceso(sala),
       asiento: sala.tu,
-      anfitrion: sala.tu === 0,
+      get anfitrion() {
+        return esAnfitrion(conexion.sala)
+      },
       jugar: (carta, posicion) => this.enviar({ t: 'jugar', carta, posicion }),
       quitar: (jugador) => this.enviar({ t: 'quitar', jugador }),
       abandonar: () => this.enviar({ t: 'abandonar' }),
-      aLaSala: sala.tu === 0 ? () => this.enviar({ t: 'otra' }) : undefined,
+      get aLaSala() {
+        return esAnfitrion(conexion.sala) ? vuelta : undefined
+      },
+      tuTurno: vibrarTurno,
       escuchar: (f) => this.escuchar((s, jugada) => s.vista && s.partida === partida && f(suceso(s, jugada))),
     }
   }

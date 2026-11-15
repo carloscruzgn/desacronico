@@ -109,8 +109,21 @@ export class Partida extends DurableObject<Env> {
       return
     }
     const sitio = g.asientos.findIndex((a) => a.id === quien.id)
-    const anfitrion = sitio === 0
+    // Anfitrión efectivo: el primero de la lista que está conectado. Si el 0 se va, otro puede seguir.
+    const anfitrion = sitio >= 0 && sitio === this.anfitrion()
     let jugada: Resultado | undefined
+
+    // «Otra partida»: vuelta a la sala y a repartir en el mismo paso, sin que nadie toque los ajustes.
+    if (m.t === 'repetir') {
+      if (!anfitrion || g.fase !== 'juego') return
+      this.aLaSala()
+      m = { t: 'empezar', sinAusentes: m.sinAusentes }
+    }
+    // Repartir sin los desconectados: se les quita de la sala antes (nunca a quien reparte).
+    if (m.t === 'empezar' && m.sinAusentes && anfitrion && g.fase === 'sala') {
+      const conectados = this.conectados()
+      g.asientos = g.asientos.filter((a) => a.id === quien.id || conectados.has(a.id))
+    }
 
     try {
       switch (m.t) {
@@ -144,7 +157,7 @@ export class Partida extends DurableObject<Env> {
         }
 
         case 'quitar': {
-          if (!anfitrion || m.jugador === 0 || !g.asientos[m.jugador]) break
+          if (!anfitrion || m.jugador === sitio || !g.asientos[m.jugador]) break
           if (g.fase === 'sala') g.asientos.splice(m.jugador, 1)
           else if (g.estado) g.estado = abandonar(g.estado, m.jugador).estado
           break
@@ -188,6 +201,18 @@ export class Partida extends DurableObject<Env> {
     for (const ws of this.ctx.getWebSockets()) ws.close(1001, 'caducada')
     this.g = null
     await this.ctx.storage.deleteAll()
+  }
+
+  /** Identificadores de los dispositivos conectados (sin la conexión `sin`, que se está cerrando). */
+  private conectados(sin?: WebSocket): Set<string | undefined> {
+    const abiertas = this.ctx.getWebSockets().filter((ws) => ws !== sin && ws.readyState === WebSocket.OPEN)
+    return new Set(abiertas.map((ws) => this.etiqueta(ws)?.id))
+  }
+
+  /** El anfitrión efectivo: el primer asiento conectado (-1 si no hay ninguno). */
+  private anfitrion(sin?: WebSocket): number {
+    const conectados = this.conectados(sin)
+    return this.g ? this.g.asientos.findIndex((a) => conectados.has(a.id)) : -1
   }
 
   private etiqueta(ws: WebSocket): Etiqueta | null {
@@ -243,7 +268,7 @@ export class Partida extends DurableObject<Env> {
     const g = this.g
     if (!g) return
     const abiertas = this.ctx.getWebSockets().filter((ws) => ws !== sin && ws.readyState === WebSocket.OPEN)
-    const conectados = new Set(abiertas.map((ws) => this.etiqueta(ws)?.id))
+    const conectados = this.conectados(sin)
     const e = g.estado
     const fechas: Anios = {}
     if (e) for (const id of [...e.cronologia, ...e.descartes]) fechas[id] = anios[id]
@@ -251,6 +276,7 @@ export class Partida extends DurableObject<Env> {
       codigo: g.codigo,
       partida: g.partida,
       fase: g.fase,
+      anfitrion: g.asientos.findIndex((a) => conectados.has(a.id)),
       jugadores: g.asientos.map((a) => ({ nombre: a.nombre, avatar: a.avatar ?? '', conectado: conectados.has(a.id) })),
       config: g.config,
       vista: e ? vistaDe(e) : null,

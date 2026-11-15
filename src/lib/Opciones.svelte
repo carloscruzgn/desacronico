@@ -9,6 +9,7 @@
   import { barajar } from '../../compartido/clasico'
   import Carta from './Carta.svelte'
   import { cartas, cuentaPorAmbito } from './datos'
+  import { toca } from './aparato'
   import { dura } from './movimiento'
 
   interface Props {
@@ -53,7 +54,7 @@
 </script>
 
 <section>
-  <h2>Mazo <small>{total} cartas{fija ? '' : ' · toca una serie para quitarla o ponerla'}</small></h2>
+  <h2>Mazo <small>{total} cartas{fija ? '' : ` · ${toca()} una serie para quitarla o ponerla`}</small></h2>
   <div class="mazos">
     <div class="monton" class:vacio={!elegidos.length} aria-hidden="true">
       {#each elegidos as a, i (a)}
@@ -146,8 +147,10 @@
     align-items: flex-start;
     height: calc(var(--ancho) * 1.383 + 30px);
     padding-top: 12px;
-    border-radius: 10px;
+    border-radius: var(--radio-hoja, 14px);
     background: rgb(0 0 0 / 0.2);
+    /* el abanico de la portada se cierra aquí y esto se pliega en el mazo de la mesa (App) */
+    view-transition-name: baraja;
   }
   .monton.vacio {
     box-shadow: inset 0 0 0 1px rgb(240 163 163 / 0.5);
@@ -184,9 +187,10 @@
     font-size: 0.85rem;
   }
 
+  /* Con el texto al 200 % las series pasan a dos o tres filas en vez de apretarse. */
   .series {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(max(3.5rem, 17%), 1fr));
     gap: 4px;
   }
   .serie {
@@ -242,7 +246,11 @@
       4px 4px 0 rgb(235 233 217 / 0.2);
     filter: saturate(0.6) brightness(0.85);
   }
+  /* El nombre ocupa siempre dos renglones: las cifras de debajo quedan alineadas aunque alguno parta. */
   .nombre {
+    min-height: 2.2em;
+    display: grid;
+    align-content: center;
     font-size: 0.82rem;
     line-height: 1.1;
     text-align: center;
@@ -293,7 +301,7 @@
 
   .fallo {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
     gap: 8px;
     margin: 0;
     padding: 0;
@@ -307,7 +315,7 @@
     padding: 10px 12px;
     text-align: left;
     border: 1px solid rgb(235 233 217 / 0.3);
-    border-radius: 6px;
+    border-radius: var(--radio-ficha, 8px);
     background: transparent;
     line-height: 1.25;
     cursor: pointer;

@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { avatarLibre } from '../../compartido/avatares'
+  import { tick } from 'svelte'
+  import { AVATARES, avatarLibre } from '../../compartido/avatares'
   import { MAX_JUGADORES, minimoCartas } from '../../compartido/clasico'
   import type { Config } from '../../compartido/protocolo'
+  import { Toca } from './aparato'
   import { cartas, configGuardada, guardarConfig, guardarJugadores, jugadoresGuardados } from './datos'
   import Avatares from './Avatares.svelte'
   import BotonIcono from './BotonIcono.svelte'
@@ -28,20 +30,32 @@
   let avatares = $state<string[]>(deAntes.avatares)
   let eligiendo = $state<number | null>(null)
   const hayNombres = $derived(nombres.some((n) => n.trim()))
+  let lista = $state<HTMLElement>()
+
+  /** Lleva el foco al nombre del jugador `i` (o, si ya no hay ninguno ahí, al botón de añadir). */
+  async function enfocar(i: number) {
+    await tick()
+    const campos = lista?.querySelectorAll<HTMLInputElement>('input[type="text"]') ?? []
+    ;(campos[Math.min(i, campos.length - 1)] ?? lista?.querySelector<HTMLElement>('.anadir'))?.focus()
+  }
 
   function empezarDeCero() {
     const n = nuevos()
     nombres = n.nombres
     avatares = n.avatares
+    enfocar(0)
   }
 
   function anadir() {
     nombres.push('')
     avatares.push(avatarLibre(avatares))
+    enfocar(nombres.length - 1)
   }
   function quitar(i: number) {
     nombres.splice(i, 1)
     avatares.splice(i, 1)
+    // El foco va al jugador que ha ocupado su sitio, o al anterior si era el último.
+    enfocar(i)
   }
 
   const ids = $derived(cartas.filter((c) => config.ambitos.includes(c.ambito)).map((c) => c.id))
@@ -72,30 +86,37 @@
     <h1 tabindex="-1" data-titulo>Nueva partida</h1>
   </header>
 
-  <section>
-    <h2>Jugadores <small>de 1 a {MAX_JUGADORES}; toca el avatar para cambiarlo</small></h2>
-    <div class="jugadores">
-      {#each nombres as _, i (i)}
-        <div class="jugador">
-          <button class="moneda" aria-label="Cambiar el avatar del jugador {i + 1}" onclick={() => (eligiendo = i)}>
-            <Moneda avatar={avatares[i]} />
-          </button>
-          <input type="text" maxlength="14" placeholder="Jugador {i + 1}" aria-label="Nombre del jugador {i + 1}" bind:value={nombres[i]} autocomplete="off" />
-          {#if nombres.length > 1}
-            <button class="quitar" aria-label="Quitar jugador {i + 1}" onclick={() => quitar(i)}>×</button>
-          {/if}
-        </div>
-      {/each}
-      {#if nombres.length < MAX_JUGADORES}
-        <button class="anadir" onclick={anadir}>+ Añadir jugador</button>
-      {/if}
-      {#if hayNombres}
-        <button class="anadir" onclick={empezarDeCero}>Nuevos jugadores</button>
-      {/if}
-    </div>
-  </section>
+  <div class="columnas">
+    <section class="jugadores-seccion" aria-labelledby="jugadores-titulo">
+      <h2 id="jugadores-titulo">Jugadores <small>de 1 a {MAX_JUGADORES}</small></h2>
+      <!-- Cabecera visible de la lista: qué es cada columna. -->
+      <p class="cabecera" aria-hidden="true"><span>Avatar</span><span>Nombre</span></p>
+      <div class="jugadores" bind:this={lista}>
+        {#each nombres as _, i (i)}
+          <div class="jugador">
+            <button class="moneda" aria-label="Avatar del jugador {i + 1}: {AVATARES[avatares[i]] ?? 'sin elegir'}. Cambiar" title="Cambiar el avatar" onclick={() => (eligiendo = i)}>
+              <Moneda avatar={avatares[i]} />
+            </button>
+            <input type="text" maxlength="14" placeholder="Jugador {i + 1}" aria-label="Nombre del jugador {i + 1}" bind:value={nombres[i]} autocomplete="off" enterkeyhint="next" />
+            {#if nombres.length > 1}
+              <button class="quitar" aria-label="Quitar al jugador {i + 1}{nombres[i].trim() ? `, ${nombres[i].trim()}` : ''}" onclick={() => quitar(i)}>×</button>
+            {/if}
+          </div>
+        {/each}
+        {#if nombres.length < MAX_JUGADORES}
+          <button class="anadir" onclick={anadir}>+ Añadir jugador</button>
+        {/if}
+        {#if hayNombres}
+          <button class="anadir" onclick={empezarDeCero}>Nuevos jugadores</button>
+        {/if}
+      </div>
+      <p class="nota izquierda">{Toca()} un avatar para cambiarlo.</p>
+    </section>
 
-  <Opciones {config} oncambio={(c) => (config = c)} />
+    <div class="ajustes">
+      <Opciones {config} oncambio={(c) => (config = c)} />
+    </div>
+  </div>
 
   <div class="pie-fijo">
     <p class="error" role="alert">{error}</p>
@@ -115,7 +136,12 @@
 {/if}
 
 <style>
+  /* Con el pie fijo, lo que recibe el foco no puede quedar tapado por él. */
+  :global(html:has(.pie-fijo)) {
+    scroll-padding-bottom: 8rem;
+  }
   main {
+    --radio-ficha: 8px;
     max-width: 560px;
     margin: 0 auto;
     padding: 16px 16px 0;
@@ -145,9 +171,21 @@
     color: var(--gris-claro);
     margin-left: 0.3em;
   }
+  .cabecera {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 4px;
+    color: var(--gris-claro);
+    font-size: 0.9rem;
+  }
+  .cabecera span:first-child {
+    min-width: 54px;
+    text-align: center;
+  }
 
   .jugadores {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
   .jugador {
@@ -157,6 +195,9 @@
   }
   .moneda {
     flex: none;
+    width: 54px;
+    display: grid;
+    place-items: center;
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -169,7 +210,7 @@
     min-height: 46px;
     padding: 0 12px;
     border: 1px solid rgb(235 233 217 / 0.35);
-    border-radius: 6px;
+    border-radius: var(--radio-ficha);
     background: rgb(0 0 0 / 0.25);
     color: var(--papel);
     font: inherit;
@@ -180,7 +221,7 @@
   .anadir {
     min-height: 46px;
     border: 1px dashed rgb(235 233 217 / 0.35);
-    border-radius: 6px;
+    border-radius: var(--radio-ficha);
     background: transparent;
     cursor: pointer;
   }
@@ -197,9 +238,36 @@
     font-size: 0.95rem;
     text-align: center;
   }
+  .nota.izquierda {
+    margin-top: 8px;
+    text-align: left;
+  }
   .error {
     margin: 0;
     color: #f0a3a3;
     text-align: center;
+  }
+
+  /* Escritorio: los jugadores a la izquierda y el mazo y la dificultad a la derecha; «Repartir» en medio. */
+  @media (min-width: 960px) {
+    main {
+      max-width: 1100px;
+      padding-inline: 32px;
+    }
+    .columnas {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+      gap: 0 56px;
+      align-items: start;
+    }
+    .pie-fijo {
+      justify-items: center;
+      /* en escritorio todo cabe: el pie no hace falta que flote ni que tape */
+      position: static;
+      background: none;
+    }
+    .pie-fijo .boton {
+      min-width: 320px;
+    }
   }
 </style>

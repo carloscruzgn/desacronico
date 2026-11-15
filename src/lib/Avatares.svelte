@@ -4,7 +4,7 @@
   import { SERIES_AVATARES } from '../../compartido/avatares'
   import { AMBITOS, type Ambito } from '../../compartido/tipos'
   import BotonIcono from './BotonIcono.svelte'
-  import { dialogo } from './dialogo'
+  import { capa, cerrarCapa } from './capas'
   import Moneda from './Moneda.svelte'
   import { dura } from './movimiento'
 
@@ -20,13 +20,11 @@
   let { titulo = 'Tu avatar', actual, ocupados = [], onelegir, oncerrar }: Props = $props()
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && oncerrar()} />
-
-<div class="velo" transition:fade={{ duration: dura(200) }} onclick={oncerrar} role="presentation"></div>
-<div class="hoja" role="dialog" aria-modal="true" aria-labelledby="avatares-titulo" use:dialogo transition:fly={{ y: 60, duration: dura(280) }}>
+<div class="velo" transition:fade={{ duration: dura(200) }} onclick={cerrarCapa} role="presentation"></div>
+<div class="hoja" role="dialog" aria-modal="true" aria-labelledby="avatares-titulo" use:capa={oncerrar} transition:fly={{ y: 60, duration: dura(280) }}>
   <header>
     <h2 id="avatares-titulo">{titulo}</h2>
-    <BotonIcono icono="cerrar" etiqueta="Cerrar" sobrePapel onclick={oncerrar} />
+    <BotonIcono icono="cerrar" etiqueta="Cerrar" sobrePapel onclick={cerrarCapa} />
   </header>
   <div class="series">
     {#each Object.entries(SERIES_AVATARES) as [serie, personajes] (serie)}
@@ -34,7 +32,7 @@
       <div class="rejilla">
         {#each Object.entries(personajes) as [id, nombre] (id)}
           {@const cogido = ocupados.includes(id) && id !== actual}
-          <button class:actual={id === actual} disabled={cogido} aria-pressed={id === actual} aria-label="{nombre}{cogido ? ' (ya elegido)' : ''}" title={nombre} data-foco={id === actual ? '' : undefined} onclick={() => onelegir(id)}>
+          <button class:actual={id === actual} disabled={cogido} aria-pressed={id === actual} aria-label="{nombre}{cogido ? ' (ya elegido)' : ''}" title={nombre} data-foco={id === actual ? '' : undefined} onclick={() => (onelegir(id), cerrarCapa())}>
             <Moneda avatar={id} gesto={id === actual ? 'gana' : 'normal'} />
           </button>
         {/each}

@@ -16,14 +16,18 @@ export interface Controlador {
   inicial: Suceso
   /** Sitio que juega este dispositivo: uno concreto, todos (partida local) o ninguno (solo mira). */
   asiento: number | 'todos' | null
+  /** Puede quitar jugadores y repartir otra. En línea es el anfitrión efectivo (el primero conectado) y puede
+      cambiar a mitad de partida: hay que leerlo como `control.anfitrion` donde se usa, no copiarlo al empezar. */
   anfitrion: boolean
   jugar(carta: string, posicion: number): void
   /** Sacar a un jugador de la partida: en línea, el anfitrión a quien no vuelve; en local, a quien se va de la mesa. */
   quitar?(jugador: number): void
   /** Dejar la partida. En línea, los demás siguen sin ti; en local, se da por terminada y no se guarda. */
   abandonar(): void
-  /** En línea, el anfitrión devuelve a todos a la sala de espera. */
+  /** En línea, el anfitrión devuelve a todos a la sala de espera. Solo está mientras eres el anfitrión. */
   aLaSala?(): void
+  /** En línea: avisar con una vibración de que te toca (para quien no está mirando la pantalla). */
+  tuTurno?(): void
   escuchar(f: (s: Suceso) => void): () => void
 }
 
