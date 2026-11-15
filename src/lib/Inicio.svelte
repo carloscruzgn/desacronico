@@ -22,7 +22,7 @@
   }
   let { hayGuardada, sala, onjugar, onenlinea, onsala, oncontinuar, onreglas, ontutorial }: Props = $props()
 
-  // «Jugar en este móvil» solo en un móvil de verdad; en la pizarra del aula, «en esta pantalla».
+  // «En este móvil» solo en un móvil de verdad; en la pizarra del aula, «en esta pantalla».
   const aqui = esteAparato()
 
   // Abanico decorativo: cinco cartas al azar, una de cada ámbito
@@ -105,11 +105,11 @@
       </button>
     {/if}
     <button class="entrada" class:principal={!hayGuardada} onclick={onjugar}>
-      <span><b>Jugar en {aqui}</b><small>Todos con este aparato, por turnos</small></span>
+      <span><b>Juega en local</b></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <button class="entrada" onclick={onenlinea}>
-      <span><b>Jugar en línea</b><small>Cada uno con su móvil y un código</small></span>
+      <span><b>Juega en línea</b></span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
     </button>
     <div class="pareja">

@@ -373,7 +373,7 @@
             <p class="banda"><span class="sr-only">Código de la sala: </span>{sala.codigo}</p>
           </div>
           <div class="invitar">
-            <p class="ayuda">Para entrar, los demás escanean el QR o escriben estas cuatro letras en <b>Jugar en línea</b>.</p>
+            <p class="ayuda">Para entrar, los demás escanean el QR o escriben estas cuatro letras en <b>Juega en línea</b>.</p>
             <button class="boton" onclick={compartir}>{copiado ? 'Enlace copiado' : 'Invitar'}</button>
             <p class="ayuda menor">{Toca()} el QR para verlo en grande.</p>
           </div>
