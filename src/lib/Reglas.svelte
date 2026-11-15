@@ -14,6 +14,7 @@
   import Portadilla from './Portadilla.svelte'
   import Tutorial, { narrarTutorial } from './Tutorial.svelte'
   import { alVer } from './alVer'
+  import { Toca } from './aparato'
   import { abrirCapa, type Capa } from './capas'
   import { anioTexto, porId, textoPlano } from './datos'
   import { dialogo } from './dialogo'
@@ -193,7 +194,7 @@
           {/each}
           <div class="bloque prueba" class:activo={jugando}>
             <h4>Pruébalo tú</h4>
-            <p>Arriba tienes tres cartas y una cronología que empieza en 1492. Toca una de tus cartas y después el hueco donde crees que va. Si fallas, va a los descartes y robas otra.</p>
+            <p>Arriba tienes tres cartas y una cronología que empieza en 1492. {Toca()} una de tus cartas y después el hueco donde crees que va. Si fallas, va a los descartes y robas otra.</p>
             <p class="nota-baja">Es solo una práctica: no cuenta para nada.</p>
           </div>
         </div>

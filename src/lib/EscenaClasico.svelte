@@ -8,6 +8,7 @@
   import { cubicOut } from 'svelte/easing'
   import { crossfade, fade } from 'svelte/transition'
   import { barajar, cabe, vecinas } from '../../compartido/clasico'
+  import { Toca } from './aparato'
   import Carta from './Carta.svelte'
   import { anioHablado, anioTexto, porId, textoPlano } from './datos'
   import Mazo from './Mazo.svelte'
@@ -186,7 +187,7 @@
     pMazo = b.slice(3)
     pDescarte = null
     pElegida = null
-    mensaje = 'Toca una de tus cartas y después el hueco donde crees que va.'
+    mensaje = `${Toca()} una de tus cartas y después el hueco donde crees que va.`
   }
   $effect(() => {
     if (jugable && !repartida) {

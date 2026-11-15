@@ -1,6 +1,7 @@
 // Textos del reglamento, del tutorial y de los créditos (del «Reglamento.pdf» original, con erratas
 // corregidas y con las aclaraciones de la versión digital). Es la única fuente: el reglamento, el
 // tutorial y su narración leen de aquí.
+import { toca } from './aparato'
 import { cartas, textoPlano } from './datos'
 
 /** Lo imprescindible del modo clásico, para quien abre el reglamento sin haber jugado nunca. */
@@ -30,7 +31,10 @@ export const PASOS_TUTORIAL: { titulo: string; texto: string }[] = [
   },
   {
     titulo: '¿Antes o después?',
-    texto: 'Cuando te toque, elige una carta y toca un hueco: a la izquierda si crees que ocurrió antes; a la derecha, si después.',
+    // «toca» con el dedo, «pulsa» con el ratón (la narración grabada dice «toca»)
+    get texto() {
+      return `Cuando te toque, elige una carta y ${toca()} un hueco: a la izquierda si crees que ocurrió antes; a la derecha, si después.`
+    },
   },
   { titulo: 'Acierto', texto: 'La carta se da la vuelta y enseña su año. Si has acertado, se queda en la cronología.' },
   { titulo: 'Fallo', texto: 'Si no encaja, la carta va a los descartes y robas otra del mazo. Después le toca al siguiente.' },
