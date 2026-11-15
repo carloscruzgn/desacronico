@@ -81,8 +81,10 @@
     width: var(--lado, 46px);
     aspect-ratio: 1;
     border-radius: 50%;
-    /* Un círculo limpio, sin canto ni aro: no es una moneda. */
-    box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+    /* Un círculo limpio con un aro de papel, el blanco de «Repartir»; sin canto: no es una moneda. */
+    box-shadow:
+      0 0 0 max(2px, calc(var(--lado, 46px) * 0.045)) var(--papel),
+      0 2px 6px rgb(0 0 0 / 0.35);
   }
   img {
     display: block;

@@ -1706,7 +1706,8 @@
   }
   .jugadores li :global(.moneda) {
     outline: 2px solid transparent;
-    outline-offset: 2px;
+    /* por fuera del aro de papel del avatar, con un hueco de tapete entre los dos */
+    outline-offset: 4px;
     transition:
       outline-color 0.3s,
       transform 0.3s var(--curva-posar);
