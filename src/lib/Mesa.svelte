@@ -99,6 +99,10 @@
   }
   let aviso = $state<Aviso | null>(null)
   /** La carta ampliada y la carta de la mesa de la que sale y a la que vuelve (ANIM-15). */
+  /** La carta de la cronología más cerca del centro de la vista: lleva los redondeles de ampliar y escuchar. */
+  let central = $state<string | null>(null)
+  /** La carta que se está leyendo en voz alta desde su redondel. */
+  let leyendo = $state<string | null>(null)
   let ampliada = $state.raw<{ id: string; reverso: boolean; desde?: HTMLElement | null } | null>(null)
   let fin = $state<number[] | null>(null)
   let verFin = $state(false)
@@ -314,6 +318,7 @@
       const centro = r.left + r.width / 2
       return centro >= caja.left && centro <= caja.right
     })
+    central = cartaCentral()
     const a = vistas[0]?.dataset.id
     const b = vistas[vistas.length - 1]?.dataset.id
     rango = a && b && fechas[a] && fechas[b] ? (a === b ? anioCorto(a) : `${anioCorto(a)} – ${anioCorto(b)}`) : ''
@@ -405,7 +410,7 @@
     const a = document.activeElement as HTMLElement | null
     const perdido = !a || a === document.body || !a.isConnected || !!a.closest('[inert]') || a.classList.contains('hueco')
     if (!perdido) return
-    const enMano = manoEl?.querySelector<HTMLElement>('.naipe')
+    const enMano = manoEl?.querySelector<HTMLElement>('.carta-mano')
     const colocada = cronoEl?.querySelector<HTMLElement>(`.naipe[data-id="${id}"]`)
     ;((miTurno ? enMano : null) ?? colocada ?? enMano)?.focus({ preventScroll: true })
   }
@@ -740,7 +745,8 @@
   const puedeArrastrar = () => !fin && !ocupado && miTurno && !mirando && !fuera
 
   function bajarMano(e: PointerEvent, id: string) {
-    if (e.button > 0 || !puedeArrastrar()) return
+    // Desde los redondeles no se arrastra: son botones.
+    if (e.button > 0 || !puedeArrastrar() || (e.target as Element).closest('.redondeles')) return
     const el = e.currentTarget as HTMLElement
     arrastre = { id, el, puntero: e.pointerId, x0: e.clientX, y0: e.clientY, ox: 0, oy: 0, w: 0, h: 0, fantasma: null }
   }
@@ -756,7 +762,6 @@
       const cuerpo = a.el.querySelector<HTMLElement>('.cuerpo')!
       const r = cuerpo.getBoundingClientRect()
       const copia = cuerpo.cloneNode(true) as HTMLElement
-      copia.querySelector('.lupa')?.remove()
       copia.style.transform = 'none'
       const f = document.createElement('div')
       f.setAttribute('aria-hidden', 'true')
@@ -1156,11 +1161,39 @@
     flechas(e)
     if (e.key === 'Escape' && quitando === null) {
       // el hueco con el foco va a desaparecer: el foco vuelve a la carta que estaba elegida
-      if (document.activeElement?.classList.contains('hueco')) manoEl?.querySelector<HTMLElement>('.naipe.elegida')?.focus()
+      if (document.activeElement?.classList.contains('hueco')) manoEl?.querySelector<HTMLElement>('.elegida .carta-mano')?.focus()
       seleccionada = null
     }
   }}
 />
+
+<!-- Los redondeles de una carta: la lupa la amplía y el altavoz la lee en voz alta (suena aunque la voz esté
+     apagada, porque lo pide quien lo toca). Boca arriba, con su año. -->
+{#snippet redondeles(id: string, fecha: Fecha | null, reverso: boolean)}
+  {@const suena = sonido.hablando && leyendo === id}
+  <span class="redondeles">
+    <button
+      class="redondel"
+      aria-label="Ampliar la carta"
+      title="Ampliar"
+      onclick={(e) => (ampliada = { id, reverso, desde: (e.currentTarget as HTMLElement).closest<HTMLElement>('.naipe, .sitio-naipe') })}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg>
+    </button>
+    <button
+      class="redondel"
+      aria-label={suena ? 'Parar la lectura' : 'Escuchar la carta'}
+      title={suena ? 'Parar' : 'Escuchar'}
+      onclick={() => {
+        if (suena) return callar()
+        leyendo = id
+        leerCarta(id, fecha)
+      }}
+    >
+      {#if suena}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>{:else}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg>{/if}
+    </button>
+  </span>
+{/snippet}
 
 {#snippet botonAyuda()}
   <button class="boton-ayuda" class:abierta={ayuda} aria-label="Qué hacer ahora" aria-expanded={ayuda} aria-controls="ayuda-jugada" onclick={() => (ayuda = !ayuda)}>?</button>
@@ -1240,19 +1273,23 @@
           <button class="hueco" class:imantado={imantado === i} inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
             <span>+</span>
           </button>
-          <button
-            class="naipe"
-            data-id={p.id}
-            style:--ladeo="{ladeo(p.id)}deg"
-            in:recibir={{ key: p.id }}
-            out:enviar={{ key: p.id }}
-            onclick={(e) => (ampliada = { id: p.id, reverso: p.volteada, desde: e.currentTarget })}
-            aria-label="{p.volteada && anioDe(p.id) ? anioDicho(p.id) + '. ' : ''}{textoPlano(porId[p.id])}"
-          >
-            <div class="cuerpo {p.marca}">
-              <Carta carta={porId[p.id]} fecha={fechas[p.id]} volteada={p.volteada} revelar={revelada === p.id} />
-            </div>
-          </button>
+          <!-- La carta centrada en la vista lleva los mismos redondeles que la elegida de la mano. -->
+          <div class="sitio-naipe">
+            <button
+              class="naipe"
+              data-id={p.id}
+              style:--ladeo="{ladeo(p.id)}deg"
+              in:recibir={{ key: p.id }}
+              out:enviar={{ key: p.id }}
+              onclick={(e) => (ampliada = { id: p.id, reverso: p.volteada, desde: e.currentTarget })}
+              aria-label="{p.volteada && anioDe(p.id) ? anioDicho(p.id) + '. ' : ''}{textoPlano(porId[p.id])}"
+            >
+              <div class="cuerpo {p.marca}">
+                <Carta carta={porId[p.id]} fecha={fechas[p.id]} volteada={p.volteada} revelar={revelada === p.id} />
+              </div>
+            </button>
+            {#if central === p.id && p.volteada && !p.marca && !ocupado}{@render redondeles(p.id, fechas[p.id] ?? null, true)}{/if}
+          </div>
           {#if i === crono.length - 1}
             <button class="hueco" class:imantado={imantado === crono.length} inert={!puedeColocar} onclick={() => jugarEn(crono.length)} aria-label="Colocar aquí, al final, después de {anioDicho(p.id, false) || 'la última'}">
               <span>+</span>
@@ -1322,19 +1359,16 @@
       {#each veredicto.notas as n (n)}<p class="pista nota">{n}</p>{/each}
     {:else if seleccionada}
       {#key seleccionada}
-        <p class="texto" in:fade={{ duration: dura(180) }}>{@html porId[seleccionada].texto}</p>
+        <!-- Ampliar y escuchar van en los redondeles de la carta elegida; aquí, su texto y el «?». -->
+        <p class="texto" in:fade={{ duration: dura(180) }}>{@html porId[seleccionada].texto}{#if puedeColocar}{" "}{@render botonAyuda()}{/if}</p>
       {/key}
-      <p class="pista">
-        {#if puedeColocar}<span class="sr-only">{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? Elige el hueco donde creas que va. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</span>{:else if mirando || fuera}Estás mirando la partida{:else if !miTurno}Espera tu turno{/if}
-        <span class="botones-carta">
-          <button class="ampliar" onclick={() => (ampliada = { id: seleccionada!, reverso: false, desde: manoEl?.querySelector<HTMLElement>('.naipe.elegida') })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg> Ampliar</button>
-          <!-- Las cartas de la mano van boca abajo: se lee el texto, sin el año. Suena aunque la voz esté apagada. -->
-          <button class="ampliar" onclick={() => (sonido.hablando ? callar() : leerCarta(seleccionada!))}>
-            {#if sonido.hablando}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg> Parar{:else}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg> Escuchar{/if}
-          </button>
-          {#if puedeColocar}{@render botonAyuda()}{/if}
-        </span>
-      </p>
+      {#if puedeColocar}
+        <p class="sr-only">{local && !solo ? `${nombreTurno}: ¿antes` : '¿Antes'} o después? Elige el hueco donde creas que va. Con el teclado, las flechas izquierda y derecha llevan a los huecos.</p>
+      {:else if mirando || fuera}
+        <p class="pista">Estás mirando la partida</p>
+      {:else if !miTurno}
+        <p class="pista">Espera tu turno</p>
+      {/if}
     {:else}
       {#if !ocupado && miTurno}
         <p class="pista grande">{solo ? 'Elige una carta' : local ? `${nombreTurno}, elige una carta` : 'Tu turno: elige una carta'} {@render botonAyuda()}</p>
@@ -1392,7 +1426,10 @@
         {@const d = k - (mano.length - 1) / 2}
         {@const mitad = Math.max(1, (mano.length - 1) / 2)}
         <!-- En abanico, ±3° como mucho (ANIM-10): la mano se abre un poco, sin girar las cartas hasta no leerlas. -->
-        <button
+        <!-- La carta y, si está elegida, sus redondeles: van juntos en «.alza», que es lo que se levanta. Arrastrarla
+             es un atajo con el puntero; con el teclado se elige con el botón y se coloca con las flechas. -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
           class="naipe"
           class:elegida={seleccionada === id}
           style:--giro="{mano.length > 1 ? (d / mitad) * Math.min(3, (mano.length - 1) * 1) : 0}deg"
@@ -1401,18 +1438,21 @@
           in:recibir={{ key: id, delay: retraso.get(id) ?? 0 }}
           out:enviar={{ key: id }}
           data-mano={id}
-          onclick={() => elegir(id)}
           onpointerdown={(e) => bajarMano(e, id)}
           onpointermove={moverMano}
           onpointerup={soltarMano}
           onpointercancel={soltarMano}
-          aria-label="{textoPlano(porId[id])}{seleccionada === id ? ', elegida' : ''}"
         >
-          <div class="cuerpo">
-            <Carta carta={porId[id]} imagen="mini" soloAnverso />
-            {#if seleccionada === id}<span class="lupa"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg></span>{/if}
+          <div class="alza">
+            <button class="carta-mano" onclick={() => elegir(id)} aria-label="{textoPlano(porId[id])}{seleccionada === id ? ', elegida' : ''}">
+              <div class="cuerpo">
+                <Carta carta={porId[id]} imagen="mini" soloAnverso />
+              </div>
+            </button>
+            <!-- Las cartas de la mano van boca abajo: se escucha el texto, sin el año. -->
+            {#if seleccionada === id}{@render redondeles(id, null, false)}{/if}
           </div>
-        </button>
+        </div>
       {/each}
     {/if}
   </div>
@@ -2140,8 +2180,7 @@
     font-size: 0.95rem;
   }
   /* con el botón «Ampliar», el texto va entero en su renglón y el botón debajo */
-  .pista:has(.ampliar) { text-wrap: wrap; }
-  .pista.grande {
+    .pista.grande {
     color: var(--papel);
     font-style: normal;
     font-weight: 500;
@@ -2206,12 +2245,6 @@
     content: '';
     position: absolute;
     inset: -5px;
-  }
-  .botones-carta .boton-ayuda {
-    width: 44px;
-    height: 44px;
-    margin: 0;
-    font-size: 1.25rem;
   }
   .boton-ayuda.abierta {
     background: var(--papel);
@@ -2326,29 +2359,6 @@
     content: '\00a0·';
     margin-right: 0.4em;
   }
-  .botones-carta {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 4px;
-  }
-  .ampliar {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    min-height: 44px;
-    padding: 0 12px 0 9px;
-    border: 0;
-    border-radius: 999px;
-    background: rgb(235 233 217 / 0.1);
-    box-shadow: var(--borde-fantasma);
-    color: var(--papel);
-    font-style: normal;
-    font-weight: 500;
-    cursor: pointer;
-    vertical-align: middle;
-  }
   svg {
     width: 1.15em;
     height: 1.15em;
@@ -2361,21 +2371,49 @@
     width: 20px;
     height: 20px;
   }
-  .lupa {
+  /* Los redondeles de la carta elegida (y de la central de la cronología): lupa y altavoz, en papel con filete de
+     tinta, en la esquina de arriba. Se ven de 32 px y se tocan en 44. */
+  .redondeles {
     position: absolute;
-    right: -6px;
-    top: -8px;
-    width: 28px;
-    height: 28px;
+    z-index: 3;
+    right: -8px;
+    top: -12px;
+    display: flex;
+    gap: 8px;
+  }
+  .redondel {
+    position: relative;
     display: grid;
     place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
     border-radius: 50%;
     background: var(--papel-2);
     color: var(--tinta);
     box-shadow:
       0 0 0 1.5px var(--tinta),
       0 2px 6px rgb(0 0 0 / 0.5);
-    pointer-events: none;
+    cursor: pointer;
+  }
+  .redondel::after {
+    content: "";
+    position: absolute;
+    inset: -6px -4px;
+  }
+  .redondel svg {
+    width: 19px;
+    height: 19px;
+  }
+  /* En la cronología, dentro de la carta: arriba se cortarían con el borde de la tira. */
+  .sitio-naipe {
+    position: relative;
+    flex: none;
+  }
+  .crono .redondeles {
+    top: 8px;
+    right: 10px;
   }
   .enlace {
     min-height: 44px;
@@ -2422,8 +2460,23 @@
     rotate: 0deg;
     translate: 0 0;
   }
+  .alza {
+    position: relative;
+    transition: transform 0.25s var(--curva-posar);
+  }
+  .carta-mano {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .mano .elegida .alza { transform: translateY(-12%); }
   .mano .elegida .cuerpo {
-    transform: translateY(-12%);
     filter: drop-shadow(0 14px 10px rgb(0 0 0 / 0.55));
   }
   /* y lleva el realce mostaza, el mismo de las series elegidas y del foco */
@@ -2845,6 +2898,7 @@
     }
     .cuerpo,
     .hueco,
+    .alza,
     .mano .naipe {
       transition: none;
     }
