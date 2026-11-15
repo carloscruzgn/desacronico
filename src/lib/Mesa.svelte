@@ -1294,7 +1294,7 @@
           <button class="hueco" class:imantado={imantado === i} inert={!puedeColocar} onclick={() => jugarEn(i)} aria-label="Colocar aquí, {i > 0 ? `entre ${anioDicho(crono[i - 1].id, false) || 'la anterior'} y ` : 'antes de '}{anioDicho(p.id, false) || 'esta carta'}">
             <span>+</span>
           </button>
-          <!-- Cada carta boca arriba lleva los mismos redondeles que la elegida de la mano. -->
+          <!-- Tocar la carta la abre en grande, con «Escuchar»: con muchas cartas, los redondeles no cabían. -->
           <div class="sitio-naipe">
             <button
               class="naipe"
@@ -1310,7 +1310,6 @@
                 <Carta carta={porId[p.id]} fecha={fechas[p.id]} volteada={p.volteada} revelar={revelada === p.id} />
               </div>
             </button>
-            {#if p.volteada && !p.marca && !ocupado}{@render redondeles(p.id, fechas[p.id] ?? null, true)}{/if}
             <!-- Su año, bien grande debajo de la carta: se lee de un vistazo qué años se están viendo. -->
             {#if p.volteada && fechas[p.id] && p.marca !== 'fallo' && p.marca !== 'alza'}
               <span class="anio-bajo" class:ultima={i === crono.length - 1} aria-hidden="true" transition:fade={{ duration: dura(200) }}><span class="cifras">{anioDe(p.id)}</span></span>
@@ -2421,7 +2420,7 @@
     width: 20px;
     height: 20px;
   }
-  /* Los redondeles de la carta elegida (y de las de la cronología): lupa y altavoz, en papel con filete de
+  /* Los redondeles de la carta elegida de la mano: lupa y altavoz, en papel con filete de
      tinta, en la esquina de arriba. Se ven de 32 px y se tocan en 44. */
   .redondeles {
     position: absolute;
@@ -2456,7 +2455,6 @@
     width: 19px;
     height: 19px;
   }
-  /* En la cronología, dentro de la carta: arriba se cortarían con el borde de la tira. */
   .sitio-naipe {
     position: relative;
     flex: none;
@@ -2500,10 +2498,6 @@
   }
   .anio-bajo::before { grid-column: 1 / 3; grid-row: 1; transform-origin: left; }
   .anio-bajo::after { grid-column: 4 / -1; grid-row: 1; transform-origin: left; }
-  .crono .redondeles {
-    top: 8px;
-    right: 10px;
-  }
   .enlace {
     min-height: 44px;
     padding: 6px 8px;
