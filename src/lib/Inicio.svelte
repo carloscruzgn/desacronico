@@ -130,12 +130,16 @@
   <footer>
     <!-- La franja del icono: los colores de las cuatro edades, de la Antigua a la Contemporánea. -->
     <span class="franja" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-    <img src="/img/cepa.svg" alt="CEPA Coria" />
+    <!-- «dac», como el icono de la app, junto al logo del CEPA. -->
+    <span class="sellos">
+      <span class="dac" aria-hidden="true"><span class="d">d</span><span class="a">a</span>c</span>
+      <span class="raya" aria-hidden="true"></span>
+      <img src="/img/cepa.svg" alt="CEPA Coria" />
+    </span>
     <span>
       Carlos Cruz González y Rodrigo Muñoz Martínez<br />
-      CEPA Coria, 2024
+      <span class="con-licencia">CEPA Coria, 2024 <img class="licencia" src="/img/cc-by-sa.png" alt="Licencia CC BY-SA" width="88" height="31" /></span>
     </span>
-    <img class="licencia" src="/img/cc-by-sa.png" alt="Licencia CC BY-SA" width="88" height="31" />
   </footer>
 </main>
 
@@ -300,22 +304,46 @@
     line-height: 1.4;
   }
 
+  /* La franja de las edades, de lado a lado de la pantalla. */
   .franja {
     display: flex;
-    width: 128px;
+    width: 100vw;
     height: 6px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
   .franja i { flex: 1; }
   .franja i:nth-child(1) { background: var(--antigua); }
   .franja i:nth-child(2) { background: var(--media); }
   .franja i:nth-child(3) { background: var(--moderna); }
   .franja i:nth-child(4) { background: var(--contemporanea); }
+  .sellos {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .dac {
+    font-family: 'Fell', serif;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--papel);
+    opacity: 0.85;
+  }
+  .dac .d { color: var(--gris); }
+  .dac .a { color: #5c5c5c; }
+  .raya {
+    width: 1px;
+    height: 26px;
+    background: rgb(235 233 217 / 0.3);
+  }
+  .con-licencia {
+    white-space: nowrap;
+  }
   footer img.licencia {
-    height: 22px;
+    height: 1.35em;
+    vertical-align: -0.35em;
+    margin-left: 0.3em;
     filter: none;
     opacity: 0.8;
-    margin-top: 2px;
   }
   footer img {
     flex: none;
