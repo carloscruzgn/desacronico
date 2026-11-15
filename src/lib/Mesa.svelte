@@ -353,12 +353,12 @@
 
   /** Lleva una carta de la cronología al centro de la vista. Usa su sitio en la maquetación, no el que
       tiene en pantalla, porque mientras vuela o se desliza está en otra parte. */
-  function centrar(id: string) {
+  function centrar(id: string, instantaneo = false) {
     const el = cronoEl?.querySelector<HTMLElement>(`[data-id="${id}"]`)
     if (!el) return
     let x = 0
     for (let n: HTMLElement | null = el; n && n !== cronoEl; n = n.offsetParent as HTMLElement | null) x += n.offsetLeft
-    cronoEl.scrollTo({ left: x + el.offsetWidth / 2 - cronoEl.clientWidth / 2, behavior: desplazamiento() })
+    cronoEl.scrollTo({ left: x + el.offsetWidth / 2 - cronoEl.clientWidth / 2, behavior: instantaneo ? 'instant' : desplazamiento() })
   }
 
   /** Posición de un elemento de la cronología en la tira, por su sitio en la maquetación (no en pantalla). */
