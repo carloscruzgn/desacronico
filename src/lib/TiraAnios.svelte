@@ -18,11 +18,9 @@
     piezas: Muesca[]
     /** Parte de la cronología que se ve, en % del total. */
     ventana: { izq: number; ancho: number }
-    /** Años de la primera y la última carta a la vista: «1304 – 1639». */
-    rango: string
     oncentrar: (id: string) => void
   }
-  let { piezas, ventana, rango, oncentrar }: Props = $props()
+  let { piezas, ventana, oncentrar }: Props = $props()
 
   let ancho = $state(0)
   const n = $derived(piezas.length)
@@ -62,9 +60,6 @@
     {/if}
     {#if !todo}
       <b class="ventana" style:left="{ventana.izq}%" style:width="{ventana.ancho}%"></b>
-      {#if rango}
-        <span class="rango cifras" style:left="clamp(3.2em, {ventana.izq + ventana.ancho / 2}%, calc(100% - 3.2em))">{rango}</span>
-      {/if}
     {/if}
   </div>
   {#if nivel === 'mapa'}
@@ -150,7 +145,7 @@
     white-space: nowrap;
   }
 
-  /* La parte de la cronología que se está viendo, y sus años encima */
+  /* La parte de la cronología que se está viendo */
   .ventana {
     position: absolute;
     top: 0;
@@ -162,26 +157,8 @@
       left 0.15s,
       width 0.15s;
   }
-  .rango {
-    position: absolute;
-    bottom: calc(100% + 3px);
-    translate: -50% 0;
-    padding: 1px 7px;
-    border-radius: 3px;
-    background: var(--grano-papel), var(--papel);
-    color: var(--tinta);
-    font-size: 0.8rem;
-    font-weight: 500;
-    line-height: 1.3;
-    white-space: nowrap;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
-    pointer-events: none;
-    transition: left 0.15s;
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .ventana,
-    .rango {
+    .ventana {
       transition: none;
     }
   }

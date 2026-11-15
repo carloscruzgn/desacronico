@@ -316,26 +316,13 @@
     return i === vista.turno ? 'pensando' : 'normal'
   }
 
-  // Tira de años: qué parte de la cronología se está viendo y entre qué años.
+  // Tira de años: qué parte de la cronología se está viendo. Los años de lo que se ve van bajo cada carta.
   let ventana = $state({ izq: 0, ancho: 100 })
-  let rango = $state('')
   function medirVentana() {
     if (!cronoEl) return
     const total = cronoEl.scrollWidth || 1
     ventana = { izq: (cronoEl.scrollLeft / total) * 100, ancho: Math.min(100, (cronoEl.clientWidth / total) * 100) }
-    const caja = cronoEl.getBoundingClientRect()
-    // Solo las cartas que siguen en la cronología: la que se va a los descartes aún está saliendo.
-    const ids = new Set(crono.filter((p) => p.marca !== 'fallo').map((p) => p.id))
-    const vistas = [...cronoEl.querySelectorAll<HTMLElement>('.naipe')].filter((el) => {
-      if (!ids.has(el.dataset.id ?? '')) return false
-      const r = el.getBoundingClientRect()
-      const centro = r.left + r.width / 2
-      return centro >= caja.left && centro <= caja.right
-    })
     central = cartaCentral()
-    const a = vistas[0]?.dataset.id
-    const b = vistas[vistas.length - 1]?.dataset.id
-    rango = a && b && fechas[a] && fechas[b] ? (a === b ? anioCorto(a) : `${anioCorto(a)} – ${anioCorto(b)}`) : ''
   }
   $effect(() => {
     void [crono.length, puedeColocar, fin]
@@ -1332,6 +1319,10 @@
               </div>
             </button>
             {#if central === p.id && p.volteada && !p.marca && !ocupado}{@render redondeles(p.id, fechas[p.id] ?? null, true)}{/if}
+            <!-- Su año, bien grande debajo de la carta: se lee de un vistazo qué años se están viendo. -->
+            {#if p.volteada && fechas[p.id] && p.marca !== 'fallo' && p.marca !== 'alza'}
+              <span class="anio-bajo cifras" aria-hidden="true" transition:fade={{ duration: dura(200) }}>{anioDe(p.id)}</span>
+            {/if}
           </div>
           {#if i === crono.length - 1}
             <button class="hueco" class:imantado={imantado === crono.length} inert={!puedeColocar} onclick={() => jugarEn(crono.length)} aria-label="Colocar aquí, al final, después de {anioDicho(p.id, false) || 'la última'}">
@@ -1358,7 +1349,7 @@
   {#if crono.length > 2 || fin}
     <div class="anios" transition:fade={{ duration: dura(200) }}>
       <!-- Tira de años: toda la cronología de un vistazo; tocar un año lleva hasta su carta. -->
-      <TiraAnios piezas={piezasTira} {ventana} {rango} oncentrar={centrar} />
+      <TiraAnios piezas={piezasTira} {ventana} oncentrar={centrar} />
       <button class="ver-lista" onclick={() => abrirLista('cronologia')} aria-label="Ver la cronología en lista">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
         <span>Lista</span>
@@ -1972,7 +1963,9 @@
      de 390 px salen unos 240 px; con muchas, el mínimo, y la cronología se desplaza. */
   .tira {
     /* el alto de la carta, con aire para que al alzarse o ladearse no se recorte */
-    --alto: calc((100cqh - 34px) / 1.42);
+    --alto: calc((100cqh - 34px - 2 * var(--bajo)) / 1.42);
+    /* el sitio del año bajo cada carta, arriba y abajo para que la carta siga centrada en la línea */
+    --bajo: 26px;
     --reparto: calc((100cqw - 24px) / var(--n) - 8px);
     --carta-crono: clamp(min(var(--alto), max(124px, 40cqw), 260px), var(--reparto), min(260px, var(--alto)));
     position: relative;
@@ -2092,7 +2085,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin: 2px 12px 0;
+    margin: 10px 12px 0;
   }
   .ver-lista {
     flex: none;
@@ -2488,6 +2481,21 @@
   .sitio-naipe {
     position: relative;
     flex: none;
+  }
+  /* El año bajo la carta, en papel y grande: lo que antes decía el globo de la tira, carta a carta. */
+  .anio-bajo {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    color: var(--papel);
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+    pointer-events: none;
   }
   .crono .redondeles {
     top: 8px;
