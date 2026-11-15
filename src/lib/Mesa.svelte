@@ -2940,8 +2940,9 @@
   }
 
   /* Pantallas bajas (UI-5): la cronología manda, con 110 px por carta como mínimo; la leyenda, sin alto fijo,
-     las fichas, compactas, y la mano, más baja. */
-  @media (max-height: 700px) {
+     las fichas, compactas, y la mano, más baja. Hasta 800 px, que es lo que deja Safari en casi cualquier
+     iPhone (no en el escritorio): con el límite en 700 se quedaban fuera y las cartas salían de 40 px. */
+  @media (max-height: 700px), (max-width: 1023.98px) and (max-height: 800px) {
     .mesa { --carta-mano: min(24vw, 140px, 13.5dvh); }
     .barra { padding-top: calc(6px + env(safe-area-inset-top)); }
     .jugadores {
@@ -2969,6 +2970,11 @@
     /* al acabar, la causa ya está en el panel de resultados: la cronología se queda con el sitio */
     .acabada .leyenda .pista { display: none; }
     .acabada .resultado { font-size: 1.25rem; }
+  }
+  /* Entre 700 y 800 px sobra algo: la leyenda guarda dos renglones para que las cartas no cambien de tamaño
+     cada vez que su texto pasa de una línea a tres. */
+  @media (max-width: 1023.98px) and (min-height: 700.02px) and (max-height: 800px) {
+    .leyenda { min-height: 72px; }
   }
   /* Escritorio bajo: las fichas, compactas, pero con el nombre legible, que en columna hay sitio. */
   @media (min-width: 1024px) and (min-height: 620px) and (max-height: 700px) {
