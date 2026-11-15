@@ -338,15 +338,20 @@
   }
   .fallo label {
     position: relative;
-    padding-right: 34px;
     opacity: 0.75;
+    transition:
+      background 0.15s,
+      color 0.15s;
   }
+  /* La opción elegida, de papel (sin punto de opción: el papel ya dice cuál es). */
   .fallo label:has(input:checked) {
     opacity: 1;
-    background: rgb(235 233 217 / 0.14);
     border-color: var(--papel);
-    box-shadow: inset 0 0 0 1px var(--papel);
+    background: var(--grano-papel), var(--papel);
+    color: var(--tinta);
+    box-shadow: 0 2px 0 #b9b6a0;
   }
+  .fallo label:has(input:checked) span { color: #55544c; }
   /* el botón de opción de verdad no se ve: lo dibuja la etiqueta */
   .fallo input {
     position: absolute;
@@ -360,21 +365,6 @@
     outline-offset: 2px;
   }
   .fallo:disabled label { cursor: default; }
-  /* el punto de la opción elegida */
-  .fallo label::after {
-    content: '';
-    position: absolute;
-    right: 10px;
-    top: 12px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1.5px solid rgb(235 233 217 / 0.6);
-  }
-  .fallo label:has(input:checked)::after {
-    border-color: var(--papel);
-    background: radial-gradient(var(--papel) 0 45%, transparent 50%);
-  }
 
   button:disabled { cursor: default; }
   .aviso-serie {

@@ -68,9 +68,22 @@
     line-height: 1.25;
     cursor: pointer;
   }
+  /* La opción encendida, de papel con letra de tinta (sobre papel, al revés). La palanca va en la tinta. */
   label:has(input:checked) {
-    border-color: var(--activo);
-    background: var(--fondo-activo);
+    --suave: var(--tinta);
+    --activo: var(--tinta);
+    border-color: var(--papel);
+    background: var(--grano-papel), var(--papel);
+    color: var(--tinta);
+    box-shadow: 0 2px 0 #b9b6a0;
+  }
+  .sobrePapel label:has(input:checked) {
+    --suave: var(--papel);
+    --activo: var(--papel);
+    border-color: var(--tinta);
+    background: var(--tinta);
+    color: var(--papel);
+    box-shadow: none;
   }
   label:has(input:focus-visible) {
     outline: 2px solid var(--foco);
@@ -117,9 +130,9 @@
   }
   input:checked ~ .palanca::after {
     translate: 16px 0;
-    background: var(--tapete-2, #1d1d1b);
+    background: var(--papel);
   }
-  .sobrePapel input:checked ~ .palanca::after { background: var(--papel); }
+  .sobrePapel input:checked ~ .palanca::after { background: var(--tinta); }
 
   /* El volumen de los efectos: a lo ancho, con un altavoz a cada lado. */
   .volumen {
