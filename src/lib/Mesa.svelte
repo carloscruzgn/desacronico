@@ -594,10 +594,11 @@
   })
 
   /** Un aviso a la vista. No habla: lo que oye el lector de pantalla va junto en `narra`, una vez por jugada.
-      Dura 1 s por cada 3 palabras más 1 s (A11Y-12), o hasta que alguien toque la mesa; la cinta de turno, algo menos. */
+      Dura 1 s por cada 3 palabras más 1 s (A11Y-12), o hasta que alguien toque la mesa; la cinta de turno, 1,8 s
+      (con 1,3 s se iba antes de leerla con calma). */
   async function avisar(a: Aviso) {
     aviso = a
-    await prisa.leer(a.detalle === undefined && a.jugador !== undefined ? 1300 : tiempoDeLectura(a.antes ?? '', a.titulo, a.detalle ?? ''))
+    await prisa.leer(a.detalle === undefined && a.jugador !== undefined ? 1800 : tiempoDeLectura(a.antes ?? '', a.titulo, a.detalle ?? ''))
     aviso = null
   }
   /** La cinta del turno: con la moneda de quien juega. */
