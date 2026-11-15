@@ -105,7 +105,7 @@
     </span>
   </div>
   <div class="fila">
-    <span>Cronología completa<small class="nota">Al llegar a esas cartas, se termina la ronda y gana quien tenga menos en la mano.</small></span>
+    <span>Cronología completa<small class="nota">Fija el tope de cartas en la mesa</small></span>
     <span class="contador">
       <button disabled={fija || tope <= TOPE_MIN} aria-label="Menos cartas en la cronología completa" onclick={() => opciones({ topeCronologia: tope - TOPE_PASO })}>−</button>
       <b aria-live="polite" aria-atomic="true"><span class="sr-only">Cronología completa con </span>{tope}<span class="sr-only"> cartas</span></b>
